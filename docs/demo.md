@@ -96,8 +96,23 @@ With an account-bound signer the output reads:
 ```
 
 (Key-only signers have no enrollment, so attempts 2 and 4 do not apply: a server-made key is simply a
-different signer, and receipts name the key.) The same four attempts run in the automated suite
+different signer, and receipts name the key.) Say it precisely: the demo shows that nobody can sign
+for an **enrolled** user. Whoever runs enrollment could still register a software key for a person
+who never enrolled — see the [trust model](trust-model.md). The same four attempts run in the automated suite
 (`apps/api/test/native-passkeys.localnet.test.ts`).
+
+## The 3-minute video cut
+
+1. Publish a version (step 1).
+2. Accept with a passkey in a clean browser — overlay: "no wallet · 0 SOL" (steps 3–7).
+3. Download the receipt and verify it on a different domain or with the CLI (steps 8–9).
+4. Publish v2; the old receipt still proves v1 (steps 10–11).
+5. Edit one character: `INVALID` (step 12).
+6. The four forgery attempts as a fast montage (step 13).
+7. Servers off; the receipt still verifies (step 14).
+
+Show the measured costs as an overlay. Leave out batching internals, domain attestation and dashboard
+tours.
 
 ## Talking points
 
@@ -110,3 +125,8 @@ different signer, and receipts name the key.) The same four attempts run in the 
   the multisig plan is in [upgrade-authority.md](upgrade-authority.md).
 - **Wallets still work:** a wallet acceptance verifies too, with the honest warning "origin:
   merchant-claimed, not browser-attested".
+- **Why Solana:** a neutral witness (nobody controls the ordering and timestamps) and a key registry
+  whose rules the program enforces — plus native passkey verification and seconds-level finality.
+- **Say:** "nobody can sign for an enrolled user, or edit or backdate the evidence"; "verify with any
+  archival Solana RPC". **Don't say:** "trustless", "immutable" (the program is upgradeable today),
+  "legally enforceable".

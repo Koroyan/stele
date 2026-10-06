@@ -1,9 +1,11 @@
 # Security architecture
 
-Stele's central security property is that **evidence does not depend on trusting Stele**. The program,
-the ledger, SHA-256 and Ed25519 are the trust anchors; the API, database, indexer, relayer and web app
-are conveniences whose compromise can deny service but cannot forge, alter or back-date evidence that
-passes the verifier. This page describes the controls at each layer. The scenario-by-scenario analysis
+Stele's central security property is that **recorded evidence does not depend on trusting Stele's
+servers**. The program, the ledger, SHA-256, Ed25519 and P-256 are the trust anchors; the API,
+database, indexer, relayer and web app are conveniences whose compromise can deny service but cannot
+sign for a key they do not hold, or alter or back-date evidence that passes the verifier. Two things
+remain trusted to whoever runs them — what the signing page displays, and which key is first enrolled
+for an account; the [trust model](trust-model.md) explains both. This page describes the controls at each layer. The scenario-by-scenario analysis
 is in the [threat model](threat-model.md).
 
 ## Security properties

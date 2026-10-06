@@ -12,17 +12,20 @@ else.
 ## What Stele does
 
 - The organization publishes the **exact version** of its Terms. The canonical text is hashed and the
-  fingerprint is committed on Solana; versions are immutable and hash-chained.
+  fingerprint is committed on Solana; versions are append-only and hash-chained — the program has no
+  instruction to edit one.
 - The user reads that exact text and accepts it **with a passkey** — Face ID, Touch ID, Windows Hello,
   Android or a security key. **No wallet. No SOL. No seed phrase.** (A Solana wallet works too.)
 - The passkey's own key signs. **Stele never holds the user's signing private key** — not even
   encrypted: it stays in the authenticator.
-- Solana verifies the signature on-chain (the secp256r1 precompile) and the Stele program binds it to
-  the document version, the requesting site and the relying party before recording it.
+- In direct mode, Solana verifies the signature on-chain (the secp256r1 precompile) and the Stele
+  program binds it to the document version, the requesting site and the relying party before recording
+  it. In batched mode, the relayer verifies signatures off-chain and Solana orders and timestamps a
+  Merkle root; anyone can re-verify each signature from the receipt.
 - The user pays **nothing**: Stele, or the organization, pays the network fee.
-- The user gets a **portable receipt** containing the exact text. Anyone can verify it against
-  Solana with the open-source verifier — **with Stele's API and database switched off**, and without
-  the organization's website.
+- The user gets a **portable receipt** containing the exact text. Anyone can verify it with the
+  open-source verifier and any archival Solana RPC — **with Stele's API and database switched off**,
+  and without the organization's website.
 
 ## What Stele proves — and what it does not
 
@@ -32,38 +35,49 @@ else.
 | For native passkeys: a WebAuthn credential produced a **user-verified** signature (biometric or device PIN, checked on the device) in a top-level page of the **browser-attested origin** | What the authenticator displayed: passkey prompts show the site, not the agreement — the text is what the signing page showed |
 | The acceptance existed no later than its Solana slot, and the version was current then | That a synced passkey or a device was not used by someone else |
 | The text, version and signature were not altered afterwards | That the agreement is legally enforceable — that depends on law; Stele gives no legal advice |
+| After a key is enrolled, nobody else can sign under it; replacing it is the user's rotation or a publicly labeled organization recovery | That the first enrolled key really was the user's passkey: whoever runs enrollment links keys to accounts, and a software P-256 key looks like a passkey to the program |
 
 Cryptographic validity, account association (an organization's on-chain enrollment of a user's key),
-identity and legal enforceability are four different things; Stele provides the first two.
+identity and legal enforceability are four different things; Stele provides the first two. The
+[trust model](docs/trust-model.md) lists who controls what — including the two things Stele cannot
+make trustless: what the signing page displays, and who enrolls a key.
 
 ## Why Solana
 
-1. **A shared, neutral evidence layer.** Neither the organization nor Stele controls the final
-   commitment; anyone can read it through independent RPC providers.
-2. **Rules enforced by a program, not a database.** The Stele program checks that a version belongs
-   to its document, that it is the current one, that the signature covers exactly the rebuilt
-   message, and that a nonce is used once.
-3. **Native P-256 verification.** Solana's secp256r1 precompile lets consumer WebAuthn passkeys sign
-   directly — consumers participate without any crypto-wallet experience.
-4. **Independent verification.** Any RPC endpoint (several, cross-checked) is enough to verify.
-5. **Composability.** In direct mode, other Solana programs can read acceptance state.
-6. **Throughput and cost for consumer scale.** About 0.00001 SOL per directly recorded acceptance,
-   and about 5 lamports per acceptance when anchored in Merkle batches of 1,024
-   ([measured costs](docs/cost-analysis.md)).
+Solana is Stele's **neutral witness** and **key registry**.
+
+1. **Neutral witness.** Neither the organization nor Stele controls the ledger that orders and
+   timestamps the evidence, and its validators watch that history for everyone — a self-run log would
+   need its own network of independent monitors to offer the same.
+2. **Key registry with enforced rules.** Which key signs for an account is recorded in one public
+   place, and the program enforces the rules: a rotation must be signed by the current key, an
+   organization recovery is time-stamped and labeled, a revocation is recorded. Verifiers do not have
+   to re-derive these rules from data an operator wrote.
+3. **Passkeys verified natively.** Solana's secp256r1 precompile verifies the WebAuthn signatures of
+   ordinary passkeys on-chain, so consumers take part without a crypto wallet.
+4. **Seconds, not hours.** Acceptances are final within seconds, which fits a checkout flow.
+5. **Cost at consumer scale.** About 0.00001 SOL per directly recorded acceptance, and about
+   5 lamports per acceptance in Merkle batches of 1,024 ([measured costs](docs/cost-analysis.md)).
+
+Not yet: other programs cannot act on an acceptance today, because Stele deliberately creates no
+per-user account. An opt-in mode that does — so that an app's program can require the current terms
+before an action — is on the roadmap.
 
 ## Program authority — current status
 
 The Devnet program `6sTKscWmUtBQRMpNCiEpurCJxpjx7GK5rzk7e265kpwV` is upgradeable and its upgrade
 authority is **a single key** today. It is **not immutable.** The procedure to move it to a Squads
 multisig, and the path to immutability, are in [docs/upgrade-authority.md](docs/upgrade-authority.md).
-Verifiers do not depend on that authority for evidence recorded in the past: they re-check
-signatures, hashes and proofs themselves.
+An upgrade cannot rewrite past Solana transactions, and verifiers re-check signatures, hashes and
+proofs themselves; but an upgrade could change account state and future rules. Until the authority
+is a multisig and then revoked, "history can't be changed" holds for transactions, not for the
+program.
 
 ## The demo (Devnet)
 
 [docs/demo.md](docs/demo.md) walks through the 14-step story: publish Terms v1 (30-day refunds),
 accept with a passkey in a clean browser, receive and verify the receipt, publish v2 (7 days), watch
-the old receipt still prove v1, tamper with it, attempt a server-made acceptance (rejected by Solana),
+the old receipt still prove v1, tamper with it, attempt operator forgeries against an enrolled user (rejected by Solana),
 and verify again with Stele switched off.
 
 ## Protocol versions

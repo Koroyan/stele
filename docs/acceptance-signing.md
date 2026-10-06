@@ -90,8 +90,9 @@ The worst-case transaction (all names, titles and domains at maximum length) fit
 
 ## How verification works
 
-Anyone can verify an acceptance with nothing but its transaction signature (or a receipt) and RPC
-access — in the browser at `/verify`, with the `stele-verify` CLI, or with `@stele/verifier` in code.
+Anyone can verify an acceptance with its transaction signature (or a receipt) and access to a Solana
+RPC that serves historical transactions (an archival RPC; many public endpoints keep only recent
+history) — in the browser at `/verify`, with the `stele-verify` CLI, or with `@stele/verifier` in code.
 
 ```shell
 npx @stele/verifier --rpc https://rpc-one.example --rpc https://rpc-two.example --tx <signature>
@@ -169,8 +170,10 @@ prompts show the site, not the agreement, so the text is what the signing page s
 and widget show only hash-verified text and flag invisible or look-alike characters); that a synced
 passkey was not used from another device of the same provider account.
 
-**Origin.** With a passkey, the requesting site is **browser-attested**: the browser writes it into
-the signed data. With a wallet, `Requested by:` is written by the requesting page; the signature
+**Origin.** With a genuine passkey, the requesting site is **browser-attested**: the browser writes
+it into the signed data. (The program cannot tell a real authenticator from a P-256 key generated in
+software, so this holds for keys enrolled through a real passkey ceremony — see the
+[trust model](trust-model.md#enrollment-whose-key-is-it).) With a wallet, `Requested by:` is written by the requesting page; the signature
 makes it unalterable afterwards, but no browser attested it. Verifiers report the difference.
 
 **Changing passkeys.** For account-bound signers the current passkey must approve a new one

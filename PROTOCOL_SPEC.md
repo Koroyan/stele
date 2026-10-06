@@ -1463,6 +1463,11 @@ Does not prove: the identity of a person (only control of the credential); what 
 displayed (passkey prompts show the site, not the agreement text — the text is what the signing page
 rendered, see §4.5); that a synced passkey was not used from another device of the same provider
 account; that the device, browser or provider account was not compromised; legal enforceability.
+Nor does it prove that the recorded key belongs to a genuine authenticator: the program cannot tell a
+passkey from a P-256 key generated in software, so the origin and UV statements above hold for
+genuine passkeys, and the first enrollment of an account (§17.5) — like any key-only signer — is
+trusted to whoever ran the ceremony. Verifying direct-mode evidence later requires an RPC that
+serves historical transactions (an archival RPC).
 
 ### 17.11 Test vectors
 

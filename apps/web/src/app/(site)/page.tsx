@@ -40,7 +40,7 @@ const MESSAGE_NOTES = [
     line: "Organization",
     note: "Who is asking — with its DNS-verified domain, or an explicit “unverified”.",
   },
-  { line: "Fingerprint", note: "Binds the signature to one exact, immutable version of the text." },
+  { line: "Fingerprint", note: "Binds the signature to one exact published version of the text." },
   { line: "Network", note: "A devnet signature can never be replayed as mainnet evidence." },
   { line: "Expires · Nonce", note: "Single-use and time-boxed: the program refuses replays." },
   { line: "Requested by", note: "The site that requested the signature — a phishing tell." },
@@ -61,12 +61,12 @@ const COMPARISON = [
   [
     "Can it be edited later",
     "Yes — silently",
-    "No. Versions are immutable; acceptances are append-only",
+    "No. The program has no instruction to edit a version or an acceptance, and recorded evidence can't be backdated",
   ],
   [
     "Who can check it",
     "Only you, by trusting your systems",
-    "Anyone, with open-source tools and any Solana RPC",
+    "Anyone, with open-source tools and an archival Solana RPC",
   ],
 ];
 
@@ -109,7 +109,8 @@ export default function HomePage() {
             <p className="mx-auto mt-6 max-w-2xl text-pretty text-[17px] leading-relaxed text-fg-muted sm:text-[18px]">
               Stele seals every version of your terms on Solana. Your users accept the exact text
               with a passkey — Face ID, Touch ID, Windows Hello — with no wallet and no fees, and
-              take a receipt anyone can verify without you or us. No one can quietly rewrite it.
+              take a receipt anyone can check against Solana later. Once recorded, the evidence
+              can&apos;t be edited or backdated.
             </p>
             <div className="mt-9 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center">
               <Link href="/dashboard" className={buttonClasses("primary", "lg")}>
@@ -126,7 +127,7 @@ export default function HomePage() {
               ▶ See how it works, step by step
             </Link>
             <p className="mt-3 text-[13px] text-fg-subtle">
-              Don&apos;t trust the website. Verify the evidence.
+              Evidence anyone can check — not a row in someone&apos;s database.
             </p>
           </div>
           <Pipeline />
@@ -180,8 +181,8 @@ export default function HomePage() {
           {[
             {
               n: "01",
-              title: "Publish an immutable version",
-              body: "Your document is canonicalized into exact bytes and hashed. Your organization's authority — ideally a multisig — signs the publication. The program recomputes the fingerprint on-chain and links it to the previous version. Published versions can never be edited.",
+              title: "Publish a version",
+              body: "Your document is canonicalized into exact bytes and hashed. Your organization's authority — ideally a multisig — signs the publication. The program recomputes the fingerprint on-chain and links it to the previous version. There is no instruction to edit a published version.",
             },
             {
               n: "02",
@@ -191,7 +192,7 @@ export default function HomePage() {
             {
               n: "03",
               title: "Anyone verifies independently",
-              body: "Each acceptance yields a portable receipt with the exact text. The open-source verifier checks it against any Solana RPC — signature, passkey data, browser-attested origin, fingerprint, content hash, authority, nonce — with Stele switched off.",
+              body: "Each acceptance yields a portable receipt with the exact text. The open-source verifier checks it against any archival Solana RPC — signature, passkey data, origin, fingerprint, content hash, authority, nonce — with Stele's servers switched off.",
             },
           ].map((s) => (
             <div
@@ -264,15 +265,17 @@ export default function HomePage() {
             icon={<KeyIcon className="h-[18px] w-[18px]" />}
             title="Signatures verified on-chain"
           >
-            The Solana program checks the Ed25519 signature itself and rebuilds the signed message
-            from chain state. A relayer cannot forge, alter or replay an acceptance.
+            Solana verifies the passkey (P-256) or wallet (Ed25519) signature, and the program
+            rebuilds the signed message from chain state. The relayer can delay a submission, but
+            cannot sign for a key it doesn&apos;t hold, alter or replay an acceptance.
           </FeatureCard>
           <FeatureCard
             icon={<LayersIcon className="h-[18px] w-[18px]" />}
-            title="Immutable version chain"
+            title="Append-only version chain"
           >
             Each version commits to its predecessor. There is no instruction to edit or delete a
-            version — not for you, not for us.
+            version — not for you, not for us. The program itself is still upgradeable; the trust
+            model says who holds that key.
           </FeatureCard>
           <FeatureCard
             icon={<UsersIcon className="h-[18px] w-[18px]" />}
@@ -295,6 +298,29 @@ export default function HomePage() {
             The chain holds hashes, public keys and timestamps — never names, emails or IP
             addresses. Passkey keys differ per site, account links are salted commitments, and
             linking a key to a customer stays in your systems.
+          </FeatureCard>
+        </div>
+      </Section>
+
+      {/* Why Solana */}
+      <Section className="border-t border-line">
+        <SectionHeading
+          eyebrow="Why Solana"
+          title="A neutral witness and a key registry."
+          lead="The signature makes an acceptance unforgeable. Solana adds what a database or a self-run log cannot: nobody involved controls the order and time of the record, or the rules for whose key signs."
+        />
+        <div className="mt-12 grid gap-5 md:grid-cols-3">
+          <FeatureCard icon={<GlobeIcon className="h-[18px] w-[18px]" />} title="Neutral witness">
+            Neither the organization nor Stele controls the ledger that orders and timestamps the
+            evidence, and its validators watch that history for everyone.
+          </FeatureCard>
+          <FeatureCard icon={<KeyIcon className="h-[18px] w-[18px]" />} title="Key registry">
+            Which key signs for an account is public, and the program enforces the rules: rotation
+            needs the current key, organization recovery is labeled, revocation is recorded.
+          </FeatureCard>
+          <FeatureCard icon={<LockIcon className="h-[18px] w-[18px]" />} title="Passkeys, natively">
+            Solana verifies ordinary passkey signatures on-chain, final in seconds, for about
+            0.00001 SOL — so consumers need no wallet and pay nothing.
           </FeatureCard>
         </div>
       </Section>
@@ -328,10 +354,15 @@ export default function HomePage() {
 
       {/* Boundaries */}
       <Section className="border-t border-line bg-bg-raised">
-        <SectionHeading
-          eyebrow="Honest boundaries"
-          title="What a signature proves — and what it doesn't."
-        />
+        <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
+          <SectionHeading
+            eyebrow="Honest boundaries"
+            title="What a signature proves — and what it doesn't."
+          />
+          <Link href="/docs/trust-model" className={buttonClasses("secondary", "md", "shrink-0")}>
+            Who controls what <ArrowRightIcon className="h-4 w-4" />
+          </Link>
+        </div>
         <div className="mt-12 grid gap-5 md:grid-cols-2">
           <div className="rounded-[var(--radius-card)] border border-line bg-surface p-6">
             <p className="text-[15px] font-semibold text-fg">Stele evidence proves</p>
@@ -353,6 +384,7 @@ export default function HomePage() {
                 tone="muted"
                 items={[
                   "The legal identity of the person controlling the passkey or wallet",
+                  "That a key belongs to a person: whoever runs enrollment links keys to accounts",
                   "What a passkey prompt displayed — it shows the site; the page shows the text",
                   "That the person read or understood the document",
                   "That an organization's display name is its real legal name (domain verification is the signal)",

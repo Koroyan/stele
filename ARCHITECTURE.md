@@ -5,7 +5,8 @@
 > **Stele** — *verifiable agreement infrastructure.*
 > Publish immutable agreement versions and record cryptographically verifiable acceptance on Solana.
 >
-> Core rule: **Don't trust the website. Verify the evidence.**
+> Core rule: **Prove what was agreed.** Evidence is checked against Solana, not taken from a
+> database — within the limits in [docs/trust-model.md](docs/trust-model.md).
 
 This document explains how the system is built and why each decision was made. The normative wire
 formats live in [PROTOCOL_SPEC.md](PROTOCOL_SPEC.md); the adversarial analysis lives in

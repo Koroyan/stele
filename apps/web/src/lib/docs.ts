@@ -126,11 +126,19 @@ export const DOCS: DocEntry[] = [
     summary: "How each layer protects the evidence and your users.",
   },
   {
+    slug: "trust-model",
+    file: "docs/trust-model.md",
+    title: "Trust model",
+    group: "Security",
+    summary:
+      "Who controls what: what nobody can forge or backdate, and what still rests on the signing page and enrollment.",
+  },
+  {
     slug: "threat-model",
     file: "docs/threat-model.md",
     title: "Threat model",
     group: "Security",
-    summary: "Attackers, 116 attack scenarios with their defenses, and residual risks.",
+    summary: "Attackers, 118 attack scenarios with their defenses, and residual risks.",
   },
   {
     slug: "costs",

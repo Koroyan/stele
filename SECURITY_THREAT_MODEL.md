@@ -988,8 +988,8 @@ their passkey.
 | # | Invariant | Enforced by | Checked by |
 |---|---|---|---|
 | 1 | No published document can change | program (no update/close) | `publishes_a_hash_chained_history` |
-| 2 | The organization cannot forge an acceptance | Ed25519 + on-chain rebuild | W03; `forged_signature_fails_in_the_precompile` |
-| 3 | Stele cannot forge an acceptance | as 2; no user keys, no PRF outputs | W01–W03 |
+| 2 | The organization cannot forge an acceptance for a key it does not hold | Ed25519 + on-chain rebuild | W03; `forged_signature_fails_in_the_precompile` |
+| 3 | Stele cannot forge an acceptance for a key it does not hold | as 2; no user keys, no PRF outputs | W01–W03 |
 | 4 | A database compromise cannot forge historical acceptances | ledger + cluster clock + nonces | W02; `rebuilds the entire index…` |
 | 5 | A Stele sponsor key cannot forge | relayer pays only; signature checked on-chain | W11, W12 |
 | 6 | An organization sponsor cannot forge | no key exists; reimbursement after verification | W10, W11 |
@@ -1243,6 +1243,36 @@ Format: **Attack** · **Impact** · **Current defense** (before this change) · 
   are salted per account; batching hides individual recording times within a batch.
 - **Residual risk:** Wallet addresses reused across sites; acceptance volumes per organization
   (approximately) public; organizations that host signing on one shared domain see one RP.
+
+#### R22 — Software key enrolled for a user who never enrolled
+- **Attack:** Whoever runs the enrollment flow (the organization's backend, or Stele's relayer acting
+  for it) generates a P-256 key in software, enrolls it for an account that has never had a passkey
+  (or uses it as a key-only signer), and signs acceptances with it — origin, RP ID and UV flags set
+  to whatever the attacker likes.
+- **Impact:** Acceptances attributed to a person who never made them, indistinguishable on-chain from
+  a genuine passkey's.
+- **Current defense:** None specific: the program verifies that a key signed, not whose key it is.
+  Synced passkeys carry no attestation, so a genuine authenticator cannot be required.
+- **New defense:** Stated, not engineered away: the trust model and every public claim limit the
+  guarantee to enrolled keys ("nobody can sign for an enrolled user, or add, edit or backdate
+  evidence"). Once an account is enrolled, a second key needs the current key's rotation or a
+  labeled organization recovery (R03), and every enrollment is public with its time.
+- **Residual risk:** The first enrollment of an account, and every key-only signer, is trusted to
+  whoever ran the ceremony. Options under study: enrollment attestation for device-bound
+  authenticators, and letting users monitor enrollments made for their account.
+
+#### R23 — Evidence unreadable years later
+- **Attack / failure:** The transactions that hold direct-mode evidence are no longer served by the
+  RPC providers a verifier can reach (most public endpoints keep only recent history); a batch
+  manifest disappears.
+- **Impact:** A valid acceptance becomes `INCONCLUSIVE` instead of `VALID`.
+- **Current defense:** Receipts carry the exact text, the signatures and the transaction signature;
+  batched receipts carry their Merkle proof; account state (versions, enrollments, nonce bits) stays
+  readable from any RPC.
+- **New defense:** Public wording says "any archival Solana RPC"; manifests are public and can be
+  mirrored.
+- **Residual risk:** Long-term verification depends on archival RPC providers or a self-run archival
+  node; organizations should keep receipts and manifests.
 
 ### 7.3 Invariants added by `stele/2` and their tests
 

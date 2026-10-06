@@ -43,7 +43,7 @@ export function SiteFooter() {
             <SteleLogo />
             <p className="mt-4 text-[13.5px] leading-relaxed text-fg-muted">
               Cryptographic evidence of what was published and what was accepted — verifiable by
-              anyone, without trusting Stele.
+              anyone against Solana, without Stele&apos;s servers.
             </p>
           </div>
           {COLUMNS.map((col) => (

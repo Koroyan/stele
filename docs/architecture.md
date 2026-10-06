@@ -26,8 +26,10 @@ The normative byte-level rules live in the [protocol specification](../PROTOCOL_
 | Content storage | Filesystem or S3-compatible | Canonical document bytes, content-addressed by SHA-256 | — |
 
 Nothing in the bottom half of the table is a trust anchor for evidence: the program, the ledger and
-SHA-256 are. A compromised API, database or web server can deny service; it cannot forge, alter or
-back-date evidence that passes the verifier.
+SHA-256 are. A compromised API, database or web server can deny service; it cannot sign for a key it
+does not hold, or alter or back-date evidence that passes the verifier. It can still control what a
+signing page displays and enroll a key it generated for an account that never enrolled (see
+[trust model](trust-model.md)).
 
 ## On-chain accounts
 

@@ -9,6 +9,7 @@ import { z } from "zod";
 import { address } from "@solana/kit";
 import {
   and,
+  asc,
   desc,
   documents,
   domainVerifications,
@@ -63,7 +64,9 @@ export function organizationRoutes(deps: Deps): FastifyPluginAsyncZod {
           ids.length > 0
             ? or(eq(organizations.ownerAddress, user.walletAddress), inArray(organizations.id, ids))
             : eq(organizations.ownerAddress, user.walletAddress),
-        );
+        )
+        // Newest first: a deterministic order, and the dashboard's default is the latest one.
+        .orderBy(desc(organizations.createdAt), asc(organizations.address));
       return {
         organizations: rows.map((o) => ({
           id: o.id,

@@ -2,10 +2,14 @@
 
 **Stele records the exact version of an agreement, and every acceptance of it, as evidence anyone
 can verify.** Terms of service, privacy policies, data-processing agreements and contracts are
-published as permanent, fingerprinted versions on Solana. People accept them by signing with their own
-wallet. Years later, anyone can check what was agreed, without trusting Stele or the company.
+published as fingerprinted versions on Solana that cannot be edited. People accept them by signing
+the exact text with a passkey (Face ID, Touch ID, Windows Hello) or a wallet, with no fees. Years
+later, anyone can check what was agreed against Solana, without Stele's servers or the company's
+database.
 
-> Don't trust the website. Verify the evidence.
+> Prove what was agreed.
+
+What the evidence does and does not depend on is spelled out in the [trust model](trust-model.md).
 
 ## The problem
 
@@ -20,9 +24,9 @@ company can tell.
 |---|---|---|
 | The agreed text | Whatever the company says it was | Committed on-chain by a fingerprint when it was published; cannot be edited |
 | Version history | Editable | A hash-linked chain; versions cannot be removed or reordered |
-| The acceptance | A database row | The user's own signature over a readable message naming the exact version |
+| The acceptance | A database row | The user's own passkey or wallet signature over a message naming the exact version |
 | Replay and reuse | Rarely considered | Single-use, time-limited, bound to one version, one network and one site |
-| Who can verify | Only the company | Anyone, with open-source tools and any Solana endpoint |
+| Who can verify | Only the company | Anyone, with open-source tools and an archival Solana endpoint |
 | If the vendor disappears | Evidence goes with it | Evidence stays on Solana; receipts carry the text |
 
 ## What you get

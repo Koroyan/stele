@@ -616,7 +616,7 @@ const SCENES: Scene[] = [
   {
     title: "Anyone can verify, even years later",
     text: "With the receipt, anyone (the customer, an auditor, a court) can check everything directly on Solana, without asking Stele or Acme.",
-    takeaway: "Don't trust the website. Verify the evidence.",
+    takeaway: "Check the evidence, not anyone's word for it.",
     icon: <SearchIcon className="h-4 w-4" />,
     Visual: SceneVerify,
   },

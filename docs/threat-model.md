@@ -7,14 +7,14 @@ against it.
 ## Scope and assumptions
 
 - **Assets:** the integrity of published versions, the authenticity and uniqueness of acceptances, the meaning of organization identity, the availability of evidence, users' privacy, and the confidentiality of operator and customer secrets.
-- **Trusted:** Solana consensus and finality, SHA-256 and Ed25519, the audited program at a reproducible build with a multisig upgrade authority, and — only for what "verified domain" means — DNS and the domain attestor.
+- **Trusted:** Solana consensus and finality, SHA-256, Ed25519 and P-256, the program (target: audited, reproducible build, multisig upgrade authority — today it is unaudited and its upgrade authority is a single key), and — only for what "verified domain" means — DNS and the domain attestor. Two things are trusted to whoever runs them: what the signing page displays, and which key is enrolled for an account (see the [trust model](trust-model.md)).
 - **Not trusted:** Stele's API, database, indexer, relayer and web app; RPC providers; storage providers; integrators' sites; and any single party's claims about what was agreed.
 
 ## Attacker profiles
 
 Malicious companies and employees, compromised administrators, users who later deny accepting, stolen wallets and devices, bots and Sybils, malicious frontend operators, compromised backends, rogue database administrators, API attackers with stolen credentials, phishing sites, malicious browser extensions, replay attackers, network attackers, compromised RPC and storage providers, malicious integrators, a malicious multisig signer, XSS/CSRF attackers and supply-chain attackers.
 
-## Scenario index (116 scenarios)
+## Scenario index (118 scenarios)
 
 Each row gives the primary defense. Where software cannot remove a risk entirely, it is listed under [residual risks](#residual-risks).
 
@@ -181,7 +181,7 @@ Each row gives the primary defense. Where software cannot remove a risk entirely
 
 | ID | Scenario | Primary defense |
 |---|---|---|
-| R01 | A malicious Stele operator records acceptances users never made | No user key exists outside the authenticator; every record needs a passkey signature verified by Solana's secp256r1 program and bound by the Stele program to message, site and relying party. Simulated forgeries by an operator holding the relayer key are rejected. |
+| R01 | A malicious Stele operator records acceptances users never made | No user key exists outside the authenticator; every record needs a passkey signature verified by Solana's secp256r1 program and bound by the Stele program to message, site and relying party. Simulated forgeries by an operator holding the relayer key against an enrolled user are rejected. A key the operator enrolls itself is R22. |
 | R02 | A malicious organization takes over a user's signer | Rotation needs the current passkey; recovery needs the organization's admin wallet and is shown to every verifier as an organization recovery. |
 | R04 | Altered widget code shows one text and requests another | The SDK recomputes the challenge from chain data; published Subresource Integrity hash; isolated hosted signing page; cross-origin frames rejected on-chain. |
 | R05 | A database maps an account to an attacker's key | Account-bound keys are enrolled on-chain; the program enforces the enrollment. |
@@ -193,6 +193,8 @@ Each row gives the primary defense. Where software cannot remove a risk entirely
 | R17 | Invisible or look-alike characters | Forbidden code points rejected; remaining ones flagged to publishers, readers and verifiers; per-paragraph bidi isolation. |
 | R18 | A receipt is altered | Every claim re-derived; batched leaves must prove into the anchored root. |
 | R20 | A batch operator swaps or invents leaves | Root and leaf count anchored; leaves need user signatures; anchors outside the signed window are refused. |
+| R22 | Whoever runs enrollment registers a software key for a user who never enrolled | Not preventable by signatures (synced passkeys carry no attestation); guarantees are stated for enrolled keys only; later key changes need the current key or a labeled recovery; enrollments are public. |
+| R23 | Evidence cannot be read years later | Receipts carry text, signatures and proofs; verification needs an archival Solana RPC. |
 
 ## Residual risks
 
@@ -218,3 +220,5 @@ Some risks are reduced but cannot be eliminated by software. They are stated ope
 | The page that requests a passkey decides what is signed | The organization controls its own site | Domain-separated statement types; rotations and recoveries are public events; prefer Stele's hosted page when the organization is not trusted |
 | Batched acceptances can be omitted or delayed | The batch operator chooses what to anchor | As refusal to relay in direct mode; users and organizations keep the evidence |
 | The program upgrade authority is a single key | Devnet deployment stage | Move to a multisig before production (procedure published) |
+| The first enrollment of an account is trusted | The program cannot tell a passkey from a software P-256 key | Guarantees stated for enrolled keys only; enrollments are public; prefer Stele's hosted page when the organization is not trusted |
+| Old transactions need an archival RPC | Most public RPC endpoints keep only recent history | Keep receipts and batch manifests; use an archival provider or node |
