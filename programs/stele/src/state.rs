@@ -255,3 +255,27 @@ pub struct PasskeySigner {
     pub kind: u8,
     pub bump: u8,
 }
+
+/// Stele Gate: the latest acceptance of one policy document by one wallet (PROTOCOL_SPEC.md §18).
+/// Only `record_gated_acceptance` writes it, after verifying the holder's signature over the
+/// document's then-current version, so its contents are as trustworthy as the acceptance itself.
+/// A pass satisfies a "current version" requirement only while `version` is still the document's
+/// `current_version`: publishing a new version makes every older pass outdated without touching it.
+/// The acceptance evidence for older versions stays in the ledger. Never closed.
+#[account]
+#[derive(InitSpace)]
+pub struct AccessPass {
+    pub organization: Pubkey,
+    pub document: Pubkey,
+    /// The wallet whose Ed25519 signature recorded the acceptance.
+    pub holder: Pubkey,
+    /// The `DocumentVersion` most recently accepted.
+    pub version: Pubkey,
+    pub acceptance_id: [u8; 32],
+    pub accepted_at: i64,
+    pub first_accepted_at: i64,
+    pub accepted_slot: u64,
+    pub version_number: u32,
+    pub acceptance_count: u32,
+    pub bump: u8,
+}

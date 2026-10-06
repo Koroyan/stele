@@ -281,3 +281,22 @@ pub struct AcceptanceBatchAnchored {
     pub leaf_count: u32,
     pub shard_id: u16,
 }
+
+/// Stele Gate: an access pass was created or advanced by a verified acceptance
+/// (`record_gated_acceptance`). The acceptance itself is the `AcceptanceRecorded` event of the same
+/// instruction.
+#[event]
+pub struct AccessPassUpdated {
+    pub organization: Pubkey,
+    pub document: Pubkey,
+    pub holder: Pubkey,
+    pub access_pass: Pubkey,
+    pub version: Pubkey,
+    pub acceptance_id: [u8; 32],
+    pub accepted_at: i64,
+    pub slot: u64,
+    pub version_number: u32,
+    pub acceptance_count: u32,
+    /// True when this acceptance created the pass.
+    pub created: bool,
+}

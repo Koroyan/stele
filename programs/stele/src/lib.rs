@@ -265,4 +265,26 @@ pub mod stele {
     ) -> Result<()> {
         instructions::batch::anchor_acceptance_batch(ctx, args)
     }
+
+    // ---- Stele Gate ----------------------------------------------------------------------------
+
+    pub fn record_gated_acceptance(
+        ctx: Context<RecordGatedAcceptance>,
+        nonce_index: u32,
+        nonce_tag: [u8; 8],
+        issued_at: i64,
+        expires_at: i64,
+    ) -> Result<()> {
+        instructions::gate::record_gated_acceptance(
+            ctx,
+            nonce_index,
+            nonce_tag,
+            issued_at,
+            expires_at,
+        )
+    }
+
+    pub fn check_access(ctx: Context<CheckAccess>, args: CheckAccessArgs) -> Result<()> {
+        instructions::gate::check_access(ctx, args)
+    }
 }

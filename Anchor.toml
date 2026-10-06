@@ -9,9 +9,11 @@ skip-lint = false
 
 [programs.localnet]
 stele = "6sTKscWmUtBQRMpNCiEpurCJxpjx7GK5rzk7e265kpwV"
+stele_gate_demo = "A6DBoANAavtbG2ARK6PihqzMjhtbcZUbLnTMAWn339uR"
 
 [programs.devnet]
 stele = "6sTKscWmUtBQRMpNCiEpurCJxpjx7GK5rzk7e265kpwV"
+stele_gate_demo = "A6DBoANAavtbG2ARK6PihqzMjhtbcZUbLnTMAWn339uR"
 
 [provider]
 cluster = "localnet"

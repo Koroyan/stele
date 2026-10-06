@@ -28,3 +28,6 @@ pub const SECP256R1_PUBKEY_OFFSET: u16 = 16;
 pub const SECP256R1_SIGNATURE_OFFSET: u16 = 49;
 pub const SECP256R1_MESSAGE_OFFSET: u16 = 113;
 pub const SECP256R1_SELF_INDEX: u16 = u16::MAX;
+
+/// Seed of a Stele Gate access pass: `[ACCESS_PASS_SEED, document, holder]`.
+pub const ACCESS_PASS_SEED: &[u8] = b"access-pass";

@@ -2,8 +2,10 @@
 resolver = "2"
 members = [
     "programs/stele",
+    "programs/gate-demo",
     "crates/stele-core",
     "crates/stele-canonical",
+    "crates/stele-gate",
     # Test fixture for the program tests; never deployed.
     "tests/programs/cpi-probe",
 ]

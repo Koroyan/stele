@@ -23,7 +23,7 @@ custom-heap = []
 custom-panic = []
 
 [dependencies]
-anchor-lang = { workspace = true }
+anchor-lang = { workspace = true, features = ["init-if-needed"] }
 bytemuck = { workspace = true }
 solana-instructions-sysvar = { workspace = true }
 solana-sdk-ids = { workspace = true }
@@ -42,6 +42,8 @@ solana-secp256r1-program = "3.0.0"
 solana-signer = "3.0.1"
 solana-transaction = "4.1.5"
 stele-canonical = { path = "../../crates/stele-canonical" }
+stele-gate = { path = "../../crates/stele-gate" }
+stele-gate-demo = { path = "../gate-demo", features = ["no-entrypoint"] }
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_os, values("solana"))'] }

@@ -187,4 +187,14 @@ pub enum SteleError {
     // ---- Merkle-batched acceptances ---------------------------------------------------------------
     #[msg("A batch needs a non-zero root and 1 to 65,536 leaves")]
     InvalidBatch,
+
+    // ---- Stele Gate ------------------------------------------------------------------------------
+    #[msg("No access pass exists for this policy document and holder")]
+    AccessPassMissing,
+    #[msg("The access pass does not satisfy the policy requirement (a newer version must be accepted)")]
+    AccessPassOutdated,
+    #[msg("The access pass does not belong to this policy document and holder")]
+    AccessPassMismatch,
+    #[msg("The policy requirement names a version the document does not have")]
+    InvalidAccessRequirement,
 }

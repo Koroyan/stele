@@ -79,13 +79,62 @@ pub fn record_acceptance(
     issued_at: i64,
     expires_at: i64,
 ) -> Result<()> {
+    let a = &ctx.accounts;
+    record_signed_acceptance(
+        AcceptanceAccounts {
+            relayer: &a.relayer,
+            config: &a.config,
+            organization: &a.organization,
+            document: &a.document,
+            version: &a.version,
+            nonce_shard: &a.nonce_shard,
+            instructions_sysvar: &a.instructions_sysvar,
+        },
+        nonce_index,
+        nonce_tag,
+        issued_at,
+        expires_at,
+    )?;
+    Ok(())
+}
+
+/// The accounts every Ed25519-signed acceptance recording reads (shared by `record_acceptance` and
+/// `record_gated_acceptance`, which add nothing to the checks below).
+pub(crate) struct AcceptanceAccounts<'a, 'info> {
+    pub relayer: &'a Signer<'info>,
+    pub config: &'a Account<'info, ProtocolConfig>,
+    pub organization: &'a Account<'info, Organization>,
+    pub document: &'a Account<'info, Document>,
+    pub version: &'a Account<'info, DocumentVersion>,
+    pub nonce_shard: &'a AccountLoader<'info, NonceShard>,
+    pub instructions_sysvar: &'a UncheckedAccount<'info>,
+}
+
+/// What a successful recording established.
+pub(crate) struct RecordedAcceptance {
+    pub acceptance_id: [u8; 32],
+    /// The runtime-verified Ed25519 signer of the message.
+    pub signer: Pubkey,
+    pub recorded_at: i64,
+    pub slot: u64,
+}
+
+/// Verifies and records one signed acceptance (PROTOCOL_SPEC.md §8): every check of
+/// `record_acceptance`, the nonce, the accumulator, the event and the sponsorship reimbursement.
+pub(crate) fn record_signed_acceptance(
+    accounts: AcceptanceAccounts,
+    nonce_index: u32,
+    nonce_tag: [u8; 8],
+    issued_at: i64,
+    expires_at: i64,
+) -> Result<RecordedAcceptance> {
     let clock = Clock::get()?;
     let now = clock.unix_timestamp;
 
-    let config = &ctx.accounts.config;
-    let org = &ctx.accounts.organization;
-    let document = &ctx.accounts.document;
-    let version = &ctx.accounts.version;
+    let config = accounts.config;
+    let org = accounts.organization;
+    let document = accounts.document;
+    let version = accounts.version;
 
     require!(!config.paused, SteleError::ProtocolPaused);
     require!(!org.frozen, SteleError::OrganizationFrozen);
@@ -107,8 +156,8 @@ pub fn record_acceptance(
     require!(nonce_index < SHARD_CAPACITY, SteleError::NonceOutOfRange);
 
     // Shard ownership and relayer gating.
-    let shard_key = ctx.accounts.nonce_shard.key();
-    let mut shard = ctx.accounts.nonce_shard.load_mut()?;
+    let shard_key = accounts.nonce_shard.key();
+    let mut shard = accounts.nonce_shard.load_mut()?;
     require_keys_eq!(
         shard.organization,
         org.key(),
@@ -117,14 +166,14 @@ pub fn record_acceptance(
     if shard.relayer != Pubkey::default() {
         require_keys_eq!(
             shard.relayer,
-            ctx.accounts.relayer.key(),
+            accounts.relayer.key(),
             SteleError::UnauthorizedRelayer
         );
     }
     let shard_relayer = shard.relayer;
 
     // The runtime-verified signature immediately preceding this instruction.
-    let verified = load_preceding_ed25519(&ctx.accounts.instructions_sysvar.to_account_info())?;
+    let verified = load_preceding_ed25519(&accounts.instructions_sysvar.to_account_info())?;
 
     // Rebuild the message from on-chain state + arguments; compare byte-for-byte.
     let fields = AcceptanceMessageFields {
@@ -191,13 +240,18 @@ pub fn record_acceptance(
 
     // Fee sponsorship, if the organization enabled it on this shard (never affects the record).
     reimburse(
-        &ctx.accounts.nonce_shard.to_account_info(),
-        &ctx.accounts.relayer.to_account_info(),
-        &ctx.accounts.instructions_sysvar.to_account_info(),
+        &accounts.nonce_shard.to_account_info(),
+        &accounts.relayer.to_account_info(),
+        &accounts.instructions_sysvar.to_account_info(),
         &shard_relayer,
         id,
         now,
         SPONSORED_SIGNATURES,
     )?;
-    Ok(())
+    Ok(RecordedAcceptance {
+        acceptance_id: id,
+        signer: Pubkey::new_from_array(verified.signer),
+        recorded_at: now,
+        slot: clock.slot,
+    })
 }

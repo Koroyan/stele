@@ -4228,6 +4228,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "stele-gate"
+version = "1.0.0"
+dependencies = [
+ "anchor-lang",
+ "stele",
+]
+
+[[package]]
+name = "stele-gate-demo"
+version = "1.0.0"
+dependencies = [
+ "anchor-lang",
+ "stele-gate",
+]
+
+[[package]]
 name = "strsim"
 version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
