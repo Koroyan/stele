@@ -15,6 +15,8 @@
 export * from "./accept";
 export * from "./client";
 export * from "./embed";
+export * from "./gate";
+export { gateModal } from "./gate-modal";
 export * from "./native-passkey";
 export * from "./passkey";
 export * from "./proofs";

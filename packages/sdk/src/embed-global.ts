@@ -20,6 +20,7 @@ import {
   type ProofEmbedOptions,
 } from "./embed";
 import { SteleClient } from "./client";
+import { createSteleGate, type SteleGate, type SteleGateOptions } from "./gate";
 import { PasskeySigner, passkeySigningSupport } from "./passkey";
 
 const script = document.currentScript as HTMLScriptElement | null;
@@ -83,6 +84,10 @@ declare global {
       client: () => SteleClient;
       PasskeySigner: typeof PasskeySigner;
       passkeySigningSupport: typeof passkeySigningSupport;
+      /** Stele Gate for Solana apps: `Stele.createGate({ wallet }).gate({ policy, action })`. */
+      createGate: (
+        options: Omit<SteleGateOptions, "apiBaseUrl"> & { apiBaseUrl?: string },
+      ) => SteleGate;
     };
   }
 }
@@ -106,6 +111,7 @@ if (!window.Stele) {
     client: () => new SteleClient({ apiBaseUrl: DEFAULTS.apiBaseUrl }),
     PasskeySigner,
     passkeySigningSupport,
+    createGate: (options) => createSteleGate({ apiBaseUrl: DEFAULTS.apiBaseUrl, ...options }),
   };
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start);
   else start();

@@ -13,13 +13,7 @@
  * on-chain commitment, the message is rebuilt from chain data before anything is signed, and all
  * text is inserted as text nodes (never as HTML).
  */
-import {
-  SUSPICIOUS_FINDINGS,
-  describeFinding,
-  groupedFingerprint,
-  verifiedDomainAt,
-  type Block,
-} from "@stele/protocol";
+import { groupedFingerprint, verifiedDomainAt } from "@stele/protocol";
 import { acceptDocument, type AcceptanceResult, type MessageSigner } from "./accept";
 import { SteleClient, type SignerType, type SigningPolicy } from "./client";
 import { NativePasskeySigner, identifyPasskeySigner, nativePasskeySupport } from "./native-passkey";
@@ -35,6 +29,7 @@ import {
   type ProofResult,
   type VerifiedProofRequest,
 } from "./proofs";
+import { applyStyles, displayNotice, h, present, renderBlocks, type Child } from "./dom";
 import { downloadJson, verificationLink } from "./receipts";
 import { loadVerifiedDocument, type VerifiedDocument } from "./verified-document";
 import { connectWallet, isUserRejection, watchWallets, type AvailableWallet } from "./wallets";
@@ -158,60 +153,6 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--_accent); o
 @media (prefers-reduced-motion: reduce) { .spin { animation: none; } }
 `;
 
-type Child = Node | string | null | undefined | false;
-
-/** Creates an element; strings become text nodes (never parsed as HTML). */
-function h(
-  tag: string,
-  attrs: Record<string, string | boolean | ((e: Event) => void)> = {},
-  ...children: Child[]
-): HTMLElement {
-  const el = document.createElement(tag);
-  for (const [key, value] of Object.entries(attrs)) {
-    if (typeof value === "function") el.addEventListener(key.replace(/^on/, ""), value);
-    else if (value === true) el.setAttribute(key, "");
-    else if (value !== false) el.setAttribute(key, value);
-  }
-  for (const child of children) {
-    if (child === null || child === undefined || child === false) continue;
-    el.append(typeof child === "string" ? document.createTextNode(child) : child);
-  }
-  return el;
-}
-
-function present(children: Child[]): (Node | string)[] {
-  return children.filter((c): c is Node | string => c !== null && c !== undefined && c !== false);
-}
-
-/** Each block is its own bidi paragraph (`dir="auto"`): direction marks cannot leak across blocks. */
-function renderBlocks(blocks: Block[]): HTMLElement[] {
-  return blocks.map((b) => {
-    if (b.type === "heading") return h("h3", { dir: "auto" }, b.text);
-    if (b.type === "paragraph") return h("p", { dir: "auto" }, b.text);
-    return h(b.ordered ? "ol" : "ul", {}, ...b.items.map((item) => h("li", { dir: "auto" }, item)));
-  });
-}
-
-/** Tells the reader, before signing, what the text contains that the eye may not catch. */
-function displayNotice(doc: VerifiedDocument): HTMLElement | null {
-  const suspicious = doc.displayFindings.filter((f) => SUSPICIOUS_FINDINGS.includes(f.kind));
-  const links = doc.displayFindings.filter((f) => f.kind === "EXTERNAL_LINK");
-  if (suspicious.length === 0 && links.length === 0) return null;
-  return h(
-    "div",
-    { class: suspicious.length > 0 ? "alert error" : "note", role: "note" },
-    suspicious.length > 0
-      ? `Read carefully: this text contains characters that can change how it reads — ${suspicious
-          .slice(0, 3)
-          .map(describeFinding)
-          .join("; ")}${suspicious.length > 3 ? "; …" : ""}.`
-      : "",
-    links.length > 0
-      ? ` The text links to ${links.length} external page(s); what they say is not part of what you sign.`
-      : "",
-  );
-}
-
 function shortAddress(a: string): string {
   return `${a.slice(0, 4)}…${a.slice(-4)}`;
 }
@@ -219,22 +160,6 @@ function shortAddress(a: string): string {
 function effectiveText(effectiveAt: bigint): string {
   if (effectiveAt === 0n) return "Effective upon publication";
   return `Effective ${new Date(Number(effectiveAt) * 1000).toISOString().slice(0, 10)}`;
-}
-
-function applyStyles(root: ShadowRoot): void {
-  // Constructable stylesheets are not subject to the host page's style-src policy; fall back to a
-  // <style> element where they are unavailable.
-  if ("adoptedStyleSheets" in root && typeof CSSStyleSheet !== "undefined") {
-    try {
-      const sheet = new CSSStyleSheet();
-      sheet.replaceSync(CSS);
-      root.adoptedStyleSheets = [sheet];
-      return;
-    } catch {
-      // fall through
-    }
-  }
-  root.append(h("style", {}, CSS));
 }
 
 const allowsWallet = (p: SigningPolicy) => p === "WALLET_ONLY" || p === "WALLET_OR_PASSKEY";
@@ -255,7 +180,7 @@ function setup(target: string | Element, theme: "auto" | "dark" | "light" = "aut
   prefersLight?.addEventListener?.("change", applyTheme);
   const shadow = host.shadowRoot ?? host.attachShadow({ mode: "open" });
   shadow.replaceChildren();
-  applyStyles(shadow);
+  applyStyles(shadow, CSS);
   const root = h("div", { class: "root", part: "root" });
   shadow.append(root);
   return {
