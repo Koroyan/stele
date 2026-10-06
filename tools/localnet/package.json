@@ -14,7 +14,9 @@
     "demo": "tsx src/demo.ts",
     "costs": "tsx src/costs.ts",
     "forgery-demo": "tsx src/forgery-demo.ts",
-    "publish-version": "tsx src/publish-version.ts"
+    "publish-version": "tsx src/publish-version.ts",
+    "live-demo": "tsx src/live-demo.ts",
+    "gate-smoke": "tsx src/gate-smoke.ts"
   },
   "dependencies": {
     "@noble/curves": "^2.4.0",

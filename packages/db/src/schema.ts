@@ -123,6 +123,12 @@ export interface OrganizationSettings {
    * verifies signatures off-chain and anchors Merkle roots; verifiers re-check each signature.
    */
   evidenceMode?: "DIRECT_ONCHAIN" | "MERKLE_BATCHED";
+  /**
+   * Which Stele products the organization uses (chosen at onboarding, changeable later). Proof —
+   * record and verify agreements — is always available; Gate adds access passes and protected
+   * Solana actions. Absent = Proof only.
+   */
+  products?: { gate?: boolean };
 }
 
 export const organizationMembers = pgTable(
@@ -191,6 +197,12 @@ export const documents = pgTable(
     versionCount: integer("version_count").notNull().default(0),
     headHash: text("head_hash"),
     currentVersionAddress: text("current_version_address"),
+    /**
+     * Stele Gate policy: wallet acceptances are recorded with `record_gated_acceptance`, which also
+     * creates or advances the signer's on-chain access pass. An off-chain routing choice; the pass
+     * itself can only be written by a verified acceptance.
+     */
+    gated: boolean("gated").notNull().default(false),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -970,3 +982,86 @@ export const indexerState = pgTable("indexer_state", {
     .notNull()
     .default(sql`now()`),
 });
+
+// ---- Stele Gate ----------------------------------------------------------------------------------
+
+/**
+ * Index of on-chain access passes (PROTOCOL_SPEC.md §18), rebuilt from `AccessPassUpdated` events.
+ * A cache for the dashboard — never evidence: protected programs read the account on Solana.
+ */
+export const accessPasses = pgTable(
+  "access_passes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    documentId: uuid("document_id")
+      .notNull()
+      .references(() => documents.id, { onDelete: "cascade" }),
+    /** The pass account address. */
+    address: text("address").notNull().unique(),
+    holder: text("holder").notNull(),
+    versionAddress: text("version_address").notNull(),
+    versionNumber: integer("version_number").notNull(),
+    acceptanceId: text("acceptance_id").notNull(),
+    acceptanceCount: integer("acceptance_count").notNull(),
+    acceptedAt: ts("accepted_at").notNull(),
+    firstAcceptedAt: ts("first_accepted_at").notNull(),
+    slot: bigint("slot", { mode: "number" }).notNull(),
+    txSignature: text("tx_signature").notNull(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    index("access_passes_document_idx").on(t.documentId),
+    uniqueIndex("access_passes_document_holder_unique").on(t.documentId, t.holder),
+  ],
+);
+
+/** Solana programs an organization protects with Stele Gate (registry for the dashboard). */
+export const gatePrograms = pgTable(
+  "gate_programs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    programAddress: text("program_address").notNull(),
+    label: text("label").notNull(),
+    /** The protected action as the developer names it (e.g. "place_bet"). */
+    action: text("action").notNull(),
+    policyDocumentId: uuid("policy_document_id")
+      .notNull()
+      .references(() => documents.id, { onDelete: "cascade" }),
+    /** "check" (stele-gate verify_access) or "strict" (check_access CPI). */
+    mode: text("mode").notNull(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex("gate_programs_org_program_unique").on(t.organizationId, t.programAddress)],
+);
+
+/**
+ * Public live-demo sessions (devnet/localnet only): each visitor gets an own policy document under the
+ * operator's demo organization, so publishing v2 in one session never changes another's. Budgeted
+ * per IP and per day; never used on mainnet.
+ */
+export const demoSessions = pgTable(
+  "demo_sessions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tokenHash: text("token_hash").notNull().unique(),
+    /** "gate" (policy + protected market) or "proof" (terms + receipt). */
+    kind: text("kind").notNull(),
+    documentId: uuid("document_id")
+      .notNull()
+      .references(() => documents.id, { onDelete: "cascade" }),
+    marketAddress: text("market_address"),
+    ipHash: text("ip_hash").notNull(),
+    publishCount: integer("publish_count").notNull().default(1),
+    actionCount: integer("action_count").notNull().default(0),
+    createdAt: createdAt(),
+    expiresAt: ts("expires_at").notNull(),
+  },
+  (t) => [index("demo_sessions_ip_idx").on(t.ipHash, t.createdAt)],
+);

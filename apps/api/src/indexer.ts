@@ -95,7 +95,11 @@ async function processTransaction(deps: Deps, signature: string): Promise<void> 
       }
     } else if (name === "create_nonce_shard") await syncShard(deps.db, deps.chain, ix.accounts[4]!);
     else if (name === "set_shard_relayer") await syncShard(deps.db, deps.chain, ix.accounts[3]!);
-    else if (name === "record_acceptance" || name === "record_passkey_acceptance")
+    else if (
+      name === "record_acceptance" ||
+      name === "record_gated_acceptance" ||
+      name === "record_passkey_acceptance"
+    )
       sawAcceptance = true;
     else if (ENROLLMENT_ACCOUNT[name] !== undefined) {
       const changed = await syncPasskeySigner(

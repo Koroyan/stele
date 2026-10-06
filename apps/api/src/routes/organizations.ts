@@ -163,6 +163,7 @@ export function organizationRoutes(deps: Deps): FastifyPluginAsyncZod {
             sponsorFallbackToStele: z.boolean().optional(),
             sponsorLowBalanceLamports: z.number().int().min(0).max(1_000_000_000_000).optional(),
             evidenceMode: z.enum(["DIRECT_ONCHAIN", "MERKLE_BATCHED"]).optional(),
+            products: z.object({ gate: z.boolean() }).optional(),
           }),
         },
       },

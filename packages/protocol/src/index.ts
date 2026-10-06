@@ -17,6 +17,7 @@ export * from "./errors";
 export * from "./events";
 export * from "./fees";
 export * from "./flows";
+export * from "./gate";
 export * from "./hash";
 export * from "./instructions";
 export * from "./keywrap";

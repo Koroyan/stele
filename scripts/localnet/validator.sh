@@ -6,6 +6,10 @@
 # Usage: scripts/localnet/validator.sh <ADMIN_PUBKEY>     (pnpm --filter @stele/localnet keys)
 # Run it in its own terminal (or a supervised background job); stop with Ctrl-C.
 #
+# The Stele Gate demo program (programs/gate-demo) is deployed next to it when its build exists.
+# STELE_LEDGER_RESET=0 resumes an existing ledger instead of starting from genesis (its programs
+# and accounts are kept; upgrade programs with `solana program deploy` afterwards).
+#
 # History retention is raised above the default (10,000 shreds, pruned within the hour): the indexer
 # rebuild and the verifier need transaction history (`getSignaturesForAddress`, `getTransaction`).
 # In production that history comes from archival RPC providers.
@@ -24,6 +28,8 @@ PROGRAM_ID="${STELE_PROGRAM_ID:-6sTKscWmUtBQRMpNCiEpurCJxpjx7GK5rzk7e265kpwV}"
 SO="${STELE_PROGRAM_SO:-$STELE_WSL_DIR/target/deploy/stele.so}"
 LEDGER="${STELE_LEDGER_DIR:-$HOME/stele-ledger}"
 LEDGER_SHREDS="${STELE_LEDGER_SHREDS:-1000000}"
+GATE_DEMO_ID="${STELE_GATE_DEMO_PROGRAM_ID:-A6DBoANAavtbG2ARK6PihqzMjhtbcZUbLnTMAWn339uR}"
+GATE_DEMO_SO="${STELE_GATE_DEMO_SO:-$STELE_WSL_DIR/target/deploy/stele_gate_demo.so}"
 
 test -f "$SO" || { echo "missing $SO — run scripts/dev/build-program.sh first" >&2; exit 1; }
 # The validator needs many file descriptors; WSL defaults the soft limit to 1024.
@@ -31,8 +37,13 @@ ulimit -n "$(ulimit -Hn)"
 pkill -x "solana-test-val" 2>/dev/null || true
 sleep 1
 echo "starting validator: program $PROGRAM_ID (upgrade authority $ADMIN_PUBKEY), RPC http://127.0.0.1:8899, ledger cap $LEDGER_SHREDS shreds"
-exec solana-test-validator --reset --quiet \
-  --ledger "$LEDGER" \
-  --rpc-port 8899 \
-  --limit-ledger-size "$LEDGER_SHREDS" \
-  --upgradeable-program "$PROGRAM_ID" "$SO" "$ADMIN_PUBKEY"
+ARGS=(--quiet --ledger "$LEDGER" --rpc-port 8899 --limit-ledger-size "$LEDGER_SHREDS")
+if [ "${STELE_LEDGER_RESET:-1}" = "0" ] && [ -d "$LEDGER" ]; then
+  echo "resuming the existing ledger at $LEDGER (no reset)"
+else
+  ARGS+=(--reset --upgradeable-program "$PROGRAM_ID" "$SO" "$ADMIN_PUBKEY")
+  if [ -f "$GATE_DEMO_SO" ]; then
+    ARGS+=(--upgradeable-program "$GATE_DEMO_ID" "$GATE_DEMO_SO" "$ADMIN_PUBKEY")
+  fi
+fi
+exec solana-test-validator "${ARGS[@]}"

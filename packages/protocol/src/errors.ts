@@ -124,6 +124,13 @@ export const PROGRAM_ERRORS = [
   ["EnrollmentNotActive", "The passkey enrollment is not active"],
   ["InvalidAccountCommitment", "Invalid account commitment"],
   ["InvalidBatch", "A batch needs a non-zero root and 1 to 65,536 leaves"],
+  ["AccessPassMissing", "No access pass exists for this policy document and holder"],
+  [
+    "AccessPassOutdated",
+    "The access pass does not satisfy the policy requirement (a newer version must be accepted)",
+  ],
+  ["AccessPassMismatch", "The access pass does not belong to this policy document and holder"],
+  ["InvalidAccessRequirement", "The policy requirement names a version the document does not have"],
 ] as const;
 
 export type ProgramErrorName = (typeof PROGRAM_ERRORS)[number][0];

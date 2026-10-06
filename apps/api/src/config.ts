@@ -51,6 +51,15 @@ const schema = z.object({
    * purchases; organizations then have the free monthly allowance only.
    */
   STELE_TREASURY_ADDRESS: z.string().optional(),
+  /**
+   * Public live demo (devnet/localnet only; refused on mainnet). The demo organization's owner key
+   * publishes a fresh policy document per visitor session; unset = demo off. Never a customer key.
+   */
+  STELE_DEMO_OWNER_KEYPAIR: z.string().optional(),
+  STELE_DEMO_ORGANIZATION: z.string().optional(),
+  /** Demo sessions per day (all visitors) and per IP address. */
+  STELE_DEMO_DAILY_SESSIONS: z.coerce.number().int().min(0).default(60),
+  STELE_DEMO_SESSIONS_PER_IP: z.coerce.number().int().min(0).default(6),
   /** Credit packs on sale, as `credits:SOL` pairs. */
   STELE_CREDIT_PACKS: z.string().default("10000:0.5,100000:4,1000000:30"),
 
@@ -159,6 +168,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     if (c.STORAGE_PROVIDER === "s3" && !c.S3_BUCKET)
       throw new Error("invalid configuration: S3_BUCKET is required");
   }
+  if (c.SOLANA_CLUSTER === "mainnet" && (c.STELE_DEMO_OWNER_KEYPAIR || c.STELE_DEMO_ORGANIZATION))
+    throw new Error("invalid configuration: the live demo is not available on mainnet");
   const treasury = c.STELE_TREASURY_ADDRESS?.trim() || null;
   if (treasury !== null && !isAddress(treasury))
     throw new Error("invalid configuration: STELE_TREASURY_ADDRESS is not a Solana address");

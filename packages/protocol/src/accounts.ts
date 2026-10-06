@@ -18,6 +18,7 @@ export const ACCOUNT_NAMES = [
   "DocumentVersion",
   "NonceShard",
   "PasskeySigner",
+  "AccessPass",
 ] as const;
 export type AccountName = (typeof ACCOUNT_NAMES)[number];
 
@@ -379,6 +380,42 @@ export function decodePasskeySigner(data: Uint8Array): PasskeySignerAccount {
     generation: r.u32(),
     status: r.u8(),
     kind: r.u8(),
+    bump: r.u8(),
+  };
+}
+
+/** Size of an AccessPass account: discriminator + fields (programs/stele/src/state.rs). */
+export const ACCESS_PASS_ACCOUNT_SIZE = 8 + 32 * 4 + 32 + 8 + 8 + 8 + 4 + 4 + 1;
+
+/** Stele Gate: a wallet's latest acceptance of one policy document (PROTOCOL_SPEC.md §18.1). */
+export interface AccessPassAccount {
+  organization: Address;
+  document: Address;
+  holder: Address;
+  /** The DocumentVersion most recently accepted. */
+  version: Address;
+  acceptanceId: Uint8Array;
+  acceptedAt: bigint;
+  firstAcceptedAt: bigint;
+  acceptedSlot: bigint;
+  versionNumber: number;
+  acceptanceCount: number;
+  bump: number;
+}
+
+export function decodeAccessPass(data: Uint8Array): AccessPassAccount {
+  const r = reader(data, "AccessPass");
+  return {
+    organization: r.address(),
+    document: r.address(),
+    holder: r.address(),
+    version: r.address(),
+    acceptanceId: r.bytes(32),
+    acceptedAt: r.i64(),
+    firstAcceptedAt: r.i64(),
+    acceptedSlot: r.u64(),
+    versionNumber: r.u32(),
+    acceptanceCount: r.u32(),
     bump: r.u8(),
   };
 }

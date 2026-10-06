@@ -43,6 +43,8 @@ import {
   toBase58,
   type EvidenceMode,
   recordAcceptanceInstruction,
+  recordGatedAcceptanceInstruction,
+  findAccessPassPda,
   recordPasskeyAcceptanceInstruction,
   secp256r1Instruction,
   toBase64Url,
@@ -517,7 +519,11 @@ export async function submitChallenge(
     .select()
     .from(organizations)
     .where(eq(organizations.id, ch.organizationId));
-  if (org!.settings.evidenceMode === "MERKLE_BATCHED") {
+  const [doc] = await deps.db.select().from(documents).where(eq(documents.id, ch.documentId));
+  // Stele Gate: a wallet's acceptance of a gated policy must create its access pass, which only the
+  // program can write after verifying the signature itself — so it is always recorded directly.
+  const gated = doc!.gated && ch.signerType === "wallet";
+  if (org!.settings.evidenceMode === "MERKLE_BATCHED" && !gated) {
     await assertVersionStillCurrent(deps, ch);
     const id = acceptanceId(
       fromBase58(ch.versionAddress),
@@ -546,10 +552,9 @@ export async function submitChallenge(
       }),
     );
   }
-  const [doc] = await deps.db.select().from(documents).where(eq(documents.id, ch.documentId));
   const [shard] = await deps.db.select().from(nonceShards).where(eq(nonceShards.id, ch.shardRowId));
   const [config] = await findConfigPda(deps.chain.programAddress);
-  const recordInstruction = recordAcceptanceInstruction({
+  const recordArgs = {
     programAddress: deps.chain.programAddress,
     relayer: deps.chain.relayer,
     config,
@@ -561,7 +566,20 @@ export async function submitChallenge(
     nonceTag: fromHex(ch.nonceTag, 8),
     issuedAt: ch.issuedAt,
     expiresAt: ch.expiresAt,
-  });
+  };
+  const recordInstruction = gated
+    ? recordGatedAcceptanceInstruction({
+        ...recordArgs,
+        holder: address(ch.signerAddress),
+        accessPass: (
+          await findAccessPassPda(
+            address(doc!.address),
+            address(ch.signerAddress),
+            deps.chain.programAddress,
+          )
+        )[0],
+      })
+    : recordAcceptanceInstruction(recordArgs);
   const ed = buildEd25519Instruction(signer, signature, utf8(ch.message));
 
   return relayAndIndex(deps, ch, { org: org!, doc: doc!, shard: shard! }, ed, recordInstruction);

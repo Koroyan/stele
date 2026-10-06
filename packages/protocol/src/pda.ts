@@ -13,6 +13,7 @@ export const SEEDS = {
   version: "version",
   nonceShard: "nonce-shard",
   passkeySigner: "passkey-signer",
+  accessPass: "access-pass",
 } as const;
 
 const addressBytes = (a: Address): Uint8Array => new Uint8Array(getAddressEncoder().encode(a));
@@ -82,6 +83,13 @@ export const findPasskeySignerPda = (
   accountCommitment: Uint8Array,
   programAddress: Address = defaultProgram(),
 ) => derive(programAddress, [SEEDS.passkeySigner, addressBytes(organization), accountCommitment]);
+
+/** Stele Gate: the access pass of `holder` for a policy `document` (PROTOCOL_SPEC.md §18). */
+export const findAccessPassPda = (
+  document: Address,
+  holder: Address,
+  programAddress: Address = defaultProgram(),
+) => derive(programAddress, [SEEDS.accessPass, addressBytes(document), addressBytes(holder)]);
 
 export const BPF_UPGRADEABLE_LOADER_ADDRESS = address(
   "BPFLoaderUpgradeab1e11111111111111111111111",

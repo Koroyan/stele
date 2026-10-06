@@ -59,6 +59,7 @@ import {
 } from "@stele/protocol";
 import { decodeWireTransaction } from "@stele/verifier";
 import {
+  accessPasses,
   acceptances,
   and,
   documents,
@@ -365,7 +366,7 @@ export async function indexAcceptanceTransaction(
       if (recorded) out.push(recorded);
       continue;
     }
-    if (name !== "record_acceptance") continue;
+    if (name !== "record_acceptance" && name !== "record_gated_acceptance") continue;
     const prev = decoded.instructions[ix.index - 1];
     if (!prev || prev.programId !== ED25519_PROGRAM_ADDRESS) continue;
     const ed = parseCanonicalEd25519Data(prev.data);
@@ -424,6 +425,15 @@ export async function indexAcceptanceTransaction(
       .update(nonceShards)
       .set({ nextIndex: sql`greatest(${nonceShards.nextIndex}, ${args.nonceIndex + 1})` })
       .where(eq(nonceShards.address, shardAddr!));
+    if (name === "record_gated_acceptance") {
+      events ??= decodeEventsFromLogs(feeSource.logs, chain.programAddress);
+      await indexAccessPass(db, events, {
+        organizationId: doc.organizationId,
+        documentId: doc.id,
+        acceptanceId: id,
+        signature,
+      });
+    }
     out.push({
       acceptanceId: id,
       protocol: "stele/1",
@@ -847,4 +857,53 @@ export async function indexProofTransaction(
     });
   }
   return out;
+}
+
+/**
+ * Stele Gate: mirrors the access pass a gated acceptance created or advanced, from the program's own
+ * `AccessPassUpdated` event in the confirmed transaction. A cache for the dashboard — protected
+ * programs read the pass account on Solana.
+ */
+async function indexAccessPass(
+  db: Database,
+  events: SteleEvent[],
+  i: { organizationId: string; documentId: string; acceptanceId: string; signature: string },
+): Promise<void> {
+  for (const e of events) {
+    if (e.name !== "AccessPassUpdated") continue;
+    const p = e.data;
+    if (toHex(p.acceptanceId) !== i.acceptanceId) continue;
+    const row = {
+      organizationId: i.organizationId,
+      documentId: i.documentId,
+      address: p.accessPass,
+      holder: p.holder,
+      versionAddress: p.version,
+      versionNumber: p.versionNumber,
+      acceptanceId: i.acceptanceId,
+      acceptanceCount: p.acceptanceCount,
+      acceptedAt: new Date(Number(p.acceptedAt) * 1000),
+      firstAcceptedAt: new Date(Number(p.acceptedAt) * 1000),
+      slot: Number(p.slot),
+      txSignature: i.signature,
+    };
+    await db
+      .insert(accessPasses)
+      .values(row)
+      .onConflictDoUpdate({
+        target: accessPasses.address,
+        // Events can be replayed out of order by a rebuild: only a newer slot moves the pass.
+        set: {
+          versionAddress: sql`case when excluded.slot >= ${accessPasses.slot} then excluded.version_address else ${accessPasses.versionAddress} end`,
+          versionNumber: sql`case when excluded.slot >= ${accessPasses.slot} then excluded.version_number else ${accessPasses.versionNumber} end`,
+          acceptanceId: sql`case when excluded.slot >= ${accessPasses.slot} then excluded.acceptance_id else ${accessPasses.acceptanceId} end`,
+          acceptanceCount: sql`greatest(${accessPasses.acceptanceCount}, excluded.acceptance_count)`,
+          acceptedAt: sql`greatest(${accessPasses.acceptedAt}, excluded.accepted_at)`,
+          firstAcceptedAt: sql`least(${accessPasses.firstAcceptedAt}, excluded.first_accepted_at)`,
+          txSignature: sql`case when excluded.slot >= ${accessPasses.slot} then excluded.tx_signature else ${accessPasses.txSignature} end`,
+          slot: sql`greatest(${accessPasses.slot}, excluded.slot)`,
+          updatedAt: new Date(),
+        },
+      });
+  }
 }

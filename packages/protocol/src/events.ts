@@ -125,8 +125,24 @@ export interface AcceptanceBatchAnchoredEvent {
   shardId: number;
 }
 
+/** Stele Gate: a verified acceptance created or advanced an access pass. */
+export interface AccessPassUpdatedEvent {
+  organization: Address;
+  document: Address;
+  holder: Address;
+  accessPass: Address;
+  version: Address;
+  acceptanceId: Uint8Array;
+  acceptedAt: bigint;
+  slot: bigint;
+  versionNumber: number;
+  acceptanceCount: number;
+  created: boolean;
+}
+
 export type SteleEvent =
   | { name: "AcceptanceRecorded"; data: AcceptanceRecordedEvent }
+  | { name: "AccessPassUpdated"; data: AccessPassUpdatedEvent }
   | { name: "AcceptanceBatchAnchored"; data: AcceptanceBatchAnchoredEvent }
   | { name: "PasskeyAcceptanceRecorded"; data: PasskeyAcceptanceRecordedEvent }
   | { name: "PasskeySignerChanged"; data: PasskeySignerChangedEvent }
@@ -265,6 +281,19 @@ type Decoder = (r: BorshReader) => SteleEvent["data"];
 const DEFAULT_ADDRESS = "11111111111111111111111111111111";
 
 const DECODERS: Record<SteleEvent["name"], Decoder> = {
+  AccessPassUpdated: (r) => ({
+    organization: r.address(),
+    document: r.address(),
+    holder: r.address(),
+    accessPass: r.address(),
+    version: r.address(),
+    acceptanceId: r.bytes(32),
+    acceptedAt: r.i64(),
+    slot: r.u64(),
+    versionNumber: r.u32(),
+    acceptanceCount: r.u32(),
+    created: r.bool(),
+  }),
   AcceptanceBatchAnchored: (r) => ({
     organization: r.address(),
     nonceShard: r.address(),

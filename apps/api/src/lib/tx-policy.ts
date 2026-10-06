@@ -7,7 +7,7 @@
  * with the relayer as the only signer and fee payer, and exactly these precompile / instruction
  * pairs:
  *
- *   Ed25519    → record_acceptance | record_proof                                   (stele/1)
+ *   Ed25519    → record_acceptance | record_gated_acceptance | record_proof         (stele/1)
  *   secp256r1  → record_passkey_acceptance | enroll_passkey_signer | rotate_passkey_signer (stele/2)
  *
  * or a batch anchor, which carries no signature to verify on-chain (MERKLE_BATCHED):
@@ -31,7 +31,7 @@ import {
 
 /** Stele instructions the relayer may sign, by the precompile that must precede them. */
 const ALLOWED: Record<string, readonly InstructionName[]> = {
-  [ED25519_PROGRAM_ADDRESS]: ["record_acceptance", "record_proof"],
+  [ED25519_PROGRAM_ADDRESS]: ["record_acceptance", "record_gated_acceptance", "record_proof"],
   [SECP256R1_PROGRAM_ADDRESS]: [
     "record_passkey_acceptance",
     "enroll_passkey_signer",

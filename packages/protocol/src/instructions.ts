@@ -62,6 +62,8 @@ export const INSTRUCTION_NAMES = [
   "recover_passkey_signer",
   "revoke_passkey_signer",
   "anchor_acceptance_batch",
+  "record_gated_acceptance",
+  "check_access",
 ] as const;
 export type InstructionName = (typeof INSTRUCTION_NAMES)[number];
 
@@ -571,8 +573,65 @@ export function recordAcceptanceInstruction(
   );
 }
 
+/**
+ * Stele Gate: records a wallet's acceptance exactly like `record_acceptance` and creates or advances
+ * the holder's access pass (PROTOCOL_SPEC.md §18.2). `holder` must be the wallet that signed.
+ */
+export function recordGatedAcceptanceInstruction(
+  i: Base &
+    RecordAcceptanceArgs & {
+      relayer: SignerInput;
+      config: Address;
+      organization: Address;
+      document: Address;
+      version: Address;
+      nonceShard: Address;
+      holder: Address;
+      accessPass: Address;
+    },
+): Instruction {
+  return build(
+    "record_gated_acceptance",
+    [
+      signer(i.relayer, true),
+      ro(i.config),
+      ro(i.organization),
+      ro(i.document),
+      ro(i.version),
+      rw(i.nonceShard),
+      ro(i.holder),
+      rw(i.accessPass),
+      ro(SYSTEM_PROGRAM_ADDRESS),
+      ro(INSTRUCTIONS_SYSVAR_ADDRESS),
+    ],
+    (w) => w.u32(i.nonceIndex).fixed(i.nonceTag, 8).i64(i.issuedAt).i64(i.expiresAt),
+    i.programAddress,
+  );
+}
+
+/**
+ * Stele Gate: the read-only requirement check protected programs call through a CPI
+ * (PROTOCOL_SPEC.md §18.3). `minVersion` 0 means the document's current version.
+ */
+export function checkAccessInstruction(
+  i: Base & {
+    document: Address;
+    accessPass: Address;
+    holder: SignerInput;
+    minVersion?: number;
+  },
+): Instruction {
+  return build(
+    "check_access",
+    [ro(i.document), ro(i.accessPass), signer(i.holder, false)],
+    (w) => w.u32(i.minVersion ?? 0),
+    i.programAddress,
+  );
+}
+
 export function decodeRecordAcceptanceArgs(data: Uint8Array): RecordAcceptanceArgs {
-  if (identifyInstruction(data) !== "record_acceptance")
+  const name = identifyInstruction(data);
+  if (name !== "record_acceptance" && name !== "record_gated_acceptance")
     throw new ProtocolError("DECODE_ERROR", "not a record_acceptance instruction");
   const r = new BorshReader(data);
   r.bytes(8);
