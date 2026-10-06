@@ -1,0 +1,50 @@
+{
+  "description": "stele-acceptance-v1 messages. The program rebuilds lines 1–11 from chain state.",
+  "cases": [
+    {
+      "name": "verified organization",
+      "fields": {
+        "orgName": "Acme Inc.",
+        "orgVerifiedDomain": "acme.example",
+        "title": "Terms of Service",
+        "versionLabel": "3.2",
+        "version": 3,
+        "versionHash": "b27d413236f1462d0dab3149ebc5bef79c5de0976d12a72db296b0016cbde8e1",
+        "signer": "74nTzWSY3rTnMemzY1Yf9QucCkntz4ARMLFCxW9UkfYK",
+        "networkLabel": "Solana Devnet",
+        "issuedAt": 1790000000,
+        "expiresAt": 1790000600,
+        "shardId": 0,
+        "nonceIndex": 42,
+        "nonceTag": "0123456789abcdef"
+      },
+      "requestDomain": "app.acme.example",
+      "message": "Stele Protocol v1 - Accept Agreement\nI accept the exact document version below.\nOrganization: Acme Inc. (verified: acme.example)\nDocument: Terms of Service\nVersion: 3.2 (#3)\nFingerprint: b27d413236f1462d0dab3149ebc5bef79c5de0976d12a72db296b0016cbde8e1\nAccount: 74nTzWSY3rTnMemzY1Yf9QucCkntz4ARMLFCxW9UkfYK\nNetwork: Solana Devnet\nIssued: 2026-09-21T14:13:20Z\nExpires: 2026-09-21T14:23:20Z\nNonce: 0-42-0123456789abcdef\nRequested by: app.acme.example",
+      "messageHash": "6eb1012d0690c9fa735284473cc6ced0e52b1a73155c094ee1f5f4fbfac120b5",
+      "signature": "84eb9e2d8717df78493134bb32439083fca53b263adedc3b386f2f2642fd641124778ddd24a91d91561b8d1cbb763b53309e3b1b8adeb9d104ed3b7ce0bb7c03"
+    },
+    {
+      "name": "unverified organization with parentheses in name",
+      "fields": {
+        "orgName": "Acme (Europe) GmbH",
+        "orgVerifiedDomain": null,
+        "title": "Allgemeine Geschäftsbedingungen",
+        "versionLabel": "2026.09",
+        "version": 12,
+        "versionHash": "8077bafe7c1ad543d7e942d8c8a6137c841587120f909489058232d3ef89bc4c",
+        "signer": "74nTzWSY3rTnMemzY1Yf9QucCkntz4ARMLFCxW9UkfYK",
+        "networkLabel": "Solana Mainnet",
+        "issuedAt": 1800000000,
+        "expiresAt": 1800003600,
+        "shardId": 65535,
+        "nonceIndex": 65535,
+        "nonceTag": "ffffffffffffffff"
+      },
+      "requestDomain": "localhost",
+      "message": "Stele Protocol v1 - Accept Agreement\nI accept the exact document version below.\nOrganization: Acme (Europe) GmbH (unverified)\nDocument: Allgemeine Geschäftsbedingungen\nVersion: 2026.09 (#12)\nFingerprint: 8077bafe7c1ad543d7e942d8c8a6137c841587120f909489058232d3ef89bc4c\nAccount: 74nTzWSY3rTnMemzY1Yf9QucCkntz4ARMLFCxW9UkfYK\nNetwork: Solana Mainnet\nIssued: 2027-01-15T08:00:00Z\nExpires: 2027-01-15T09:00:00Z\nNonce: 65535-65535-ffffffffffffffff\nRequested by: localhost",
+      "messageHash": "32800dc483388a8ab0c70a2d2b383749e48cc945b2dbe73e341dc221c99ab19c",
+      "signature": "15259a1b99f3c916a7ac73d68fba1131c2447db8dc6fba193c4acb5f2349d0edfeca1c17969a75858a7a52c563ad7b101c7e30318d098a18a0c7480b70fece05"
+    }
+  ],
+  "signerPublicKey": "5a1e459792a44530205c15adab68dcb7f634e7fccd400999dbfaf79f1de72698"
+}

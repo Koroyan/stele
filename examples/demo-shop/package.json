@@ -1,0 +1,21 @@
+{
+  "name": "@stele/demo-shop",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Northwind Shop: a sample customer app that uses every part of Stele (widget, JavaScript API, server SDK, REST API, webhooks, receipts and the verifier)",
+  "type": "module",
+  "scripts": {
+    "start": "tsx --env-file-if-exists=.env src/server.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src"
+  },
+  "dependencies": {
+    "@stele/sdk": "workspace:*",
+    "@stele/verifier": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "tsx": "^4.20.0",
+    "typescript": "~6.0.3"
+  }
+}

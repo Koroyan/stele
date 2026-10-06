@@ -1,0 +1,52 @@
+{
+  "description": "stele-proof-v1 anchor messages and proof ids. The program rebuilds lines 1–12 from chain state.",
+  "cases": [
+    {
+      "name": "purchase, verified organization",
+      "fields": {
+        "proofType": 1,
+        "orgName": "Northwind Shop",
+        "orgVerifiedDomain": "northwind.example",
+        "organization": "5T2Ki3YQZjs5pbTshtBDCfRPMG8acgeyEkhb6t5xQfYQ",
+        "statementHash": "67607a6582d56b9acf53a1cfd7babc84d15ff3a41ca19dc8bb95b1228920b43e",
+        "signer": "74nTzWSY3rTnMemzY1Yf9QucCkntz4ARMLFCxW9UkfYK",
+        "networkLabel": "Solana Devnet",
+        "chainId": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+        "issuedAt": 1790000000,
+        "expiresAt": 1790000600,
+        "shardId": 0,
+        "nonceIndex": 7,
+        "nonceTag": "0123456789abcdef"
+      },
+      "requestDomain": "shop.northwind.example",
+      "message": "Stele Protocol v1 - Record Proof\nI confirm the statement identified below.\nType: Purchase\nOrganization: Northwind Shop (verified: northwind.example)\nOrganization ID: 5T2Ki3YQZjs5pbTshtBDCfRPMG8acgeyEkhb6t5xQfYQ\nStatement: 67607a6582d56b9acf53a1cfd7babc84d15ff3a41ca19dc8bb95b1228920b43e\nAccount: 74nTzWSY3rTnMemzY1Yf9QucCkntz4ARMLFCxW9UkfYK\nNetwork: Solana Devnet\nChain: solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1\nIssued: 2026-09-21T14:13:20Z\nExpires: 2026-09-21T14:23:20Z\nNonce: 0-7-0123456789abcdef\nRequested by: shop.northwind.example",
+      "messageHash": "4444821d0eaf6122c5da1200f8048772bec8b08a27e17c658fe3ccef01c4cd67",
+      "signature": "4548b7dfc234dbc8f8e63e5c595c7dbfd93fb5ea98b185adb9214be0f4d79a47e3e6fe6d99af1b49daf17f9020c9d1b93e287ab4c20af341e802ad855291a00a",
+      "proofId": "f24a5c39ffb54bc14e1c00a0754b7787e623932d3c4fc6b0c31818f4849e8fba"
+    },
+    {
+      "name": "subscription cancellation, unverified, maximum nonce",
+      "fields": {
+        "proofType": 13,
+        "orgName": "Ünïcode Ltd",
+        "orgVerifiedDomain": null,
+        "organization": "5T2Ki3YQZjs5pbTshtBDCfRPMG8acgeyEkhb6t5xQfYQ",
+        "statementHash": "a6644c1427b48fd24514e4a3a65b6dd383f0865e65ba05e4c3557c7f72a3819f",
+        "signer": "74nTzWSY3rTnMemzY1Yf9QucCkntz4ARMLFCxW9UkfYK",
+        "networkLabel": "Solana Localnet",
+        "chainId": "solana:localnet",
+        "issuedAt": 1800000000,
+        "expiresAt": 1800003600,
+        "shardId": 65535,
+        "nonceIndex": 65535,
+        "nonceTag": "ffffffffffffffff"
+      },
+      "requestDomain": "localhost",
+      "message": "Stele Protocol v1 - Record Proof\nI confirm the statement identified below.\nType: Subscription cancellation\nOrganization: Ünïcode Ltd (unverified)\nOrganization ID: 5T2Ki3YQZjs5pbTshtBDCfRPMG8acgeyEkhb6t5xQfYQ\nStatement: a6644c1427b48fd24514e4a3a65b6dd383f0865e65ba05e4c3557c7f72a3819f\nAccount: 74nTzWSY3rTnMemzY1Yf9QucCkntz4ARMLFCxW9UkfYK\nNetwork: Solana Localnet\nChain: solana:localnet\nIssued: 2027-01-15T08:00:00Z\nExpires: 2027-01-15T09:00:00Z\nNonce: 65535-65535-ffffffffffffffff\nRequested by: localhost",
+      "messageHash": "0e4f32644449f95455b452515b4078726bc844a7d52564ed3629a49bc56037cf",
+      "signature": "7d260e73cee9aaf299ed17975357e203c2367b08222ee81e686d18e94ac07d8341b3787a1ab15168a946ac6852d324c77d17a7044f5b2bc0a3b14d651dbe540f",
+      "proofId": "a5d72c287a8a3da1460e2ed4097fe46ee44c687cacfff58239035bea7db74b44"
+    }
+  ],
+  "signerPublicKey": "5a1e459792a44530205c15adab68dcb7f634e7fccd400999dbfaf79f1de72698"
+}

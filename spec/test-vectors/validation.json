@@ -1,0 +1,303 @@
+{
+  "description": "Field validation (PROTOCOL_SPEC.md §3): `valid` must match in every implementation.",
+  "fields": {
+    "orgName": [
+      {
+        "value": "Acme Inc.",
+        "valid": true
+      },
+      {
+        "value": "株式会社アクメ",
+        "valid": true
+      },
+      {
+        "value": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "valid": true
+      },
+      {
+        "value": "",
+        "valid": false
+      },
+      {
+        "value": " Acme",
+        "valid": false
+      },
+      {
+        "value": "Acme ",
+        "valid": false
+      },
+      {
+        "value": "Acme  Inc",
+        "valid": false
+      },
+      {
+        "value": "A\nB",
+        "valid": false
+      },
+      {
+        "value": "Acme‮",
+        "valid": false
+      },
+      {
+        "value": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "valid": false
+      },
+      {
+        "value": "a​b",
+        "valid": false
+      }
+    ],
+    "title": [
+      {
+        "value": "Terms of Service",
+        "valid": true
+      },
+      {
+        "value": "Terms \"Service\"",
+        "valid": true
+      },
+      {
+        "value": "éééééééééééééééééééééééééééééé",
+        "valid": true
+      },
+      {
+        "value": "ééééééééééééééééééééééééééééééé",
+        "valid": false
+      },
+      {
+        "value": "Terms\tof",
+        "valid": false
+      }
+    ],
+    "slug": [
+      {
+        "value": "terms-of-service",
+        "valid": true
+      },
+      {
+        "value": "tos2",
+        "valid": true
+      },
+      {
+        "value": "-tos",
+        "valid": false
+      },
+      {
+        "value": "tos-",
+        "valid": false
+      },
+      {
+        "value": "terms--of",
+        "valid": false
+      },
+      {
+        "value": "Terms",
+        "valid": false
+      },
+      {
+        "value": "terms_of",
+        "valid": false
+      },
+      {
+        "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "valid": false
+      }
+    ],
+    "documentType": [
+      {
+        "value": "privacy-policy",
+        "valid": true
+      },
+      {
+        "value": "Privacy",
+        "valid": false
+      }
+    ],
+    "locale": [
+      {
+        "value": "en",
+        "valid": true
+      },
+      {
+        "value": "en-US",
+        "valid": true
+      },
+      {
+        "value": "zh-Hant-TW",
+        "valid": true
+      },
+      {
+        "value": "es-419",
+        "valid": true
+      },
+      {
+        "value": "sr-Latn",
+        "valid": true
+      },
+      {
+        "value": "EN",
+        "valid": false
+      },
+      {
+        "value": "en-us",
+        "valid": false
+      },
+      {
+        "value": "en-US-x",
+        "valid": false
+      },
+      {
+        "value": "e",
+        "valid": false
+      },
+      {
+        "value": "en_US",
+        "valid": false
+      }
+    ],
+    "versionLabel": [
+      {
+        "value": "3.2",
+        "valid": true
+      },
+      {
+        "value": "v1.0.0-rc.1",
+        "valid": true
+      },
+      {
+        "value": "2026.09+eu",
+        "valid": true
+      },
+      {
+        "value": ".1",
+        "valid": false
+      },
+      {
+        "value": "1 0",
+        "valid": false
+      },
+      {
+        "value": "12345678901234567",
+        "valid": false
+      }
+    ],
+    "storageUri": [
+      {
+        "value": "ar://abc",
+        "valid": true
+      },
+      {
+        "value": "ipfs://bafy",
+        "valid": true
+      },
+      {
+        "value": "https://cdn.example/x",
+        "valid": true
+      },
+      {
+        "value": "http://cdn.example/x",
+        "valid": false
+      },
+      {
+        "value": "javascript:alert(1)",
+        "valid": false
+      },
+      {
+        "value": "ar://",
+        "valid": false
+      },
+      {
+        "value": "ar://a b",
+        "valid": false
+      }
+    ],
+    "verifiedDomain": [
+      {
+        "value": "acme.example",
+        "valid": true
+      },
+      {
+        "value": "xn--80ak6aa92e.com",
+        "valid": true
+      },
+      {
+        "value": "localhost",
+        "valid": false
+      },
+      {
+        "value": "Acme.example",
+        "valid": false
+      },
+      {
+        "value": "acme",
+        "valid": false
+      },
+      {
+        "value": "-a.example",
+        "valid": false
+      },
+      {
+        "value": "a.example.",
+        "valid": false
+      },
+      {
+        "value": "10.0.0.1",
+        "valid": false
+      }
+    ],
+    "requestDomain": [
+      {
+        "value": "localhost",
+        "valid": true
+      },
+      {
+        "value": "app.acme.example",
+        "valid": true
+      },
+      {
+        "value": "acme.example:443",
+        "valid": false
+      },
+      {
+        "value": "a.example\nEvil: x",
+        "valid": false
+      }
+    ],
+    "chainId": [
+      {
+        "value": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+        "valid": true
+      },
+      {
+        "value": "solana:localnet",
+        "valid": true
+      },
+      {
+        "value": "eip155:1",
+        "valid": false
+      },
+      {
+        "value": "solana:",
+        "valid": false
+      }
+    ],
+    "networkLabel": [
+      {
+        "value": "Solana Mainnet",
+        "valid": true
+      },
+      {
+        "value": "Solana  Mainnet",
+        "valid": false
+      },
+      {
+        "value": "Solana-Mainnet",
+        "valid": false
+      },
+      {
+        "value": "",
+        "valid": false
+      }
+    ]
+  }
+}

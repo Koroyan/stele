@@ -1,0 +1,62 @@
+{
+  "description": "stele-version-v1 JSON and fingerprint. The program computes the same bytes on-chain.",
+  "cases": [
+    {
+      "name": "version 1, effective upon publication",
+      "fields": {
+        "chainId": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+        "program": "6sTKscWmUtBQRMpNCiEpurCJxpjx7GK5rzk7e265kpwV",
+        "organization": "Co1jpdPsYPoDR5g9UVFavkX9fBc3BLujyX4x1iJB4YyE",
+        "document": "5ZerobBxdMBz1QUW78NW4QDjM2QfdAtnyjSAM2rALuZH",
+        "documentType": "terms-of-service",
+        "locale": "en-US",
+        "version": 1,
+        "previousVersionHash": null,
+        "title": "Terms of Service",
+        "versionLabel": "1.0",
+        "effectiveAt": 0,
+        "contentHash": "1111111111111111111111111111111111111111111111111111111111111111"
+      },
+      "json": "{\"chainId\":\"solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1\",\"contentHash\":\"1111111111111111111111111111111111111111111111111111111111111111\",\"document\":\"5ZerobBxdMBz1QUW78NW4QDjM2QfdAtnyjSAM2rALuZH\",\"documentType\":\"terms-of-service\",\"effectiveAt\":null,\"format\":\"stele-version-v1\",\"locale\":\"en-US\",\"organization\":\"Co1jpdPsYPoDR5g9UVFavkX9fBc3BLujyX4x1iJB4YyE\",\"previousVersionHash\":null,\"program\":\"6sTKscWmUtBQRMpNCiEpurCJxpjx7GK5rzk7e265kpwV\",\"title\":\"Terms of Service\",\"version\":1,\"versionLabel\":\"1.0\"}",
+      "versionHash": "8077bafe7c1ad543d7e942d8c8a6137c841587120f909489058232d3ef89bc4c"
+    },
+    {
+      "name": "version 2 chained, escaped title, effective date",
+      "fields": {
+        "chainId": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+        "program": "6sTKscWmUtBQRMpNCiEpurCJxpjx7GK5rzk7e265kpwV",
+        "organization": "Co1jpdPsYPoDR5g9UVFavkX9fBc3BLujyX4x1iJB4YyE",
+        "document": "5ZerobBxdMBz1QUW78NW4QDjM2QfdAtnyjSAM2rALuZH",
+        "documentType": "terms-of-service",
+        "locale": "en-US",
+        "version": 2,
+        "previousVersionHash": "8077bafe7c1ad543d7e942d8c8a6137c841587120f909489058232d3ef89bc4c",
+        "title": "Terms of \"Service\" — Europe",
+        "versionLabel": "2.0-eu",
+        "effectiveAt": 1798761600,
+        "contentHash": "2222222222222222222222222222222222222222222222222222222222222222"
+      },
+      "json": "{\"chainId\":\"solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1\",\"contentHash\":\"2222222222222222222222222222222222222222222222222222222222222222\",\"document\":\"5ZerobBxdMBz1QUW78NW4QDjM2QfdAtnyjSAM2rALuZH\",\"documentType\":\"terms-of-service\",\"effectiveAt\":1798761600,\"format\":\"stele-version-v1\",\"locale\":\"en-US\",\"organization\":\"Co1jpdPsYPoDR5g9UVFavkX9fBc3BLujyX4x1iJB4YyE\",\"previousVersionHash\":\"8077bafe7c1ad543d7e942d8c8a6137c841587120f909489058232d3ef89bc4c\",\"program\":\"6sTKscWmUtBQRMpNCiEpurCJxpjx7GK5rzk7e265kpwV\",\"title\":\"Terms of \\\"Service\\\" — Europe\",\"version\":2,\"versionLabel\":\"2.0-eu\"}",
+      "versionHash": "b27d413236f1462d0dab3149ebc5bef79c5de0976d12a72db296b0016cbde8e1"
+    },
+    {
+      "name": "same as version 1 but mainnet (network separation)",
+      "fields": {
+        "chainId": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+        "program": "6sTKscWmUtBQRMpNCiEpurCJxpjx7GK5rzk7e265kpwV",
+        "organization": "Co1jpdPsYPoDR5g9UVFavkX9fBc3BLujyX4x1iJB4YyE",
+        "document": "5ZerobBxdMBz1QUW78NW4QDjM2QfdAtnyjSAM2rALuZH",
+        "documentType": "terms-of-service",
+        "locale": "en-US",
+        "version": 1,
+        "previousVersionHash": null,
+        "title": "Terms of Service",
+        "versionLabel": "1.0",
+        "effectiveAt": 0,
+        "contentHash": "1111111111111111111111111111111111111111111111111111111111111111"
+      },
+      "json": "{\"chainId\":\"solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp\",\"contentHash\":\"1111111111111111111111111111111111111111111111111111111111111111\",\"document\":\"5ZerobBxdMBz1QUW78NW4QDjM2QfdAtnyjSAM2rALuZH\",\"documentType\":\"terms-of-service\",\"effectiveAt\":null,\"format\":\"stele-version-v1\",\"locale\":\"en-US\",\"organization\":\"Co1jpdPsYPoDR5g9UVFavkX9fBc3BLujyX4x1iJB4YyE\",\"previousVersionHash\":null,\"program\":\"6sTKscWmUtBQRMpNCiEpurCJxpjx7GK5rzk7e265kpwV\",\"title\":\"Terms of Service\",\"version\":1,\"versionLabel\":\"1.0\"}",
+      "versionHash": "7ca45b0e34b41065cb70b1afde61201a0f523d9049833fd2c9fc1e47ca6d6949"
+    }
+  ]
+}

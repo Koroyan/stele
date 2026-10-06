@@ -1,0 +1,52 @@
+{
+  "description": "stele-statement-v1 canonical serialization (sorted keys, no whitespace) and statement hash.",
+  "statement": {
+    "format": "stele-statement-v1",
+    "type": "PURCHASE",
+    "network": {
+      "chainId": "solana:localnet",
+      "programId": "6sTKscWmUtBQRMpNCiEpurCJxpjx7GK5rzk7e265kpwV"
+    },
+    "organization": {
+      "address": "5T2Ki3YQZjs5pbTshtBDCfRPMG8acgeyEkhb6t5xQfYQ",
+      "name": "Northwind Shop",
+      "domain": "northwind.example"
+    },
+    "reference": "order-1042",
+    "createdAt": "2026-09-21T14:13:20Z",
+    "summary": "Purchase of 2 items from Northwind Shop",
+    "details": {
+      "currency": "EUR",
+      "items": [
+        {
+          "sku": "TEA-01",
+          "name": "Earl Grey (250 g)",
+          "quantity": 2,
+          "unitPrice": "6.50",
+          "total": "13.00"
+        },
+        {
+          "name": "Café crème — «bio»",
+          "quantity": 1,
+          "unitPrice": "4.25",
+          "total": "4.25"
+        }
+      ],
+      "subtotal": "17.25",
+      "shipping": "3.90",
+      "total": "21.15",
+      "paymentMethod": "Visa •••• 4242",
+      "buyer": {
+        "commitment": "sha256:6568491e166fcda381e16728cc117e587e5e3a2cdbf5d72c87262e0917505eed"
+      }
+    },
+    "salt": "e69ba7374fe8a697749d457308cf94ff929f297d273506acac0f2290a82aaedc"
+  },
+  "canonical": "{\"createdAt\":\"2026-09-21T14:13:20Z\",\"details\":{\"buyer\":{\"commitment\":\"sha256:6568491e166fcda381e16728cc117e587e5e3a2cdbf5d72c87262e0917505eed\"},\"currency\":\"EUR\",\"items\":[{\"name\":\"Earl Grey (250 g)\",\"quantity\":2,\"sku\":\"TEA-01\",\"total\":\"13.00\",\"unitPrice\":\"6.50\"},{\"name\":\"Café crème — «bio»\",\"quantity\":1,\"total\":\"4.25\",\"unitPrice\":\"4.25\"}],\"paymentMethod\":\"Visa •••• 4242\",\"shipping\":\"3.90\",\"subtotal\":\"17.25\",\"total\":\"21.15\"},\"format\":\"stele-statement-v1\",\"network\":{\"chainId\":\"solana:localnet\",\"programId\":\"6sTKscWmUtBQRMpNCiEpurCJxpjx7GK5rzk7e265kpwV\"},\"organization\":{\"address\":\"5T2Ki3YQZjs5pbTshtBDCfRPMG8acgeyEkhb6t5xQfYQ\",\"domain\":\"northwind.example\",\"name\":\"Northwind Shop\"},\"reference\":\"order-1042\",\"salt\":\"e69ba7374fe8a697749d457308cf94ff929f297d273506acac0f2290a82aaedc\",\"summary\":\"Purchase of 2 items from Northwind Shop\",\"type\":\"PURCHASE\"}",
+  "statementHash": "564f4105a9ab80b633473e6a7ac1b7eaa667807f31e3d93ada84e36cbaa1ffe7",
+  "commitment": {
+    "value": "buyer@example.com",
+    "salt": "169fe747d7d3dab53f418ad9c84815711ee99bcaf17246c85416e795b30b3b83",
+    "commitment": "sha256:6568491e166fcda381e16728cc117e587e5e3a2cdbf5d72c87262e0917505eed"
+  }
+}

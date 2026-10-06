@@ -1,0 +1,82 @@
+/*
+ * Stele design tokens (Tailwind CSS v4 @theme). Dark, quiet, precise.
+ *
+ * Color roles:
+ *   accent (electric cyan)  — interactive elements and focus. Never decoration.
+ *   verified (mint)         — ONLY for verified/valid states. Never for anything else.
+ *   warning / danger        — reserved status colors, always paired with an icon and label.
+ *   chart-1                 — data marks (validated: OKLCH L in the dark band, ≥ 3:1 on surface).
+ */
+@theme {
+  --font-sans:
+    var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --color-bg: #070a0f;
+  --color-bg-raised: #0a0f16;
+  --color-surface: #0e141d;
+  --color-surface-2: #131b26;
+  --color-surface-3: #19222f;
+  --color-line: rgb(148 163 184 / 0.1);
+  --color-line-strong: rgb(148 163 184 / 0.18);
+
+  --color-fg: #e7edf5;
+  --color-fg-muted: #9aa8b9;
+  --color-fg-subtle: #6b7a8e;
+
+  --color-accent: #4cc9f0;
+  --color-accent-strong: #84dbf6;
+  --color-accent-ink: #03121a;
+  --color-accent-soft: rgb(76 201 240 / 0.1);
+  --color-accent-line: rgb(76 201 240 / 0.32);
+
+  --color-verified: #34d399;
+  --color-verified-soft: rgb(52 211 153 / 0.1);
+  --color-verified-line: rgb(52 211 153 / 0.3);
+
+  --color-warning: #f5b544;
+  --color-warning-soft: rgb(245 181 68 / 0.1);
+  --color-warning-line: rgb(245 181 68 / 0.3);
+
+  --color-danger: #f87171;
+  --color-danger-soft: rgb(248 113 113 / 0.1);
+  --color-danger-line: rgb(248 113 113 / 0.3);
+
+  --color-chart-1: #2a9fcc;
+
+  --radius-card: 14px;
+  --shadow-card: inset 0 1px 0 0 rgb(255 255 255 / 0.035), 0 24px 48px -28px rgb(0 0 0 / 0.75);
+  --shadow-glow: 0 0 0 1px rgb(76 201 240 / 0.25), 0 8px 40px -12px rgb(76 201 240 / 0.35);
+
+  --animate-fade-up: fade-up 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  --animate-pulse-soft: pulse-soft 2.4s ease-in-out infinite;
+  --animate-flow: flow 2.8s linear infinite;
+
+  @keyframes fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  @keyframes pulse-soft {
+    0%,
+    100% {
+      opacity: 0.55;
+    }
+    50% {
+      opacity: 1;
+    }
+  }
+  @keyframes flow {
+    from {
+      stroke-dashoffset: 24;
+    }
+    to {
+      stroke-dashoffset: 0;
+    }
+  }
+}

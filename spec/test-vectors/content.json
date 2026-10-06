@@ -1,0 +1,153 @@
+{
+  "description": "stele-content-v1 canonicalization: canonical bytes (UTF-8 JSON) and content hash.",
+  "cases": [
+    {
+      "name": "minimal",
+      "input": {
+        "blocks": [
+          {
+            "type": "paragraph",
+            "text": "Hello"
+          }
+        ]
+      },
+      "canonical": "{\"attachments\":[],\"blocks\":[{\"text\":\"Hello\",\"type\":\"paragraph\"}],\"changeSummary\":null,\"format\":\"stele-content-v1\"}",
+      "contentHash": "400b2a1d03d6f9d7f654dabac76db0a582b2990207eda954ad5fa2adb4da55b1"
+    },
+    {
+      "name": "terms of service",
+      "input": {
+        "blocks": [
+          {
+            "type": "heading",
+            "level": 1,
+            "text": "  Terms of   Service "
+          },
+          {
+            "type": "paragraph",
+            "text": "These Terms govern your use of the service.\r\nPlease read them carefully."
+          },
+          {
+            "type": "heading",
+            "level": 2,
+            "text": "1. Acceptance"
+          },
+          {
+            "type": "list",
+            "ordered": true,
+            "items": [
+              "You are 18 or older.",
+              "You accept\nthese terms."
+            ]
+          },
+          {
+            "type": "list",
+            "ordered": false,
+            "items": [
+              "No abuse",
+              "No scraping"
+            ]
+          },
+          {
+            "type": "heading",
+            "level": 3,
+            "text": "1.1 Définitions"
+          },
+          {
+            "type": "paragraph",
+            "text": "Le \"Service\" désigne…"
+          }
+        ],
+        "changeSummary": "Added section 1.1\r\n\r\nClarified age requirement."
+      },
+      "canonical": "{\"attachments\":[],\"blocks\":[{\"level\":1,\"text\":\"Terms of Service\",\"type\":\"heading\"},{\"text\":\"These Terms govern your use of the service.\\nPlease read them carefully.\",\"type\":\"paragraph\"},{\"level\":2,\"text\":\"1. Acceptance\",\"type\":\"heading\"},{\"items\":[\"You are 18 or older.\",\"You accept these terms.\"],\"ordered\":true,\"type\":\"list\"},{\"items\":[\"No abuse\",\"No scraping\"],\"ordered\":false,\"type\":\"list\"},{\"level\":3,\"text\":\"1.1 Définitions\",\"type\":\"heading\"},{\"text\":\"Le \\\"Service\\\" désigne…\",\"type\":\"paragraph\"}],\"changeSummary\":\"Added section 1.1\\nClarified age requirement.\",\"format\":\"stele-content-v1\"}",
+      "contentHash": "3c5554f9a4c68b2f4a66883e30c8e6b7afa7fa618783b105befb343bf13640c1"
+    },
+    {
+      "name": "with attachment",
+      "input": {
+        "blocks": [
+          {
+            "type": "paragraph",
+            "text": "See Annex A."
+          }
+        ],
+        "attachments": [
+          {
+            "mediaType": "application/pdf",
+            "name": "annex-a.pdf",
+            "sha256": "abababababababababababababababababababababababababababababababab",
+            "size": 48213
+          }
+        ],
+        "changeSummary": null
+      },
+      "canonical": "{\"attachments\":[{\"mediaType\":\"application/pdf\",\"name\":\"annex-a.pdf\",\"sha256\":\"abababababababababababababababababababababababababababababababab\",\"size\":48213}],\"blocks\":[{\"text\":\"See Annex A.\",\"type\":\"paragraph\"}],\"changeSummary\":null,\"format\":\"stele-content-v1\"}",
+      "contentHash": "c876284fe9356e2a0eeaa9f705f6abacf4f2508de6505950d07e3a6d37ce9ed9"
+    },
+    {
+      "name": "multilingual",
+      "input": {
+        "blocks": [
+          {
+            "type": "heading",
+            "level": 1,
+            "text": "利用規約"
+          },
+          {
+            "type": "paragraph",
+            "text": "شروط الخدمة"
+          },
+          {
+            "type": "paragraph",
+            "text": "Café 👩‍💻"
+          }
+        ]
+      },
+      "canonical": "{\"attachments\":[],\"blocks\":[{\"level\":1,\"text\":\"利用規約\",\"type\":\"heading\"},{\"text\":\"شروط الخدمة\",\"type\":\"paragraph\"},{\"text\":\"Café 👩‍💻\",\"type\":\"paragraph\"}],\"changeSummary\":null,\"format\":\"stele-content-v1\"}",
+      "contentHash": "f63218afaef0ed9ddd764096b0f891afffd48218dd5c833c2cd603282f419614"
+    }
+  ],
+  "invalidCanonical": [
+    {
+      "name": "whitespace",
+      "bytes": "{ \"attachments\":[],\"blocks\":[{\"text\":\"a\",\"type\":\"paragraph\"}],\"changeSummary\":null,\"format\":\"stele-content-v1\"}"
+    },
+    {
+      "name": "key order",
+      "bytes": "{\"attachments\":[],\"blocks\":[{\"type\":\"paragraph\",\"text\":\"a\"}],\"changeSummary\":null,\"format\":\"stele-content-v1\"}"
+    },
+    {
+      "name": "extra key",
+      "bytes": "{\"attachments\":[],\"blocks\":[{\"text\":\"a\",\"type\":\"paragraph\"}],\"changeSummary\":null,\"extra\":true,\"format\":\"stele-content-v1\"}"
+    },
+    {
+      "name": "non-nfc text",
+      "bytes": "{\"attachments\":[],\"blocks\":[{\"text\":\"Café\",\"type\":\"paragraph\"}],\"changeSummary\":null,\"format\":\"stele-content-v1\"}"
+    },
+    {
+      "name": "uncollapsed spaces",
+      "bytes": "{\"attachments\":[],\"blocks\":[{\"text\":\"a  b\",\"type\":\"paragraph\"}],\"changeSummary\":null,\"format\":\"stele-content-v1\"}"
+    },
+    {
+      "name": "duplicate key",
+      "bytes": "{\"attachments\":[],\"blocks\":[{\"text\":\"a\",\"type\":\"paragraph\"}],\"changeSummary\":null,\"format\":\"stele-content-v1\",\"format\":\"stele-content-v1\"}"
+    },
+    {
+      "name": "wrong format",
+      "bytes": "{\"attachments\":[],\"blocks\":[{\"text\":\"a\",\"type\":\"paragraph\"}],\"changeSummary\":null,\"format\":\"stele-content-v2\"}"
+    },
+    {
+      "name": "empty blocks",
+      "bytes": "{\"attachments\":[],\"blocks\":[],\"changeSummary\":null,\"format\":\"stele-content-v1\"}"
+    },
+    {
+      "name": "float level",
+      "bytes": "{\"attachments\":[],\"blocks\":[{\"level\":1.0,\"text\":\"a\",\"type\":\"heading\"}],\"changeSummary\":null,\"format\":\"stele-content-v1\"}"
+    },
+    {
+      "name": "escaped unicode",
+      "bytes": "{\"attachments\":[],\"blocks\":[{\"text\":\"\\u0061\",\"type\":\"paragraph\"}],\"changeSummary\":null,\"format\":\"stele-content-v1\"}"
+    }
+  ]
+}

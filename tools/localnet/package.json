@@ -1,0 +1,28 @@
+{
+  "name": "@stele/localnet",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Local development network tooling: keys, protocol bootstrap and realistic seed data",
+  "type": "module",
+  "scripts": {
+    "keys": "tsx src/keys.ts",
+    "env": "tsx src/env.ts",
+    "seed": "tsx src/seed.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src",
+    "attest-domain": "tsx src/attest-domain.ts",
+    "demo": "tsx src/demo.ts",
+    "costs": "tsx src/costs.ts",
+    "forgery-demo": "tsx src/forgery-demo.ts",
+    "publish-version": "tsx src/publish-version.ts"
+  },
+  "dependencies": {
+    "@noble/curves": "^2.4.0",
+    "@solana/kit": "^8.4.0",
+    "@stele/protocol": "workspace:*"
+  },
+  "devDependencies": {
+    "tsx": "^4.20.0",
+    "typescript": "~6.0.3"
+  }
+}

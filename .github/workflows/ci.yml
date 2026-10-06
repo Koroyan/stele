@@ -1,0 +1,167 @@
+# Continuous integration: formatting, linting, type checks, unit tests and builds for TypeScript;
+# fmt/clippy/tests and the SBF build for Rust; a full localnet integration run (program + API +
+# verifier + SDK + browser E2E); and supply-chain/secret checks.
+#
+# Hardening: read-only token by default, no secrets required, concurrency-cancelled runs. Pin
+# third-party actions to commit SHAs (Dependabot keeps them current) before relying on this in a
+# high-assurance environment.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  AGAVE_VERSION: v3.1.10
+  NEXT_TELEMETRY_DISABLED: "1"
+
+jobs:
+  typescript:
+    name: TypeScript — format, lint, typecheck, unit tests, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm format:check
+      - run: pnpm lint
+      - run: pnpm typecheck
+      # Tests that need a local validator skip themselves here; the integration job runs them.
+      - run: pnpm test
+      - name: Canonicalization vectors are reproducible
+        run: |
+          pnpm vectors
+          git diff --exit-code -- spec/test-vectors
+      - run: pnpm build
+
+  rust:
+    name: Rust — fmt, clippy, tests, SBF build
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: Install Agave (Solana) toolchain
+        run: |
+          sh -c "$(curl -sSfL https://release.anza.xyz/${AGAVE_VERSION}/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+      # --locked everywhere: builds use exactly the committed Cargo.lock (reproducible, reviewable).
+      - run: cargo fmt --all --check
+      - run: cargo clippy --workspace --all-targets --locked -- -D clippy::correctness -D clippy::suspicious
+      - name: Build the program (SBF)
+        run: |
+          cargo build-sbf --manifest-path programs/stele/Cargo.toml --sbf-out-dir target/deploy -- --locked
+          sha256sum target/deploy/stele.so | tee target/deploy/stele.so.sha256
+      # Test fixture only (a CPI forwarder the program tests deploy next to Stele); never released.
+      - name: Build the CPI probe (SBF)
+        run: cargo build-sbf --manifest-path tests/programs/cpi-probe/Cargo.toml --sbf-out-dir target/deploy -- --locked
+      # Core crates (shared test vectors) and LiteSVM program tests against the compiled .so.
+      - run: cargo test --workspace --locked
+      - uses: actions/upload-artifact@v4
+        with:
+          name: stele-program
+          path: |
+            target/deploy/stele.so
+            target/deploy/stele.so.sha256
+          retention-days: 7
+
+  integration:
+    name: Localnet integration & browser E2E
+    needs: rust
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          name: stele-program
+          path: target/deploy
+      - name: Install Agave (Solana) toolchain
+        run: |
+          sh -c "$(curl -sSfL https://release.anza.xyz/${AGAVE_VERSION}/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Generate throwaway localnet keys and environment
+        run: |
+          pnpm localnet:keys
+          pnpm localnet:env
+      - name: Start a local validator with the compiled program
+        run: |
+          ADMIN=$(pnpm --silent localnet:keys | awk '$1 == "admin" { print $2 }')
+          STELE_PROGRAM_SO="$PWD/target/deploy/stele.so" STELE_LEDGER_DIR="$RUNNER_TEMP/ledger" \
+            nohup bash scripts/localnet/validator.sh "$ADMIN" > "$RUNNER_TEMP/validator.log" 2>&1 &
+          for i in $(seq 1 60); do
+            curl -sf -X POST -H 'content-type: application/json' -d '{"jsonrpc":"2.0","id":1,"method":"getHealth"}' http://127.0.0.1:8899 && break
+            sleep 2
+          done
+      - name: Seed protocol, organization, documents and acceptances
+        run: pnpm localnet:seed
+      - name: API, verifier and SDK tests against the validator
+        run: |
+          pnpm --filter @stele/api test
+          pnpm --filter @stele/verifier test
+          pnpm test:integration
+      # Against the production artifacts: the API bundle and the standalone Next.js server.
+      - name: Browser end-to-end tests
+        run: |
+          pnpm --filter @stele/e2e exec playwright install --with-deps chromium
+          pnpm --filter @stele/api --filter @stele/web run build
+          pnpm test:e2e
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-logs
+          path: |
+            ${{ runner.temp }}/validator.log
+            tests/e2e/playwright-report
+          retention-days: 7
+
+  supply-chain:
+    name: Dependency audit & secret scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: npm advisories (high and critical fail the build)
+        run: pnpm audit --audit-level high
+      - name: RustSec advisories
+        run: |
+          cargo install cargo-audit --locked
+          cargo audit
+      - name: Secret scan (gitleaks)
+        run: docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:latest detect --source=/repo --redact --verbose
+      - name: No keypairs or env files are committed
+        run: |
+          if git ls-files | grep -E '(^|/)(\.env($|\.)|id\.json$|.*-keypair\.json$|\.data/)' | grep -v '^\.env\.example$'; then
+            echo "Committed secrets or local data found" >&2
+            exit 1
+          fi

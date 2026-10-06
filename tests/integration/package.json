@@ -1,0 +1,21 @@
+{
+  "name": "@stele/integration-tests",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Cross-package end-to-end tests: SDK + API + verifier against a real local validator",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test:integration": "vitest run"
+  },
+  "devDependencies": {
+    "@noble/curves": "^2.4.0",
+    "@stele/api": "workspace:*",
+    "@stele/db": "workspace:*",
+    "@stele/protocol": "workspace:*",
+    "@stele/sdk": "workspace:*",
+    "@stele/verifier": "workspace:*",
+    "typescript": "~6.0.3",
+    "vitest": "^5.0.3"
+  }
+}

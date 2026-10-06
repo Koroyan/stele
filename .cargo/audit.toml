@@ -1,0 +1,18 @@
+# cargo-audit configuration (CI: `cargo audit`).
+#
+# Every ignored advisory below is reachable ONLY through LiteSVM, a dev-dependency of the program's
+# test suite (`programs/stele/Cargo.toml [dev-dependencies] litesvm` with the "precompiles" feature,
+# which emulates Solana's Ed25519/secp256r1 precompiles through `agave-precompiles`). None of these
+# crates is linked into the deployed program, the CLI or any published package
+# (`cargo tree -i ed25519-dalek --edges normal` lists no path outside litesvm). They are re-checked
+# whenever LiteSVM or agave-precompiles is upgraded; remove an entry as soon as upstream moves on.
+
+[advisories]
+ignore = [
+  # ed25519-dalek 1.0.1 — "Double Public Key Signing Function Oracle Attack": requires signing with
+  # attacker-supplied public keys; the test harness only VERIFIES signatures (precompile emulation).
+  "RUSTSEC-2022-0093",
+  # curve25519-dalek 3.2.0 — timing variability in scalar subtraction: a side channel on secret
+  # scalars; the test harness handles no secrets an attacker could time.
+  "RUSTSEC-2024-0344",
+]

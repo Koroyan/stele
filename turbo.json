@@ -1,0 +1,32 @@
+{
+  "$schema": "https://turborepo.com/schema.json",
+  "ui": "stream",
+  "globalDependencies": ["tsconfig.base.json", "eslint.config.mjs"],
+  "globalEnv": ["NODE_ENV"],
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**", ".next/**", "!.next/cache/**", "public/sdk/**"],
+      "env": ["NEXT_PUBLIC_*", "STELE_*", "API_INTERNAL_URL"]
+    },
+    "typecheck": {
+      "dependsOn": ["^typecheck"],
+      "outputs": []
+    },
+    "lint": {
+      "outputs": []
+    },
+    "test": {
+      "outputs": [],
+      "env": ["STELE_*"]
+    },
+    "test:integration": {
+      "cache": false,
+      "env": ["STELE_*", "DATABASE_URL"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    }
+  }
+}

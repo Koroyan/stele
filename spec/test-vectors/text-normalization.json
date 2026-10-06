@@ -1,0 +1,265 @@
+{
+  "description": "normalize_text / normalize_inline (PROTOCOL_SPEC.md §4.2). `error` is the failure class.",
+  "cases": [
+    {
+      "name": "plain ascii",
+      "input": "Hello world",
+      "text": {
+        "ok": "Hello world"
+      },
+      "inline": {
+        "ok": "Hello world"
+      }
+    },
+    {
+      "name": "crlf, cr, trailing spaces, blank lines",
+      "input": "Line one  \r\n\r\nLine two\rLine three   \n\n\n",
+      "text": {
+        "ok": "Line one\nLine two\nLine three"
+      },
+      "inline": {
+        "ok": "Line one Line two Line three"
+      }
+    },
+    {
+      "name": "leading bom and indentation",
+      "input": "﻿   Indented start\n    indented line",
+      "text": {
+        "ok": "Indented start\nindented line"
+      },
+      "inline": {
+        "ok": "Indented start indented line"
+      }
+    },
+    {
+      "name": "tabs become spaces",
+      "input": "a\tb\t\tc",
+      "text": {
+        "ok": "a b c"
+      },
+      "inline": {
+        "ok": "a b c"
+      }
+    },
+    {
+      "name": "space runs collapse",
+      "input": "a     b  c",
+      "text": {
+        "ok": "a b c"
+      },
+      "inline": {
+        "ok": "a b c"
+      }
+    },
+    {
+      "name": "nfd to nfc",
+      "input": "Café résumé",
+      "text": {
+        "ok": "Café résumé"
+      },
+      "inline": {
+        "ok": "Café résumé"
+      }
+    },
+    {
+      "name": "unicode line separators",
+      "input": "one two threefour",
+      "text": {
+        "ok": "one\ntwo\nthree\nfour"
+      },
+      "inline": {
+        "ok": "one two three four"
+      }
+    },
+    {
+      "name": "emoji and zwj sequence",
+      "input": "Team 👩‍💻 rocks 🇪🇺",
+      "text": {
+        "ok": "Team 👩‍💻 rocks 🇪🇺"
+      },
+      "inline": {
+        "ok": "Team 👩‍💻 rocks 🇪🇺"
+      }
+    },
+    {
+      "name": "rtl arabic",
+      "input": "شروط الخدمة\nالإصدار ٣",
+      "text": {
+        "ok": "شروط الخدمة\nالإصدار ٣"
+      },
+      "inline": {
+        "ok": "شروط الخدمة الإصدار ٣"
+      }
+    },
+    {
+      "name": "rtl hebrew with marks",
+      "input": "תנאי שימוש ‏(גרסה 3)",
+      "text": {
+        "ok": "תנאי שימוש ‏(גרסה 3)"
+      },
+      "inline": {
+        "ok": "תנאי שימוש ‏(גרסה 3)"
+      }
+    },
+    {
+      "name": "cjk with ideographic space",
+      "input": "利用規約　第3版",
+      "text": {
+        "ok": "利用規約　第3版"
+      },
+      "inline": {
+        "ok": "利用規約　第3版"
+      }
+    },
+    {
+      "name": "nbsp preserved",
+      "input": "Article 1 : Objet",
+      "text": {
+        "ok": "Article 1 : Objet"
+      },
+      "inline": {
+        "ok": "Article 1 : Objet"
+      }
+    },
+    {
+      "name": "persian zwnj preserved",
+      "input": "می‌خواهم",
+      "text": {
+        "ok": "می‌خواهم"
+      },
+      "inline": {
+        "ok": "می‌خواهم"
+      }
+    },
+    {
+      "name": "json specials",
+      "input": "Quote \" backslash \\ slash /",
+      "text": {
+        "ok": "Quote \" backslash \\ slash /"
+      },
+      "inline": {
+        "ok": "Quote \" backslash \\ slash /"
+      }
+    },
+    {
+      "name": "only whitespace",
+      "input": " \t \r\n ",
+      "text": {
+        "error": "EMPTY_TEXT"
+      },
+      "inline": {
+        "error": "EMPTY_TEXT"
+      }
+    },
+    {
+      "name": "bidi override rejected",
+      "input": "Pay ‮0001‬ USD",
+      "text": {
+        "error": "FORBIDDEN_CHARACTER"
+      },
+      "inline": {
+        "error": "FORBIDDEN_CHARACTER"
+      }
+    },
+    {
+      "name": "bidi isolate rejected",
+      "input": "a⁦b⁩c",
+      "text": {
+        "error": "FORBIDDEN_CHARACTER"
+      },
+      "inline": {
+        "error": "FORBIDDEN_CHARACTER"
+      }
+    },
+    {
+      "name": "zero width space rejected",
+      "input": "in​visible",
+      "text": {
+        "error": "FORBIDDEN_CHARACTER"
+      },
+      "inline": {
+        "error": "FORBIDDEN_CHARACTER"
+      }
+    },
+    {
+      "name": "soft hyphen rejected",
+      "input": "co­operate",
+      "text": {
+        "error": "FORBIDDEN_CHARACTER"
+      },
+      "inline": {
+        "error": "FORBIDDEN_CHARACTER"
+      }
+    },
+    {
+      "name": "tag characters rejected",
+      "input": "hi󠁁󠁂",
+      "text": {
+        "error": "FORBIDDEN_CHARACTER"
+      },
+      "inline": {
+        "error": "FORBIDDEN_CHARACTER"
+      }
+    },
+    {
+      "name": "private use rejected",
+      "input": "icon ",
+      "text": {
+        "error": "FORBIDDEN_CHARACTER"
+      },
+      "inline": {
+        "error": "FORBIDDEN_CHARACTER"
+      }
+    },
+    {
+      "name": "nul rejected",
+      "input": "a\u0000b",
+      "text": {
+        "error": "FORBIDDEN_CHARACTER"
+      },
+      "inline": {
+        "error": "FORBIDDEN_CHARACTER"
+      }
+    },
+    {
+      "name": "c1 control rejected",
+      "input": "ab",
+      "text": {
+        "error": "FORBIDDEN_CHARACTER"
+      },
+      "inline": {
+        "error": "FORBIDDEN_CHARACTER"
+      }
+    },
+    {
+      "name": "replacement character rejected",
+      "input": "broken � text",
+      "text": {
+        "error": "FORBIDDEN_CHARACTER"
+      },
+      "inline": {
+        "error": "FORBIDDEN_CHARACTER"
+      }
+    },
+    {
+      "name": "noncharacter rejected",
+      "input": "x﷐y",
+      "text": {
+        "error": "FORBIDDEN_CHARACTER"
+      },
+      "inline": {
+        "error": "FORBIDDEN_CHARACTER"
+      }
+    },
+    {
+      "name": "interior bom rejected",
+      "input": "a﻿b",
+      "text": {
+        "error": "FORBIDDEN_CHARACTER"
+      },
+      "inline": {
+        "error": "FORBIDDEN_CHARACTER"
+      }
+    }
+  ]
+}

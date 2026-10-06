@@ -1,0 +1,18 @@
+[package]
+name = "stele-canonical"
+description = "Stele content canonicalization (stele-canonical-v1) — Rust reference implementation"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+stele-core = { workspace = true }
+serde_json = { workspace = true }
+unicode-normalization = { workspace = true }
+
+[dev-dependencies]
+serde = { workspace = true }
+hex = { workspace = true }
+bs58 = { workspace = true }

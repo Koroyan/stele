@@ -1,0 +1,17 @@
+[package]
+name = "stele-core"
+description = "Stele protocol core: validation, version fingerprints, acceptance messages (shared by the on-chain program and off-chain tooling)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+bs58 = { workspace = true }
+solana-sha256-hasher = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }
+serde = { workspace = true }
+hex = { workspace = true }

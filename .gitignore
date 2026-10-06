@@ -1,0 +1,46 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# builds
+dist/
+.next/
+out/
+target/
+*.tsbuildinfo
+.turbo/
+coverage/
+playwright-report/
+test-results/
+test-ledger/
+.anchor/
+
+# secrets — NEVER commit keys, seed phrases or env files
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+keys/**/*.json
+!keys/README.md
+**/*-keypair.json
+id.json
+infra/secrets/
+
+# local data
+.data/
+*.db
+*.sqlite
+pglite-data/
+
+# os / editor
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# generated: the SDK script build published by the web app
+apps/web/public/sdk/

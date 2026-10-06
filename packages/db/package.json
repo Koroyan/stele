@@ -1,0 +1,29 @@
+{
+  "name": "@stele/db",
+  "version": "1.0.0",
+  "private": true,
+  "description": "PostgreSQL schema, migrations and client for the Stele index (never evidence)",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./testing": "./src/testing.ts"
+  },
+  "scripts": {
+    "generate": "drizzle-kit generate",
+    "migrate": "tsx src/migrate.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "^0.5.8",
+    "drizzle-orm": "^0.45.3",
+    "postgres": "^3.4.9"
+  },
+  "devDependencies": {
+    "drizzle-kit": "^0.31.11",
+    "tsx": "^4.20.0",
+    "typescript": "~6.0.3",
+    "vitest": "^5.0.3"
+  }
+}

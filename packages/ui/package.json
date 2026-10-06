@@ -1,0 +1,27 @@
+{
+  "name": "@stele/ui",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Stele design system: tokens, brand mark and accessible React primitives (Tailwind CSS v4)",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts",
+    "./tokens.css": "./src/tokens.css"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src"
+  },
+  "peerDependencies": {
+    "react": ">=19"
+  },
+  "dependencies": {
+    "clsx": "^2.1.1"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.0",
+    "react": "^19.3.0",
+    "typescript": "~6.0.3"
+  }
+}

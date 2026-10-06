@@ -1,0 +1,9 @@
+{
+  // Build-only settings (tsup). Its declaration bundler sets `baseUrl`, which TypeScript 6 reports
+  // as deprecated; type checking (`tsc --noEmit` with tsconfig.json) keeps the strict defaults.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "ignoreDeprecations": "6.0"
+  },
+  "include": ["src"]
+}

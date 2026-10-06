@@ -1,0 +1,21 @@
+{
+  "name": "@stele/ops",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Operator tooling for devnet and mainnet: protocol initialization and deployment checks",
+  "type": "module",
+  "scripts": {
+    "init-protocol": "tsx src/init-protocol.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src"
+  },
+  "dependencies": {
+    "@solana/kit": "^8.4.0",
+    "@stele/protocol": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "tsx": "^4.20.0",
+    "typescript": "~6.0.3"
+  }
+}

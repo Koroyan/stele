@@ -1,0 +1,19 @@
+{
+  "name": "@stele/e2e",
+  "version": "1.0.0",
+  "private": true,
+  "description": "End-to-end browser tests (Playwright) against the web app, API and a local validator",
+  "type": "module",
+  "scripts": {
+    "test:e2e": "playwright test",
+    "screenshot": "tsx scripts/screenshot.ts"
+  },
+  "devDependencies": {
+    "@noble/curves": "^2.4.0",
+    "@playwright/test": "^1.63.0",
+    "@stele/protocol": "workspace:*",
+    "@types/node": "^24.10.1",
+    "tsx": "^4.20.0",
+    "typescript": "~6.0.3"
+  }
+}

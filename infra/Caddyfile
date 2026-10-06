@@ -1,0 +1,10 @@
+# TLS-terminating reverse proxy for a single-host Stele deployment (docker compose --profile proxy).
+# Caddy obtains and renews the HTTPS certificate for STELE_DOMAIN automatically.
+{$STELE_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy web:3000 {
+		# The client's address, never a client-supplied header: the API rate-limits by it
+		# (TRUST_PROXY_HOPS=1, since the web app passes this header through unchanged).
+		header_up X-Forwarded-For {remote_host}
+	}
+}

@@ -1,0 +1,232 @@
+{
+  "description": "stele/2 native passkey vectors: stele-acceptance-v2 messages, WebAuthn challenges and signed bytes, acceptance ids, enrollment and rotation statements, and the clientDataJSON / authenticatorData rules (PROTOCOL_SPEC.md §17).",
+  "signerPublicKey": "02d4e31232369a7950ac8adcfe55bc947271a7d393e80b7496a831b28abdb68c3d",
+  "rpId": "acme.example",
+  "acceptances": [
+    {
+      "name": "verified organization",
+      "fields": {
+        "orgName": "Acme Inc.",
+        "orgVerifiedDomain": "acme.example",
+        "title": "Terms of Service",
+        "versionLabel": "3.2",
+        "version": 3,
+        "versionHash": "8d4fa4bc52404446d063c3a21af0f02c92dde66448512c9c24a7fdbfa6b8dec3",
+        "networkLabel": "Solana Devnet",
+        "issuedAt": 1790000000,
+        "expiresAt": 1790000600,
+        "shardId": 0,
+        "nonceIndex": 42,
+        "nonceTag": "0123456789abcdef"
+      },
+      "requestDomain": "shop.acme.example",
+      "origin": "https://shop.acme.example",
+      "message": "Stele Protocol v2 - Accept Agreement\nI accept the exact document version below.\nOrganization: Acme Inc. (verified: acme.example)\nDocument: Terms of Service\nVersion: 3.2 (#3)\nFingerprint: 8d4fa4bc52404446d063c3a21af0f02c92dde66448512c9c24a7fdbfa6b8dec3\nSigner: passkey-p256 02d4e31232369a7950ac8adcfe55bc947271a7d393e80b7496a831b28abdb68c3d\nNetwork: Solana Devnet\nIssued: 2026-09-21T14:13:20Z\nExpires: 2026-09-21T14:23:20Z\nNonce: 0-42-0123456789abcdef\nRequested by: shop.acme.example",
+      "messageHash": "80a1a2fc55c5ce9dcb345cb57c7dc8372569488368a20ff8e121d055dd7eb02f",
+      "challenge": "b17b9757be6591bf3f16a2a682715d39d2d6712cd2fddac19e2bddd41ca774c8",
+      "clientDataJSON": "{\"type\":\"webauthn.get\",\"challenge\":\"sXuXV75lkb8_FqKmgnFdOdLWcSzS_drBnivd1ByndMg\",\"origin\":\"https://shop.acme.example\",\"crossOrigin\":false}",
+      "authenticatorData": "54667cc7be6265f6a4cdfe25b9c89d52aea7817c4e570cb678feec57c23f4a6a0500000005",
+      "signedBytes": "54667cc7be6265f6a4cdfe25b9c89d52aea7817c4e570cb678feec57c23f4a6a0500000005b813b10c6e202825958091a445be8eb96ebaf88ae33176de5a3ca7672cc31fcf",
+      "signature": "4fd7005036bd03512d52f1053f48dc09f6f6d347b875dafa2a7b5b933714e60c35b6d860b8b9941f88d7505e168da394d4a4b6f6f4e4006a91f78a28006f1588",
+      "acceptanceId": "96c7613e35eed8398fe2645e4552923bd529a51643483c9eafe8c75c0684afca",
+      "versionAccount": "f5430294c836ddc54eb8571a2b3cda674e7e4e4a7453f2dd415a8e6789fce33e"
+    },
+    {
+      "name": "unverified organization on localhost",
+      "fields": {
+        "orgName": "Ünïcode Ltd",
+        "orgVerifiedDomain": null,
+        "title": "Privacy Policy",
+        "versionLabel": "1.0-beta",
+        "version": 1,
+        "versionHash": "be5cc4f0bb08352148e05981ff8acfc7ebdc74f1d8caf545cad249efeba14522",
+        "networkLabel": "Solana Localnet",
+        "issuedAt": 1800000000,
+        "expiresAt": 1800003600,
+        "shardId": 65535,
+        "nonceIndex": 65535,
+        "nonceTag": "ffffffffffffffff"
+      },
+      "requestDomain": "localhost",
+      "origin": "http://localhost:3000",
+      "message": "Stele Protocol v2 - Accept Agreement\nI accept the exact document version below.\nOrganization: Ünïcode Ltd (unverified)\nDocument: Privacy Policy\nVersion: 1.0-beta (#1)\nFingerprint: be5cc4f0bb08352148e05981ff8acfc7ebdc74f1d8caf545cad249efeba14522\nSigner: passkey-p256 02d4e31232369a7950ac8adcfe55bc947271a7d393e80b7496a831b28abdb68c3d\nNetwork: Solana Localnet\nIssued: 2027-01-15T08:00:00Z\nExpires: 2027-01-15T09:00:00Z\nNonce: 65535-65535-ffffffffffffffff\nRequested by: localhost",
+      "messageHash": "58fc895e8e4fb8c769d44ff758439f9c2f3cea23dd7c660d030194ba60669ada",
+      "challenge": "f4ac5aaeee9ec96d12787a523958992781a8d0ed2fd311e42ebce2fdd92d895a",
+      "clientDataJSON": "{\"type\":\"webauthn.get\",\"challenge\":\"9Kxaru6eyW0SeHpSOViZJ4Go0O0v0xHkLrzi_dktiVo\",\"origin\":\"http://localhost:3000\",\"crossOrigin\":false}",
+      "authenticatorData": "49960de5880e8c687434170f6476605b8fe4aeb9a28632c7995cf3ba831d97630500000005",
+      "signedBytes": "49960de5880e8c687434170f6476605b8fe4aeb9a28632c7995cf3ba831d976305000000050ecb642d9eaea465b0ef275ecd31dfc64c55c8017634e9a60e02e97638ccfc0a",
+      "signature": "4e8659594606487be24df63a4df8ddcb6b3517bf9ad04f10f40490eb935212e041f9024f1b5663e19a4adf29a30368d9e8907550412639e31a736bbc38c9a7e7",
+      "acceptanceId": "f6ff0c86e3574ae068ceda9f70315492ad257ee8ccfc9e98977871fb210a2aed",
+      "versionAccount": "f5430294c836ddc54eb8571a2b3cda674e7e4e4a7453f2dd415a8e6789fce33e"
+    }
+  ],
+  "enrollment": {
+    "organization": "2YA9H4U5eX4zne34W99vsTG1mgT5BpshU1YwAwvXzCBU",
+    "accountCommitment": "fe5ac1318a807ae1ea24708b814a5ec4d84716d787f60dd053c68757480e8906",
+    "statement": "Stele Protocol v2 - Enroll Passkey Signer\nOrganization: 2YA9H4U5eX4zne34W99vsTG1mgT5BpshU1YwAwvXzCBU\nAccount commitment: fe5ac1318a807ae1ea24708b814a5ec4d84716d787f60dd053c68757480e8906\nSigner: passkey-p256 02d4e31232369a7950ac8adcfe55bc947271a7d393e80b7496a831b28abdb68c3d\nRelying party: acme.example\nNetwork: Solana Devnet\nIssued: 2026-09-21T14:13:20Z\nExpires: 2026-09-21T14:23:20Z",
+    "challenge": "12c1816990f4d2811a909432ed7fa280562ec7c563c6975ce5ecd7ff0eced93e"
+  },
+  "rotation": {
+    "newSignerPublicKey": "03df0e7c27cf16ec79ec9fa5d5ea107d6d77757ec8243724ed89938a944c391bd6",
+    "statement": "Stele Protocol v2 - Rotate Passkey Signer\nOrganization: 2YA9H4U5eX4zne34W99vsTG1mgT5BpshU1YwAwvXzCBU\nAccount commitment: fe5ac1318a807ae1ea24708b814a5ec4d84716d787f60dd053c68757480e8906\nPrevious signer: passkey-p256 02d4e31232369a7950ac8adcfe55bc947271a7d393e80b7496a831b28abdb68c3d\nNew signer: passkey-p256 03df0e7c27cf16ec79ec9fa5d5ea107d6d77757ec8243724ed89938a944c391bd6\nNetwork: Solana Devnet\nIssued: 2026-09-21T14:13:20Z\nExpires: 2026-09-21T14:23:20Z",
+    "challenge": "a6a202e2884de772c0f8fb36560e049e092bc91af326f12f6d3b510eeeb02367"
+  },
+  "clientDataChecks": {
+    "challenge": "2615dcc7ab26413d592bd845eae0a2b2d11c24eed7c90843be8edc3ebc44a2e1",
+    "requestDomain": "shop.acme.example",
+    "cases": [
+      {
+        "name": "valid",
+        "clientDataJSON": "{\"type\":\"webauthn.get\",\"challenge\":\"JhXcx6smQT1ZK9hF6uCistEcJO7XyQhDvo7cPrxEouE\",\"origin\":\"https://shop.acme.example\",\"crossOrigin\":false}",
+        "expected": {
+          "ok": "https://shop.acme.example"
+        }
+      },
+      {
+        "name": "valid without crossOrigin",
+        "clientDataJSON": "{\"type\":\"webauthn.get\",\"challenge\":\"JhXcx6smQT1ZK9hF6uCistEcJO7XyQhDvo7cPrxEouE\",\"origin\":\"https://shop.acme.example\"}",
+        "expected": {
+          "ok": "https://shop.acme.example"
+        }
+      },
+      {
+        "name": "valid with extra keys",
+        "clientDataJSON": "{\"type\":\"webauthn.get\",\"challenge\":\"JhXcx6smQT1ZK9hF6uCistEcJO7XyQhDvo7cPrxEouE\",\"origin\":\"https://shop.acme.example\",\"crossOrigin\":false,\"other_keys_can_be_added_here\":\"x\"}",
+        "expected": {
+          "ok": "https://shop.acme.example"
+        }
+      },
+      {
+        "name": "wrong challenge",
+        "clientDataJSON": "{\"type\":\"webauthn.get\",\"challenge\":\"2SmKENGwc1g33EvYXaxkGw887yekfl1TpU8vP1svz_o\",\"origin\":\"https://shop.acme.example\",\"crossOrigin\":false}",
+        "expected": {
+          "error": "INVALID_CLIENT_DATA"
+        }
+      },
+      {
+        "name": "registration ceremony",
+        "clientDataJSON": "{\"type\":\"webauthn.create\",\"challenge\":\"JhXcx6smQT1ZK9hF6uCistEcJO7XyQhDvo7cPrxEouE\",\"origin\":\"https://shop.acme.example\",\"crossOrigin\":false}",
+        "expected": {
+          "error": "INVALID_CLIENT_DATA"
+        }
+      },
+      {
+        "name": "foreign origin",
+        "clientDataJSON": "{\"type\":\"webauthn.get\",\"challenge\":\"JhXcx6smQT1ZK9hF6uCistEcJO7XyQhDvo7cPrxEouE\",\"origin\":\"https://evil.example\",\"crossOrigin\":false}",
+        "expected": {
+          "error": "ORIGIN_MISMATCH"
+        }
+      },
+      {
+        "name": "plain http",
+        "clientDataJSON": "{\"type\":\"webauthn.get\",\"challenge\":\"JhXcx6smQT1ZK9hF6uCistEcJO7XyQhDvo7cPrxEouE\",\"origin\":\"http://shop.acme.example\",\"crossOrigin\":false}",
+        "expected": {
+          "error": "ORIGIN_MISMATCH"
+        }
+      },
+      {
+        "name": "origin with port",
+        "clientDataJSON": "{\"type\":\"webauthn.get\",\"challenge\":\"JhXcx6smQT1ZK9hF6uCistEcJO7XyQhDvo7cPrxEouE\",\"origin\":\"https://shop.acme.example:8443\",\"crossOrigin\":false}",
+        "expected": {
+          "error": "ORIGIN_MISMATCH"
+        }
+      },
+      {
+        "name": "cross-origin frame",
+        "clientDataJSON": "{\"type\":\"webauthn.get\",\"challenge\":\"JhXcx6smQT1ZK9hF6uCistEcJO7XyQhDvo7cPrxEouE\",\"origin\":\"https://shop.acme.example\",\"crossOrigin\":true}",
+        "expected": {
+          "error": "CROSS_ORIGIN_CEREMONY"
+        }
+      },
+      {
+        "name": "topOrigin present",
+        "clientDataJSON": "{\"type\":\"webauthn.get\",\"challenge\":\"JhXcx6smQT1ZK9hF6uCistEcJO7XyQhDvo7cPrxEouE\",\"origin\":\"https://shop.acme.example\",\"crossOrigin\":false,\"topOrigin\":\"https://evil.example\"}",
+        "expected": {
+          "error": "CROSS_ORIGIN_CEREMONY"
+        }
+      },
+      {
+        "name": "bytes glued after origin",
+        "clientDataJSON": "{\"type\":\"webauthn.get\",\"challenge\":\"JhXcx6smQT1ZK9hF6uCistEcJO7XyQhDvo7cPrxEouE\",\"origin\":\"https://shop.acme.example\"x}",
+        "expected": {
+          "error": "INVALID_CLIENT_DATA"
+        }
+      },
+      {
+        "name": "whitespace",
+        "clientDataJSON": "{\"type\": \"webauthn.get\",\"challenge\":\"JhXcx6smQT1ZK9hF6uCistEcJO7XyQhDvo7cPrxEouE\",\"origin\":\"https://shop.acme.example\",\"crossOrigin\":false}",
+        "expected": {
+          "error": "INVALID_CLIENT_DATA"
+        }
+      }
+    ]
+  },
+  "authenticatorDataChecks": {
+    "rpId": "acme.example",
+    "cases": [
+      {
+        "name": "user present and verified",
+        "authenticatorData": "54667cc7be6265f6a4cdfe25b9c89d52aea7817c4e570cb678feec57c23f4a6a0500000005",
+        "expected": {
+          "ok": 5
+        }
+      },
+      {
+        "name": "backup flags are ignored",
+        "authenticatorData": "54667cc7be6265f6a4cdfe25b9c89d52aea7817c4e570cb678feec57c23f4a6a1d00000005",
+        "expected": {
+          "ok": 29
+        }
+      },
+      {
+        "name": "extension data, flagged",
+        "authenticatorData": "54667cc7be6265f6a4cdfe25b9c89d52aea7817c4e570cb678feec57c23f4a6a8500000005a0",
+        "expected": {
+          "ok": 133
+        }
+      },
+      {
+        "name": "presence only",
+        "authenticatorData": "54667cc7be6265f6a4cdfe25b9c89d52aea7817c4e570cb678feec57c23f4a6a0100000005",
+        "expected": {
+          "error": "USER_NOT_VERIFIED"
+        }
+      },
+      {
+        "name": "verification only",
+        "authenticatorData": "54667cc7be6265f6a4cdfe25b9c89d52aea7817c4e570cb678feec57c23f4a6a0400000005",
+        "expected": {
+          "error": "USER_NOT_VERIFIED"
+        }
+      },
+      {
+        "name": "another relying party",
+        "authenticatorData": "9c180de0cd699ee78897c47cfdb3e7ee1d75906e31b7746a4747dea5369098370500000005",
+        "expected": {
+          "error": "RELYING_PARTY_MISMATCH"
+        }
+      },
+      {
+        "name": "attested credential data",
+        "authenticatorData": "54667cc7be6265f6a4cdfe25b9c89d52aea7817c4e570cb678feec57c23f4a6a4500000005",
+        "expected": {
+          "error": "INVALID_AUTHENTICATOR_DATA"
+        }
+      },
+      {
+        "name": "undeclared extension bytes",
+        "authenticatorData": "54667cc7be6265f6a4cdfe25b9c89d52aea7817c4e570cb678feec57c23f4a6a0500000005a0",
+        "expected": {
+          "error": "INVALID_AUTHENTICATOR_DATA"
+        }
+      },
+      {
+        "name": "truncated",
+        "authenticatorData": "54667cc7be6265f6a4cdfe25b9c89d52aea7817c4e570cb678feec57c23f4a6a05000000",
+        "expected": {
+          "error": "INVALID_AUTHENTICATOR_DATA"
+        }
+      }
+    ]
+  }
+}

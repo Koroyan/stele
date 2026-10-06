@@ -1,0 +1,49 @@
+<!doctype html>
+<!--
+  Stele widget on a plain HTML page, wired to a LOCAL Stele app (http://localhost:3000).
+
+  Run it (wallet extensions do not work on file:// pages, so serve the folder):
+    npx serve -l 8080 examples/local-widget        (or: python3 -m http.server 8080)
+  then open http://localhost:8080.
+
+  It works out of the box with the seeded demo organization (acme.example). For your own
+  organization, publish a document in the dashboard and change the two data-stele-* values:
+  your verified domain (or organization address) and the document slug.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Terms of Service</title>
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        max-width: 680px;
+        margin: 40px auto;
+        padding: 0 16px;
+      }
+    </style>
+  </head>
+  <body>
+    <div data-stele-organization="northwind.test" data-stele-document="terms-of-service"></div>
+
+    <script src="http://localhost:3000/sdk/v1/stele.js" defer></script>
+    <h1>Terms of Service</h1>
+
+    <div data-stele-organization="acme.example" data-stele-document="terms-of-service"></div>
+
+    <p><button id="continue" disabled>Continue</button></p>
+
+    <script src="http://localhost:3000/sdk/v1/stele.js" defer></script>
+    <script>
+      document.addEventListener("stele:accepted", (event) => {
+        console.log("Accepted:", event.detail);
+        document.querySelector("#continue").disabled = false;
+      });
+
+      document.addEventListener("stele:error", (event) => {
+        console.warn("Stele:", event.detail.message);
+      });
+    </script>
+  </body>
+</html>

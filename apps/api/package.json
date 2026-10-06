@@ -1,0 +1,48 @@
+{
+  "name": "@stele/api",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Stele REST API, acceptance relayer, domain attestor, webhooks, workers and chain indexer",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch --env-file-if-exists=../../.env src/main.ts",
+    "dev:worker": "tsx watch --env-file-if-exists=../../.env src/worker-main.ts",
+    "dev:indexer": "tsx watch --env-file-if-exists=../../.env src/indexer-main.ts",
+    "build": "tsup",
+    "start": "node --env-file-if-exists=../../.env dist/main.js",
+    "start:worker": "node --env-file-if-exists=../../.env dist/worker-main.js",
+    "start:indexer": "node --env-file-if-exists=../../.env dist/indexer-main.js",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src test",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1145.0",
+    "@electric-sql/pglite": "^0.5.8",
+    "@fastify/cookie": "^11.1.2",
+    "@fastify/cors": "^11.3.0",
+    "@fastify/helmet": "^13.1.1",
+    "@fastify/rate-limit": "^11.2.0",
+    "@fastify/swagger": "^9.6.0",
+    "@noble/curves": "^2.4.0",
+    "@noble/hashes": "^2.4.0",
+    "@solana-program/compute-budget": "^0.19.0",
+    "@solana/kit": "^8.4.0",
+    "@stele/db": "workspace:*",
+    "@stele/protocol": "workspace:*",
+    "@stele/verifier": "workspace:*",
+    "drizzle-orm": "^0.45.3",
+    "fastify": "^5.12.5",
+    "fastify-type-provider-zod": "^7.0.0",
+    "ioredis": "^5.8.0",
+    "pino": "^10.3.1",
+    "postgres": "^3.4.9",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "tsup": "^8.5.1",
+    "tsx": "^4.23.15",
+    "typescript": "~6.0.3",
+    "vitest": "^5.0.3"
+  }
+}

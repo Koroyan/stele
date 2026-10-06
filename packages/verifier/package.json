@@ -1,0 +1,44 @@
+{
+  "name": "@stele/verifier",
+  "version": "1.0.0",
+  "description": "Independent verifier for Stele evidence \u2014 checks Solana state, transactions, signatures and content hashes without trusting any Stele server",
+  "license": "Apache-2.0",
+  "type": "module",
+  "sideEffects": false,
+  "bin": {
+    "stele-verify": "./dist/cli.js"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "import": "./dist/index.js"
+      }
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsup --tsconfig tsconfig.build.json src/index.ts src/cli.ts --format esm --dts --clean --sourcemap",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src test",
+    "test": "vitest run",
+    "cli": "tsx src/cli.ts"
+  },
+  "dependencies": {
+    "@solana/kit": "^8.4.0",
+    "@stele/protocol": "workspace:*"
+  },
+  "devDependencies": {
+    "@noble/curves": "^2.4.0",
+    "tsup": "^8.5.1",
+    "tsx": "^4.20.0",
+    "typescript": "~6.0.3",
+    "vitest": "^5.0.3"
+  }
+}

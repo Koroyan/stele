@@ -1,0 +1,155 @@
+# Single-host Stele stack: PostgreSQL, API (+ relayer and workers), chain indexer and web app.
+#
+#   cp .env.example .env    # fill in secrets; set SOLANA_CLUSTER / RPC URLs / PROGRAM_ID
+#   mkdir -p infra/secrets  # place relayer.json and attestor.json here (chmod 600, never commit)
+#   docker compose -f infra/docker-compose.yml --env-file .env up --build
+#   # + HTTPS on one host: set STELE_DOMAIN and add --profile proxy (Caddy, infra/Caddyfile)
+#
+# Localnet from inside containers: point SOLANA_RPC_URLS at http://host.docker.internal:8899.
+name: stele
+
+x-api-env: &api-env
+  NODE_ENV: ${NODE_ENV:-production}
+  DATABASE_URL: postgres://stele:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/stele
+  APP_ORIGIN: ${APP_ORIGIN:?set APP_ORIGIN}
+  EXTRA_APP_ORIGINS: ${EXTRA_APP_ORIGINS:-}
+  HOSTED_ACCEPT_DOMAIN: ${HOSTED_ACCEPT_DOMAIN:?set HOSTED_ACCEPT_DOMAIN}
+  SOLANA_CLUSTER: ${SOLANA_CLUSTER:?set SOLANA_CLUSTER}
+  SOLANA_RPC_URLS: ${SOLANA_RPC_URLS:?set SOLANA_RPC_URLS}
+  PUBLIC_RPC_URLS: ${PUBLIC_RPC_URLS:-}
+  PROGRAM_ID: ${PROGRAM_ID:?set PROGRAM_ID}
+  RELAYER_KEYPAIR: /run/secrets/relayer
+  ATTESTOR_KEYPAIR: /run/secrets/attestor
+  PRIORITY_FEE_MICROLAMPORTS: ${PRIORITY_FEE_MICROLAMPORTS:-0}
+  STELE_FREE_RECORDS_PER_MONTH: ${STELE_FREE_RECORDS_PER_MONTH:-1000}
+  STELE_MAX_ENROLLMENTS_PER_MONTH: ${STELE_MAX_ENROLLMENTS_PER_MONTH:-500}
+  STELE_TREASURY_ADDRESS: ${STELE_TREASURY_ADDRESS:-}
+  STELE_CREDIT_PACKS: ${STELE_CREDIT_PACKS:-10000:0.5,100000:4,1000000:30}
+  ENCRYPTION_KEY: ${ENCRYPTION_KEY:?set ENCRYPTION_KEY}
+  IP_HASH_SECRET: ${IP_HASH_SECRET:?set IP_HASH_SECRET}
+  STORAGE_PROVIDER: ${STORAGE_PROVIDER:-filesystem}
+  STORAGE_DIR: /data/storage
+  S3_BUCKET: ${S3_BUCKET:-}
+  S3_REGION: ${S3_REGION:-}
+  S3_ENDPOINT: ${S3_ENDPOINT:-}
+  PUBLIC_CONTENT_BASE_URL: ${PUBLIC_CONTENT_BASE_URL:?set PUBLIC_CONTENT_BASE_URL}
+  DOH_RESOLVERS: ${DOH_RESOLVERS:-https://cloudflare-dns.com/dns-query,https://dns.google/resolve}
+  TRUST_PROXY_HOPS: ${TRUST_PROXY_HOPS:-1}
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: stele
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: stele
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U stele -d stele"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build:
+      context: ..
+      dockerfile: infra/docker/api.Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      <<: *api-env
+      MIGRATE_ON_START: "true"
+      RUN_WORKERS: "true"
+    secrets: [relayer, attestor]
+    volumes:
+      - content:/data/storage
+    ports:
+      - "127.0.0.1:4000:4000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+
+  indexer:
+    build:
+      context: ..
+      dockerfile: infra/docker/api.Dockerfile
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      <<: *api-env
+      RUN_WORKERS: "false"
+    command: ["node", "dist/indexer-main.js"]
+    secrets: [relayer, attestor]
+    volumes:
+      - content:/data/storage
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    healthcheck:
+      disable: true
+
+  web:
+    build:
+      context: ..
+      dockerfile: infra/docker/web.Dockerfile
+      args:
+        API_INTERNAL_URL: http://api:4000
+        NEXT_PUBLIC_PROGRAM_ID: ${PROGRAM_ID}
+        NEXT_PUBLIC_CHAIN_ID: ${NEXT_PUBLIC_CHAIN_ID:-}
+        NEXT_PUBLIC_RPC_URLS: ${NEXT_PUBLIC_RPC_URLS:-}
+        PUBLIC_RPC_URLS: ${PUBLIC_RPC_URLS:-}
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      PUBLIC_RPC_URLS: ${PUBLIC_RPC_URLS:-}
+      APP_ORIGIN: ${APP_ORIGIN}
+      STELE_NETWORKS: ${STELE_NETWORKS:-}
+    ports:
+      - "127.0.0.1:3000:3000"
+    read_only: true
+    tmpfs: [/tmp, /app/apps/web/.next/cache]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+
+  proxy:
+    image: caddy:2-alpine
+    profiles: [proxy]
+    restart: unless-stopped
+    depends_on: [web]
+    environment:
+      STELE_DOMAIN: ${STELE_DOMAIN:?set STELE_DOMAIN}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    security_opt: ["no-new-privileges:true"]
+
+secrets:
+  relayer:
+    file: ./secrets/relayer.json
+  attestor:
+    file: ./secrets/attestor.json
+
+volumes:
+  pgdata:
+  content:
+  caddy-data:
+  caddy-config:

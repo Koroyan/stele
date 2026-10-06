@@ -1,0 +1,24 @@
+[package]
+name = "stele-cpi-probe"
+description = "Test fixture: forwards its instruction to another program through a CPI. Never deployed."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "stele_cpi_probe"
+
+[features]
+default = []
+no-entrypoint = []
+custom-heap = []
+custom-panic = []
+
+[dependencies]
+anchor-lang = { workspace = true }
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_os, values("solana"))'] }

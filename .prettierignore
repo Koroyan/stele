@@ -1,0 +1,17 @@
+node_modules
+dist
+.next
+target
+coverage
+pnpm-lock.yaml
+spec/test-vectors
+**/drizzle
+programs/**/*.rs
+crates/**/*.rs
+*.md
+.data
+.turbo
+test-results
+playwright-report
+**/next-env.d.ts
+infra/secrets

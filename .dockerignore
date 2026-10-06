@@ -1,0 +1,20 @@
+# Keep build contexts small and free of secrets.
+**/node_modules
+**/.next
+**/dist
+**/coverage
+**/.turbo
+**/target
+**/test-ledger
+**/playwright-report
+**/test-results
+.git
+.data
+.env
+.env.*
+!.env.example
+infra/secrets
+**/*-keypair.json
+**/id.json
+*.pem
+*.key
