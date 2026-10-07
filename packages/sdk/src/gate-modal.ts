@@ -9,7 +9,7 @@
 import { groupedFingerprint, type Block } from "@stele/protocol";
 import { isUserRejection } from "./wallets";
 import { applyStyles, displayNotice, h, renderBlocks } from "./dom";
-import type { GateStatus, GateUi } from "./gate";
+import { StaleTermsError, type GateStatus, type GateUi } from "./gate";
 
 const CSS = `
 :host { all: initial; position: fixed; inset: 0; z-index: 2147483000; color-scheme: dark;
@@ -135,10 +135,12 @@ const FOCUSABLE =
 /** The default Gate UI. */
 export function gateModal(opts: { theme?: "auto" | "dark" | "light" } = {}): GateUi {
   return {
-    requestAcceptance: ({ access, walletAddress, accept }) =>
+    requestAcceptance: ({ access: initial, walletAddress, acceptLabel, accept, reload }) =>
       new Promise<boolean>((resolve) => {
-        const doc = access.document;
-        const v = doc.version;
+        // The terms can be reloaded if they change while the user is reading (StaleTermsError).
+        let access = initial;
+        let doc = access.document;
+        let v = doc.version;
         const previouslyFocused = document.activeElement as HTMLElement | null;
         const host = document.createElement("stele-gate");
         const prefersLight = window.matchMedia?.("(prefers-color-scheme: light)").matches;
@@ -234,7 +236,7 @@ export function gateModal(opts: { theme?: "auto" | "dark" | "light" } = {}): Gat
           const button = h(
             "button",
             { class: "primary", type: "button", disabled: true },
-            "Accept & Continue",
+            acceptLabel,
           ) as HTMLButtonElement;
           agree.addEventListener("change", () => {
             button.disabled = !agree.checked;
@@ -272,7 +274,7 @@ export function gateModal(opts: { theme?: "auto" | "dark" | "light" } = {}): Gat
                     "div",
                     { class: "updated", role: "note" },
                     h("strong", {}, "This policy was updated. "),
-                    `You accepted version ${access.pass!.versionNumber}; version ${v.version} is required now.`,
+                    `You accepted version ${access.pass!.versionNumber}; version ${access.requiredVersion} or later is required now.`,
                     doc.content.changeSummary ? ` What changed: ${doc.content.changeSummary}` : "",
                   )
                 : null,
@@ -364,6 +366,15 @@ export function gateModal(opts: { theme?: "auto" | "dark" | "light" } = {}): Gat
             const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
             setTimeout(() => finish(true), reduce ? 400 : 900);
           } catch (e) {
+            if (e instanceof StaleTermsError) {
+              try {
+                access = await reload();
+                doc = access.document;
+                v = doc.version;
+              } catch {
+                // Keep showing the previous text; the error below explains what happened.
+              }
+            }
             renderReview(
               isUserRejection(e)
                 ? "You declined the signature in your wallet. Nothing was recorded."

@@ -5,57 +5,52 @@
  * import { createSteleGate } from "@stele/sdk";
  *
  * const stele = createSteleGate({ apiBaseUrl: "https://stele.example/api", wallet });
- * const riskPolicy = { organization: "acme.markets", document: "risk-disclosure" };
  *
  * const signature = await stele.gate({
- *   policy: riskPolicy,
- *   action: () => placeBet(), // runs only once the wallet holds a current access pass
+ *   policy: OFFERING_TERMS_POLICY, // the Stele policy address your program pins
+ *   action: () => sendDepositTransaction(),
+ *   acceptLabel: "Accept & Deposit",
  * });
  * ```
  *
- * The SDK is the user experience: it reads the wallet's access pass from Solana, shows the embedded
- * modal when the pass is missing or outdated, records the acceptance (which creates or advances the
- * pass on-chain), and then continues the original action. Enforcement is NOT here: the protected
- * Solana program checks the pass itself (`stele-gate` crate or the `check_access` CPI), so a client
- * that skips this SDK is rejected on-chain.
+ * The SDK is the user experience: it reads the policy and the wallet's AccessPass from Solana, shows
+ * the embedded modal when the pass is missing or outdated, records the acceptance (which creates or
+ * advances the pass on-chain), waits until the pass satisfies the policy, and then runs the original
+ * action — in a second transaction (acceptance and action are not atomic). Enforcement is NOT here:
+ * the protected program calls `stele_gate::require_current`, so a client that skips this SDK is
+ * rejected on-chain.
  */
 import {
   decodeAccessPass,
+  decodeDocument,
+  decodeGatePolicy,
   evaluateAccess,
   findAccessPassPda,
   type AccessPassAccount,
   type AccessStatus,
+  type GatePolicyAccount,
 } from "@stele/protocol";
 import { address } from "@solana/kit";
+import { chainFromUrls } from "@stele/verifier";
 import { acceptDocument, type AcceptanceResult, type MessageSigner } from "./accept";
 import { SteleClient } from "./client";
-import { loadVerifiedDocument, type VerifiedDocument } from "./verified-document";
+import { IntegrityError, loadVerifiedDocument, type VerifiedDocument } from "./verified-document";
 
 export type { AccessStatus } from "@stele/protocol";
 
-/** A Stele policy: a document of an organization, and which of its versions is required. */
-export interface GatePolicy {
-  /** The organization's verified domain or its on-chain address. */
-  organization: string;
-  /** The policy document's slug, e.g. `risk-disclosure`. */
-  document: string;
-  /**
-   * Must match what the protected program enforces. `0` / absent: the current version (every new
-   * version requires a new acceptance). `n`: version `n` or later.
-   */
-  minVersion?: number;
-}
-
-/** The holder's standing for a policy, read from Solana. */
+/** The wallet's standing for a policy, read from Solana. */
 export interface AccessCheck {
   status: AccessStatus;
+  policy: string;
+  policyAccount: GatePolicyAccount;
   holder: string;
-  /** The access-pass account the protected program will read. */
+  /** The access-pass account the protected program reads. */
   accessPass: string;
   pass: AccessPassAccount | null;
-  /** The policy, hash-verified against its on-chain fingerprint (what the modal displays). */
+  /** The version number the policy requires (a later accepted version also satisfies it). */
+  requiredVersion: number;
+  /** The policy's document, hash-verified against its on-chain fingerprint (what the modal shows). */
   document: VerifiedDocument;
-  requiredVersionNumber: number;
 }
 
 export type GateStatus =
@@ -69,7 +64,7 @@ export type GateStatus =
 
 export class GateCancelledError extends Error {
   constructor() {
-    super("The policy was not accepted; the action did not run.");
+    super("The terms were not accepted; the action did not run.");
     this.name = "GateCancelledError";
   }
 }
@@ -79,23 +74,34 @@ export class AccessRequiredError extends Error {
   constructor(readonly access: AccessCheck) {
     super(
       access.status === "OUTDATED"
-        ? "The policy changed: the new version must be accepted first."
-        : "The policy must be accepted first.",
+        ? "The terms changed: the new version must be accepted first."
+        : "The terms must be accepted first.",
     );
     this.name = "AccessRequiredError";
+  }
+}
+
+/** The terms changed while the user was reading; the modal reloads them. */
+export class StaleTermsError extends Error {
+  constructor() {
+    super("The terms were updated while you were reading. Please review the new version.");
+    this.name = "StaleTermsError";
   }
 }
 
 /** Renders the acceptance step. The default is the embedded Stele modal (`./gate-modal`). */
 export interface GateUi {
   /**
-   * Shows the policy and, when the user agrees, calls `accept` (which reports progress through
+   * Shows the terms and, when the user agrees, calls `accept` (which reports progress through
    * `onStatus`). Resolves `true` once access was granted, `false` if the user cancelled.
    */
   requestAcceptance(i: {
     access: AccessCheck;
     walletAddress: string;
+    acceptLabel: string;
     accept: (onStatus: (s: GateStatus) => void) => Promise<AcceptanceResult>;
+    /** Re-reads the terms (after a StaleTermsError). */
+    reload: () => Promise<AccessCheck>;
   }): Promise<boolean>;
 }
 
@@ -104,7 +110,7 @@ export interface SteleGateOptions {
   apiBaseUrl?: string;
   client?: SteleClient;
   /** The wallet that signs the protected transactions (Wallet Standard `signMessage`). */
-  wallet: MessageSigner | (() => MessageSigner | Promise<MessageSigner>);
+  wallet?: MessageSigner | (() => MessageSigner | Promise<MessageSigner>);
   /** Solana RPC endpoints to read from (default: those the Stele API advertises). */
   rpcUrls?: string[];
   /** Pin the program and network; loading aborts if the API advertises anything else. */
@@ -121,9 +127,14 @@ export interface SteleGateOptions {
 }
 
 export interface GateRequest<T> {
-  policy: GatePolicy;
+  /** The Stele policy (its address) your program requires. */
+  policy: string;
   /** The protected action: build, sign and send your program's transaction here. */
   action: () => T | Promise<T>;
+  /** The wallet for this call (default: the one given to `createSteleGate`). */
+  wallet?: MessageSigner;
+  /** The modal's button, e.g. "Accept & Deposit". Default "Accept & Continue". */
+  acceptLabel?: string;
 }
 
 export class SteleGate {
@@ -137,8 +148,12 @@ export class SteleGate {
     this.client = opts.client ?? new SteleClient({ apiBaseUrl: opts.apiBaseUrl! });
   }
 
-  private async wallet(): Promise<MessageSigner> {
-    const w = typeof this.opts.wallet === "function" ? await this.opts.wallet() : this.opts.wallet;
+  /** The wallet for a call: the one passed to the call, else the configured one. */
+  async resolveWallet(override?: MessageSigner): Promise<MessageSigner> {
+    const configured = this.opts.wallet;
+    const w =
+      override ?? (typeof configured === "function" ? await configured() : configured) ?? null;
+    if (!w) throw new Error("Stele Gate needs the wallet that signs the protected transaction");
     if (w.signerType && w.signerType !== "wallet")
       throw new Error(
         "Stele Gate binds access to the wallet that signs the protected transaction: use a wallet signer",
@@ -146,67 +161,89 @@ export class SteleGate {
     return w;
   }
 
-  /** Reads the policy (hash-verified) and the wallet's access pass from Solana. */
-  async check(policy: GatePolicy, holder?: string): Promise<AccessCheck> {
-    const who = holder ?? (await this.wallet()).address;
+  /** Reads the policy, its document (hash-verified) and the wallet's AccessPass from Solana. */
+  async check(policy: string, holder: string): Promise<AccessCheck> {
+    const network = await this.client.getNetwork();
+    if (this.opts.expected?.programId && network.programId !== this.opts.expected.programId)
+      throw new IntegrityError(
+        `The API advertises program ${network.programId}, but ${this.opts.expected.programId} is pinned.`,
+      );
+    const chain = chainFromUrls(
+      this.opts.rpcUrls && this.opts.rpcUrls.length > 0 ? this.opts.rpcUrls : network.publicRpcUrls,
+    );
+    const [policyAcc] = await chain.getAccounts([policy], "confirmed");
+    if (!policyAcc || policyAcc.owner !== network.programId)
+      throw new IntegrityError(`The policy ${policy} was not found on-chain.`);
+    const policyAccount = decodeGatePolicy(policyAcc.data);
+    const [docAcc] = await chain.getAccounts([policyAccount.document], "confirmed");
+    if (!docAcc || docAcc.owner !== network.programId)
+      throw new IntegrityError("The policy's document was not found on-chain.");
     const document = await loadVerifiedDocument({
       client: this.client,
-      organization: policy.organization,
-      document: policy.document,
+      organization: policyAccount.organization,
+      document: decodeDocument(docAcc.data).slug,
       rpcUrls: this.opts.rpcUrls,
       expected: this.opts.expected,
     });
-    const programAddress = address(document.network.programId);
+    const programAddress = address(network.programId);
     const [accessPass] = await findAccessPassPda(
-      address(document.documentAddress),
-      address(who),
+      policyAccount.document,
+      address(holder),
       programAddress,
     );
-    const [acc] = await document.chain.getAccounts([accessPass], "confirmed");
+    const [acc] = await chain.getAccounts([accessPass], "confirmed");
     // Only the Stele program can own an account at this address; anything else is "no pass".
     const pass =
-      acc && acc.owner === programAddress && acc.data.length > 0
+      acc && acc.owner === network.programId && acc.data.length > 0
         ? decodeAccessPass(acc.data)
         : null;
     const e = evaluateAccess({
-      document: address(document.documentAddress),
-      documentAccount: document.document,
-      holder: address(who),
+      policy: address(policy),
+      policyAccount,
+      holder: address(holder),
       accessPass,
       pass,
-      requirement: { minVersion: policy.minVersion ?? 0 },
     });
     return {
       status: e.status,
-      holder: who,
+      policy,
+      policyAccount,
+      holder,
       accessPass,
       pass,
+      requiredVersion: e.requiredVersion,
       document,
-      requiredVersionNumber: e.requiredVersionNumber,
     };
   }
 
   /**
-   * Records the wallet's acceptance of the policy's current version (the wallet signs the exact
-   * text), then waits until the access pass on Solana satisfies the policy.
+   * Records the wallet's acceptance of the document's current version (the wallet signs the exact
+   * text), then waits until the AccessPass on Solana satisfies the policy.
    */
   async accept(
-    policy: GatePolicy,
+    policy: string,
+    wallet: MessageSigner,
     onStatus: (s: GateStatus) => void = () => undefined,
     verified?: VerifiedDocument,
   ): Promise<{ acceptance: AcceptanceResult; access: AccessCheck }> {
-    const wallet = await this.wallet();
     const document = verified ?? (await this.check(policy, wallet.address)).document;
-    const acceptance = await acceptDocument({
-      client: this.client,
-      verified: document,
-      signer: wallet,
-      requestDomain: this.requestDomain(),
-      onStatus: (s) => {
-        if (s === "awaiting-signature") onStatus("awaiting-signature");
-        else if (s === "recording") onStatus("recording");
-      },
-    });
+    let acceptance: AcceptanceResult;
+    try {
+      acceptance = await acceptDocument({
+        client: this.client,
+        verified: document,
+        signer: wallet,
+        requestDomain: this.requestDomain(),
+        onStatus: (s) => {
+          if (s === "awaiting-signature") onStatus("awaiting-signature");
+          else if (s === "recording") onStatus("recording");
+        },
+      });
+    } catch (e) {
+      if (e instanceof IntegrityError && /newer version/i.test(e.message))
+        throw new StaleTermsError();
+      throw e;
+    }
     onStatus("confirming");
     const deadline = Date.now() + (this.opts.confirmTimeoutMs ?? 30_000);
     for (;;) {
@@ -214,7 +251,7 @@ export class SteleGate {
       if (access.status === "VALID") return { acceptance, access };
       if (Date.now() > deadline)
         throw new Error(
-          "The acceptance was recorded, but the access pass is not visible on Solana yet. Try again in a moment.",
+          "The acceptance was recorded, but the AccessPass is not visible on Solana yet. Try again in a moment.",
         );
       await new Promise((r) => setTimeout(r, 1_000));
     }
@@ -222,27 +259,33 @@ export class SteleGate {
 
   /**
    * Runs `action` once the wallet holds a pass that satisfies the policy, asking for acceptance
-   * first if needed. Throws `GateCancelledError` if the user declines.
+   * first if needed. Throws `GateCancelledError` if the user declines (the action never runs).
    */
   async gate<T>(request: GateRequest<T>): Promise<T> {
     const report = this.opts.onStatus ?? (() => undefined);
     report("checking");
-    const wallet = await this.wallet();
+    const wallet = await this.resolveWallet(request.wallet);
     const access = await this.check(request.policy, wallet.address);
     if (access.status !== "VALID") {
       report("access-required");
       const ui = await this.ui();
       if (!ui) throw new AccessRequiredError(access);
+      let current = access;
       const granted = await ui.requestAcceptance({
         access,
         walletAddress: wallet.address,
+        acceptLabel: request.acceptLabel ?? "Accept & Continue",
         accept: async (onStatus) => {
           const relay = (s: GateStatus) => {
             onStatus(s);
             report(s);
           };
-          const { acceptance } = await this.accept(request.policy, relay, access.document);
+          const { acceptance } = await this.accept(request.policy, wallet, relay, current.document);
           return acceptance;
+        },
+        reload: async () => {
+          current = await this.check(request.policy, wallet.address);
+          return current;
         },
       });
       if (!granted) throw new GateCancelledError();
@@ -269,7 +312,7 @@ export class SteleGate {
   }
 }
 
-/** Creates a Stele Gate client for one wallet. */
+/** Creates a Stele Gate client. */
 export function createSteleGate(opts: SteleGateOptions): SteleGate {
   return new SteleGate(opts);
 }
