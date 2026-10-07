@@ -6,10 +6,12 @@ const COLUMNS = [
   {
     title: "Product",
     links: [
-      { href: "/product", label: "Overview" },
+      { href: "/proof", label: "Stele Proof" },
+      { href: "/gate", label: "Stele Gate" },
+      { href: "/demo", label: "Live demo" },
+      { href: "/how-it-works", label: "How it works" },
       { href: "/pricing", label: "Pricing" },
       { href: "/verify", label: "Verify an agreement" },
-      { href: "/how-it-works", label: "How it works" },
       { href: "/dashboard", label: "Dashboard" },
     ],
   },
@@ -17,6 +19,7 @@ const COLUMNS = [
     title: "Developers",
     links: [
       { href: "/docs/get-started", label: "Get started" },
+      { href: "/docs/gate", label: "Stele Gate guide" },
       { href: "/developers", label: "SDK & API" },
       { href: "/docs/api", label: "SDK & API reference" },
       { href: "/docs/spec", label: "Protocol specification" },
@@ -27,6 +30,7 @@ const COLUMNS = [
     title: "Trust",
     links: [
       { href: "/security", label: "Security" },
+      { href: "/docs/trust-model", label: "Trust model" },
       { href: "/docs/threat-model", label: "Threat model" },
       { href: "/docs/security", label: "Security architecture" },
       { href: "/docs/acceptance-signing", label: "What a signature proves" },

@@ -48,7 +48,7 @@ import type { Deps } from "../deps.js";
 import { ApiError, badRequest, conflict, forbidden, notFound } from "../errors.js";
 import { matchesHash, randomToken, sha256Hex } from "../lib/crypto.js";
 import { afterCursor, page } from "../lib/pagination.js";
-import { indexProofTransaction, syncShard } from "../lib/sync.js";
+import { indexProofTransaction, syncShard, untilAvailable } from "../lib/sync.js";
 import { enqueueWebhook } from "../lib/webhooks.js";
 import { allocateFreeNonce } from "./acceptance.js";
 import {
@@ -358,14 +358,15 @@ export async function submitProof(
       await syncShard(deps.db, deps.chain, shard!.address).catch(() => undefined);
     throw new ApiError(502, "relay_failed", `The proof could not be recorded: ${reason}`);
   }
-  const recorded = await indexProofTransaction(deps.db, deps.chain, txSignature, {
-    proofRequestId: r.id,
-    externalUserRef: r.externalUserRef,
-    reference: r.reference,
-    signerType: r.signerType as "wallet" | "passkey",
-  });
-  const mine = recorded.find(
-    (p) => p.statementHash === r.statementHash && p.signer === r.signerAddress,
+  const mine = await untilAvailable(async () =>
+    (
+      await indexProofTransaction(deps.db, deps.chain, txSignature, {
+        proofRequestId: r.id,
+        externalUserRef: r.externalUserRef,
+        reference: r.reference,
+        signerType: r.signerType as "wallet" | "passkey",
+      })
+    ).find((p) => p.statementHash === r.statementHash && p.signer === r.signerAddress),
   );
   if (!mine) {
     await deps.db

@@ -2,8 +2,11 @@ import { expect, test } from "@playwright/test";
 
 const PAGES: { path: string; heading: string | RegExp }[] = [
   { path: "/", heading: "Prove what was agreed." },
-  { path: "/product", heading: /Evidence infrastructure/ },
-  { path: "/how-it-works", heading: /proof anyone can check/ },
+  { path: "/proof", heading: "Know exactly what your user agreed to." },
+  { path: "/gate", heading: /accepted your current terms/ },
+  { path: "/product", heading: "Know exactly what your user agreed to." },
+  { path: "/how-it-works", heading: "Prove what was agreed. Enforce what must be agreed." },
+  { path: "/demo", heading: "Try Stele with real transactions." },
   { path: "/security", heading: /Evidence you can check/ },
   { path: "/developers", heading: /Verifiable acceptance/ },
   { path: "/pricing", heading: /Pay for evidence/ },
@@ -12,6 +15,8 @@ const PAGES: { path: string; heading: string | RegExp }[] = [
   { path: "/docs/get-started", heading: "Get started" },
   { path: "/docs/api", heading: "SDK & API" },
   { path: "/docs/how-it-works", heading: "How Stele works" },
+  { path: "/docs/gate", heading: "Stele Gate" },
+  { path: "/docs/trust-model", heading: /Trust model/ },
   { path: "/verify", heading: "Verify an agreement" },
 ];
 

@@ -38,6 +38,8 @@ export interface OrganizationSettings {
   feeSponsor?: "stele" | "organization";
   sponsorFallbackToStele?: boolean;
   sponsorLowBalanceLamports?: number;
+  /** Stele products in use: Proof always; Gate when enabled (onboarding or Organization page). */
+  products?: { gate?: boolean };
 }
 
 export interface OrgRow {

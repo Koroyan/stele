@@ -1,6 +1,13 @@
 # Stele — Verifiable consent for the web
 
-**Prove what was agreed.**
+**Prove what was agreed. Enforce what must be agreed.**
+
+Stele has two products under one brand:
+
+| | For | What it does |
+|---|---|---|
+| **Stele Proof** | Websites, SaaS, apps, onboarding, consent | Proves which exact version of a document a user accepted — a passkey or wallet signature over its on-chain fingerprint, and a receipt anyone can verify |
+| **Stele Gate** | Solana programs: RWA vaults, token offerings, permissioned credit | Proof plus enforcement: your program calls `stele_gate::require_current` and refuses a protected action until the signing wallet has accepted the version your policy requires |
 
 ## The problem
 
@@ -9,7 +16,7 @@ Terms, and that row says whatever the company — or whoever controls its databa
 The text you saw, the version, the time and whether you agreed at all cannot be checked by anyone
 else.
 
-## What Stele does
+## What Stele Proof does
 
 - The organization publishes the **exact version** of its Terms. The canonical text is hashed and the
   fingerprint is committed on Solana; versions are append-only and hash-chained — the program has no
@@ -59,9 +66,24 @@ Solana is Stele's **neutral witness** and **key registry**.
 5. **Cost at consumer scale.** About 0.00001 SOL per directly recorded acceptance, and about
    5 lamports per acceptance in Merkle batches of 1,024 ([measured costs](docs/cost-analysis.md)).
 
-Not yet: other programs cannot act on an acceptance today, because Stele deliberately creates no
-per-user account. An opt-in mode that does — so that an app's program can require the current terms
-before an action — is on the roadmap.
+Proof creates no per-user account. Gate is the opt-in exception: a per-wallet AccessPass that
+another program can read in its own transaction.
+
+## What Stele Gate does
+
+- The organization creates a **policy** for a document: "a protected action requires version ≥ N".
+  Publishing a new version changes nothing until the organization requires it.
+- When a wallet accepts (a normal Stele acceptance, relayed and paid by Stele), the program creates
+  or advances its **AccessPass** — `["access-pass", document, wallet]` — naming the accepted version,
+  its fingerprint and the receipt.
+- The organization's own program calls **`stele_gate::require_current(&pass, &policy, &user)?`**
+  before the protected action. A missing, outdated, borrowed or forged pass fails **on-chain**, so a
+  script or the CLI cannot skip the terms. Stele is not in the protected transaction: no CPI, no
+  proxy, no shared signer.
+- The SDK's `stele.gate({ policy, action })` shows the terms only when needed and runs the action
+  after the acceptance (**Accept & Continue**: two transactions, not atomic).
+- Gate is not KYC: a wallet signature proves control of a key, not identity. See
+  [docs/gate.md](docs/gate.md) and [PROTOCOL_SPEC.md §18](PROTOCOL_SPEC.md).
 
 ## Program authority — current status
 
@@ -75,16 +97,21 @@ program.
 
 ## The demo (Devnet)
 
-[docs/demo.md](docs/demo.md) walks through the 14-step story: publish Terms v1 (30-day refunds),
+[docs/demo.md](docs/demo.md) walks through the 14-step Proof story: publish Terms v1 (30-day refunds),
 accept with a passkey in a clean browser, receive and verify the receipt, publish v2 (7 days), watch
 the old receipt still prove v1, tamper with it, attempt operator forgeries against an enrolled user (rejected by Solana),
 and verify again with Stele switched off.
+
+The Gate story (3 minutes, `/demo` → **Stele Gate**): the Atlas Real Estate Vault refuses a deposit
+without an AccessPass, accepts it after Accept & Deposit, refuses it again once v2 is required, and
+rejects direct calls — no pass, someone else's pass — on-chain.
 
 ## Protocol versions
 
 `stele/1` (wallets, PRF-protected keys, Ed25519) is unchanged and remains supported forever;
 `stele/2` adds native passkeys, `stele-receipt/2` and Merkle-batched evidence
-([PROTOCOL_SPEC.md §17](PROTOCOL_SPEC.md)). Nothing old is reinterpreted: old messages, receipts and
+([PROTOCOL_SPEC.md §17](PROTOCOL_SPEC.md)); Stele Gate adds policies, AccessPasses and
+`require_current` (§18) without changing either. Nothing old is reinterpreted: old messages, receipts and
 accounts keep their meaning, and their test suites run unchanged.
 
 ## How it works
@@ -116,10 +143,11 @@ provide legal advice.
 
 | | |
 |---|---|
-| **Solana program** (`programs/stele`, Anchor) | Organizations with owners, roles, multisig support, time-locked recovery, freezing and key-compromise reports; verified domains; immutable, hash-chained document versions; on-chain-verified, replay-protected acceptances (Ed25519 and native P-256 passkeys via secp256r1 introspection); on-chain passkey enrollments with rotation and organization recovery; Merkle batch anchors; fee sponsorship; proofs |
+| **Solana program** (`programs/stele`, Anchor) | Organizations with owners, roles, multisig support, time-locked recovery, freezing and key-compromise reports; verified domains; immutable, hash-chained document versions; on-chain-verified, replay-protected acceptances (Ed25519 and native P-256 passkeys via secp256r1 introspection); on-chain passkey enrollments with rotation and organization recovery; Merkle batch anchors; fee sponsorship; proofs; Gate policies and AccessPasses |
+| **Gate check** (`crates/stele-gate`) and **demo vault** (`programs/gate-demo`) | `require_current` for any Solana program (read-only, no CPI); the Atlas Real Estate Vault that uses it |
 | **Protocol libraries** (`crates/*`, `@stele/protocol`) | Canonicalization, fingerprints, acceptance messages, account and instruction codecs — Rust and TypeScript, checked against shared test vectors |
 | **Verifier** (`@stele/verifier`) | Library and `stele-verify` CLI; works with Stele switched off; multi-RPC consensus; receipts v1 and v2, direct and batched evidence; verdicts `VALID`, `VALID_WITH_WARNINGS`, `INVALID`, `INCONCLUSIVE` |
-| **SDK** (`@stele/sdk`) | Verified document loading, acceptance flow (wallets, native passkeys, PRF passkeys), embeddable widget with a published SRI hash, `<TermsAcceptance/>` React component, server client and webhook verification |
+| **SDK** (`@stele/sdk`) | Verified document loading, acceptance flow (wallets, native passkeys, PRF passkeys), embeddable widget with a published SRI hash, `<TermsAcceptance/>` React component, Gate client and Accept & Continue modal (`createSteleGate`), server client and webhook verification |
 | **API** (`apps/api`, Fastify) | Wallet sign-in, organizations and documents, drafts and publication preparation, acceptance relayer, DNS domain verification, API keys, signed webhooks, hash-chained audit log, chain indexer |
 | **Web app** (`apps/web`, Next.js) | Marketing site and docs, dashboard, hosted acceptance pages, receipts, in-browser verifier |
 | **Design system** (`@stele/ui`) | Tokens, brand mark and accessible primitives |
@@ -128,8 +156,10 @@ provide legal advice.
 ## Repository layout
 
 ```
-programs/stele/        Solana program (Anchor) and LiteSVM tests
-crates/                stele-core (shared Rust used by the program), stele-canonical
+programs/stele/        Solana program (Anchor) and LiteSVM tests (incl. tests/gate.rs)
+programs/gate-demo/    Atlas Real Estate Vault — demo program protected by Stele Gate
+crates/                stele-core (shared Rust used by the program), stele-canonical,
+                       stele-gate (require_current for protected programs)
 packages/protocol      @stele/protocol — TypeScript protocol implementation
 packages/verifier      @stele/verifier — independent verifier and CLI
 packages/sdk           @stele/sdk — browser, React and server SDK
@@ -180,6 +210,9 @@ including disk-usage notes for the local validator, is in [docs/deployment.md](d
 | `pnpm localnet:demo -- --member <wallet>` then `pnpm demo:shop` | Localnet only: set up and run the Northwind Shop demo (examples/demo-shop) |
 | `pnpm --filter @stele/localnet costs` | Measured fees, compute units, sizes and rent of real recordings (any cluster) |
 | `pnpm --filter @stele/localnet forgery-demo -- --receipt <file>` | Simulates what a malicious operator could try against a user's passkey; every attempt must be rejected |
+| `pnpm --filter @stele/localnet live-demo` | Localnet only: create the live-demo organization and write `STELE_DEMO_*` to `.env` |
+| `pnpm --filter @stele/localnet gate-smoke` | The Gate story against the running API and validator (9 checks, including direct bypasses) |
+| `pnpm --filter @stele/localnet vault-deposit -- --policy <address>` | Call the demo vault's `deposit` directly, without the SDK — fails on-chain without a current pass |
 | `pnpm db:migrate` | Apply database migrations |
 
 ## Documentation
@@ -188,6 +221,7 @@ including disk-usage notes for the local validator, is in [docs/deployment.md](d
 
 - [Product overview](docs/overview.md) · [How Stele works](docs/how-it-works.md) ·
   [Get started](docs/get-started.md)
+- [Stele Gate](docs/gate.md) · [Trust model](docs/trust-model.md)
 - [Verification](docs/verification.md) · [What a signature proves](docs/acceptance-signing.md)
 - [API & SDK reference](docs/api.md)
 - [Protocol specification](PROTOCOL_SPEC.md) and [overview](docs/protocol.md) ·
@@ -216,7 +250,9 @@ local validator; the program runs on Solana Devnet. Visitors sign with a native 
 default), a Solana wallet, or — for signers registered before native passkeys — a PRF-protected Stele
 key. Users never pay fees: Stele or the organization (through a sponsored nonce shard) does. Beyond
 documents, the same machinery records proofs of purchases, refunds, consents and more
-(`record_proof`). Before mainnet use: an independent security audit of the program and protocol,
+(`record_proof`). Stele Gate (policies, AccessPasses, `require_current`, the demo vault, the SDK
+modal and the dashboard) is implemented and tested on a local validator; its Devnet deployment
+follows the next program upgrade. Before mainnet use: an independent security audit of the program and protocol,
 the upgrade authority moved to a multisig, a reproducible-build release, and the
 [mainnet checklist](docs/deployment.md#mainnet-checklist).
 

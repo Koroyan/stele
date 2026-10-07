@@ -65,7 +65,7 @@ import type { Deps } from "../deps.js";
 import { ApiError, badRequest, notFound } from "../errors.js";
 import { randomToken, sha256Hex } from "../lib/crypto.js";
 import { loadSigner } from "../lib/keys.js";
-import { syncDocument, syncPolicy } from "../lib/sync.js";
+import { syncDocument, syncPolicy, untilAvailable } from "../lib/sync.js";
 import { explainFailure, type GateFailure } from "./gate.js";
 
 const SESSION_TTL_MS = 24 * 60 * 60 * 1000;
@@ -534,13 +534,15 @@ export async function relayDemoDeposit(deps: Deps, token: string, wireBase64: st
   await confirmSignature(deps.chain.rpc, signature, latest.lastValidBlockHeight, "confirmed").catch(
     () => undefined,
   );
-  const result = await deps.chain.rpc
-    .getTransaction(signature, {
-      encoding: "json",
-      maxSupportedTransactionVersion: 0,
-      commitment: "confirmed",
-    })
-    .send();
+  const result = await untilAvailable(() =>
+    deps.chain.rpc
+      .getTransaction(signature, {
+        encoding: "json",
+        maxSupportedTransactionVersion: 0,
+        commitment: "confirmed",
+      })
+      .send(),
+  );
   if (!result)
     throw new ApiError(504, "not_confirmed", "The transaction was not confirmed in time");
   const logs = [...(result.meta?.logMessages ?? [])];

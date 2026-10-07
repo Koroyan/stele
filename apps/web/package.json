@@ -12,6 +12,7 @@
     "lint": "eslint src"
   },
   "dependencies": {
+    "@noble/curves": "^2.4.0",
     "@solana/kit": "^8.4.0",
     "@solana/kit-plugin-wallet": "^0.20.0",
     "@stele/protocol": "workspace:*",

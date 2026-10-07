@@ -17,12 +17,29 @@ import {
   validateOrgName,
   validationError,
 } from "@stele/protocol";
-import { Alert, Button, Card, Field, Input } from "@stele/ui";
+import { Alert, Button, Card, Field, FileIcon, GateIcon, Input, cn } from "@stele/ui";
 import { api } from "@/lib/api";
 import { rpcFor } from "@/lib/chain";
 import { useDashboard } from "@/lib/dashboard";
 import { useNetwork, useWallet } from "@/lib/wallet";
 import { SigningAs, TxStatus, useTransaction } from "./ui";
+
+const PRODUCTS = [
+  {
+    id: "proof" as const,
+    icon: FileIcon,
+    title: "Stele Proof",
+    body: "Prove what users accepted: wallet- or passkey-signed acceptances with public receipts.",
+    examples: "Websites, SaaS, apps, onboarding, consent",
+  },
+  {
+    id: "gate" as const,
+    icon: GateIcon,
+    title: "Stele Gate",
+    body: "Require the current terms before a protected action, checked by your Solana program.",
+    examples: "RWA vaults, permissioned pools, token sales",
+  },
+];
 
 export function CreateOrganization({
   firstTime,
@@ -34,11 +51,12 @@ export function CreateOrganization({
   const network = useNetwork();
   const wallet = useWallet();
   const router = useRouter();
-  const { reloadOrgs, selectOrg } = useDashboard();
+  const { reloadOrgs, selectOrg, withStepUp } = useDashboard();
   const tx = useTransaction();
   const [name, setName] = useState("");
   const [recovery, setRecovery] = useState("");
   const [airdrop, setAirdrop] = useState<string | null>(null);
+  const [product, setProduct] = useState<"proof" | "gate">("proof");
 
   const normalized = normalizeDisplayString(name);
   const nameError = name ? validationError(validateOrgName, normalized) : null;
@@ -107,9 +125,19 @@ export function CreateOrganization({
         await api(`/v1/organizations/${synced.organization.id}/shards/sync`, {
           body: { address: shard },
         });
+        if (product === "gate") {
+          // A settings change needs a fresh wallet signature; if it is declined, the Gate pages
+          // offer the same switch later.
+          await withStepUp(() =>
+            api(`/v1/organizations/${synced.organization.id}/settings`, {
+              method: "PATCH",
+              body: { products: { gate: true } },
+            }),
+          ).catch(() => undefined);
+        }
         selectOrg(synced.organization.id);
         await reloadOrgs();
-        router.replace("/dashboard");
+        router.replace(product === "gate" ? "/dashboard/gate" : "/dashboard");
       },
     );
   }
@@ -136,6 +164,45 @@ export function CreateOrganization({
             if (canSubmit) void create();
           }}
         >
+          <fieldset>
+            <legend className="text-[13px] font-medium text-fg">How will you use Stele?</legend>
+            <div className="mt-2 grid gap-3 sm:grid-cols-2">
+              {PRODUCTS.map((p) => {
+                const Icon = p.icon;
+                const checked = product === p.id;
+                return (
+                  <label
+                    key={p.id}
+                    className={cn(
+                      "relative flex cursor-pointer flex-col gap-1.5 rounded-xl border px-4 py-4 transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-accent",
+                      checked
+                        ? "border-accent-line bg-accent-soft"
+                        : "border-line hover:border-line-strong",
+                    )}
+                  >
+                    <input
+                      type="radio"
+                      name="product"
+                      value={p.id}
+                      checked={checked}
+                      onChange={() => setProduct(p.id)}
+                      className="sr-only"
+                    />
+                    <span className="flex items-center gap-2 text-[14px] font-semibold text-fg">
+                      <Icon className={cn("h-4 w-4", checked ? "text-accent" : "text-fg-subtle")} />
+                      {p.title}
+                    </span>
+                    <span className="text-[12.5px] leading-relaxed text-fg-muted">{p.body}</span>
+                    <span className="text-[11.5px] text-fg-subtle">{p.examples}</span>
+                  </label>
+                );
+              })}
+            </div>
+            <p className="mt-2 text-[12px] text-fg-subtle">
+              Gate includes everything in Proof. You can switch Gate on later.
+            </p>
+          </fieldset>
+
           <Field
             label="Organization name"
             htmlFor="org-name"

@@ -10,14 +10,19 @@ import {
   CreditCardIcon,
   Button,
   Card,
+  CodeIcon,
   FileIcon,
+  GateIcon,
   HomeIcon,
   KeyIcon,
+  LayersIcon,
   ListIcon,
+  PlayIcon,
   PlugIcon,
   ShieldIcon,
   Spinner,
   SteleLogo,
+  TicketIcon,
   UsersIcon,
   WalletIcon,
   cn,
@@ -30,10 +35,28 @@ import { NetworkSwitcher } from "@/components/network-switcher";
 import { useWallet } from "@/lib/wallet";
 import { CreateOrganization } from "./create-organization";
 
-const NAV = [
+interface NavItem {
+  href: string;
+  label: string;
+  icon: (props: { className?: string }) => ReactNode;
+  exact?: boolean;
+}
+
+const PROOF_NAV: NavItem[] = [
   { href: "/dashboard", label: "Overview", icon: HomeIcon, exact: true },
   { href: "/dashboard/documents", label: "Documents", icon: FileIcon },
   { href: "/dashboard/acceptances", label: "Acceptances", icon: ActivityIcon },
+];
+
+const GATE_NAV: NavItem[] = [
+  { href: "/dashboard/gate", label: "Gate", icon: GateIcon, exact: true },
+  { href: "/dashboard/gate/policies", label: "Policies", icon: LayersIcon },
+  { href: "/dashboard/gate/passes", label: "AccessPasses", icon: TicketIcon },
+  { href: "/dashboard/gate/programs", label: "Program integration", icon: CodeIcon },
+  { href: "/dashboard/gate/testing", label: "Testing", icon: PlayIcon },
+];
+
+const ORG_NAV: NavItem[] = [
   { href: "/dashboard/organization", label: "Organization", icon: BuildingIcon },
   { href: "/dashboard/team", label: "Team", icon: UsersIcon },
   { href: "/dashboard/api-keys", label: "API keys", icon: KeyIcon },
@@ -47,7 +70,13 @@ const NAV = [
 function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { orgs, org, selectOrg, user } = useDashboard();
+  const { orgs, org, selectOrg, user, detail } = useDashboard();
+  const gate = detail?.organization.settings.products?.gate === true;
+  const groups: { label: string; items: NavItem[] }[] = [
+    { label: "Stele Proof", items: PROOF_NAV },
+    ...(gate ? [{ label: "Stele Gate", items: GATE_NAV }] : []),
+    { label: "Organization", items: ORG_NAV },
+  ];
 
   return (
     <div className="flex h-full flex-col">
@@ -81,29 +110,36 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         </select>
       </div>
       <nav aria-label="Dashboard" className="mt-4 flex-1 space-y-0.5 overflow-y-auto px-3">
-        {NAV.map((item) => {
-          const active = item.exact
-            ? pathname === item.href
-            : pathname === item.href || pathname.startsWith(`${item.href}/`);
-          const Icon = item.icon;
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              onClick={onNavigate}
-              aria-current={active ? "page" : undefined}
-              className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2 text-[13.5px] transition-colors",
-                active
-                  ? "bg-surface-2 text-fg"
-                  : "text-fg-muted hover:bg-surface-2/60 hover:text-fg",
-              )}
-            >
-              <Icon className={cn("h-4 w-4", active ? "text-accent" : "text-fg-subtle")} />
-              {item.label}
-            </Link>
-          );
-        })}
+        {groups.map((group) => (
+          <div key={group.label} className="pb-3">
+            <p className="px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-fg-subtle">
+              {group.label}
+            </p>
+            {group.items.map((item) => {
+              const active = item.exact
+                ? pathname === item.href
+                : pathname === item.href || pathname.startsWith(`${item.href}/`);
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={onNavigate}
+                  aria-current={active ? "page" : undefined}
+                  className={cn(
+                    "flex items-center gap-3 rounded-lg px-3 py-2 text-[13.5px] transition-colors",
+                    active
+                      ? "bg-surface-2 text-fg"
+                      : "text-fg-muted hover:bg-surface-2/60 hover:text-fg",
+                  )}
+                >
+                  <Icon className={cn("h-4 w-4", active ? "text-accent" : "text-fg-subtle")} />
+                  {item.label}
+                </Link>
+              );
+            })}
+          </div>
+        ))}
       </nav>
       <div className="space-y-3 border-t border-line px-4 py-4">
         <NetworkSwitcher variant="sidebar" />

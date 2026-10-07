@@ -75,7 +75,7 @@ import { randomBytes } from "node:crypto";
 import type { Deps } from "../deps.js";
 import { ApiError, badRequest, conflict, forbidden, notFound, unavailable } from "../errors.js";
 import { matchesHash, randomToken, sha256Hex } from "../lib/crypto.js";
-import { indexAcceptanceTransaction, syncShard } from "../lib/sync.js";
+import { indexAcceptanceTransaction, syncShard, untilAvailable } from "../lib/sync.js";
 import { enqueueWebhook } from "../lib/webhooks.js";
 import { queueBatchedAcceptance } from "./batches.js";
 import { nativeAcceptanceChallenge, verifyNativeAssertion } from "./native-passkeys.js";
@@ -775,15 +775,16 @@ async function relayAndIndex(
     throw new ApiError(502, "relay_failed", `The acceptance could not be recorded: ${reason}`);
   }
 
-  // Index from the confirmed transaction itself (not from request data).
-  const recorded = await indexAcceptanceTransaction(deps.db, deps.chain, txSignature, {
-    challengeId: ch.id,
-    externalUserRef: ch.externalUserRef,
-    signerType: ch.signerType as SignerType,
-    message: ch.message,
-  });
-  const mine = recorded.find(
-    (r) => r.versionAddress === ch.versionAddress && r.signer === ch.signerAddress,
+  // Index from the confirmed transaction itself (not from request data), once the RPC serves it.
+  const mine = await untilAvailable(async () =>
+    (
+      await indexAcceptanceTransaction(deps.db, deps.chain, txSignature, {
+        challengeId: ch.id,
+        externalUserRef: ch.externalUserRef,
+        signerType: ch.signerType as SignerType,
+        message: ch.message,
+      })
+    ).find((r) => r.versionAddress === ch.versionAddress && r.signer === ch.signerAddress),
   );
   if (!mine) {
     await deps.db

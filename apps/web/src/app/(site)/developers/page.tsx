@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRightIcon, CodeBlock, CodeTabs, CopyButton, buttonClasses, cn } from "@stele/ui";
+import { DeveloperFaq, GateQuickstart } from "@/components/developer-gate";
 import { PageHero, Section, SectionHeading } from "@/components/marketing";
 import {
   VERIFY_SAMPLE,
@@ -142,13 +143,16 @@ export default async function DevelopersPage() {
       <PageHero
         eyebrow="Developers"
         title="Verifiable acceptance on your site, in two lines."
-        lead="Drop in the widget: it shows your Terms on your own page, checks them against Solana, lets the visitor sign with a wallet or a passkey and records the acceptance. Confirm it from your server, in the language you use."
+        lead="Stele Proof: drop in the widget — it shows your Terms on your own page, checks them against Solana, lets the visitor sign with a wallet or a passkey and records the acceptance. Stele Gate: wrap a Solana action with the SDK and add one require_current() call to your program."
       >
         <div className="flex flex-wrap gap-3">
           <Link href="/docs/get-started" className={buttonClasses("primary", "md")}>
             Get started
           </Link>
-          <Link href="/docs/api" className={buttonClasses("secondary", "md")}>
+          <Link href="#gate" className={buttonClasses("secondary", "md")}>
+            Gate quickstart
+          </Link>
+          <Link href="/docs/api" className={buttonClasses("ghost", "md")}>
             SDK &amp; API reference <ArrowRightIcon className="h-4 w-4" />
           </Link>
         </div>
@@ -218,6 +222,10 @@ export default async function DevelopersPage() {
           ))}
         </ol>
       </Section>
+
+      <GateQuickstart />
+
+      <DeveloperFaq />
 
       <Section className="border-t border-line bg-bg-raised">
         <SectionHeading

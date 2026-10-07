@@ -63,6 +63,14 @@ export const DOCS: DocEntry[] = [
       "From zero to a working integration: publish, embed, confirm from your server in any language.",
   },
   {
+    slug: "gate",
+    file: "docs/gate.md",
+    title: "Stele Gate",
+    group: "Developers",
+    summary:
+      "Require the current terms before a protected action: policies, AccessPasses and require_current() in your Solana program.",
+  },
+  {
     slug: "verification",
     file: "docs/verification.md",
     title: "Verification",
@@ -138,7 +146,7 @@ export const DOCS: DocEntry[] = [
     file: "docs/threat-model.md",
     title: "Threat model",
     group: "Security",
-    summary: "Attackers, 118 attack scenarios with their defenses, and residual risks.",
+    summary: "Attackers, 134 attack scenarios with their defenses, and residual risks.",
   },
   {
     slug: "costs",

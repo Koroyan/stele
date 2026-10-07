@@ -61,3 +61,46 @@ test("sensitive actions require being signed in", async ({ page }) => {
   await page.goto("/dashboard/api-keys");
   await expect(page).toHaveURL(/\/login\?next=%2Fdashboard%2Fapi-keys/);
 });
+
+test("Stele Gate can be switched on, and its pages open from the sidebar", async ({ page }) => {
+  await installTestWallet(page, keypair("owner"));
+  await page.goto("/dashboard");
+  await page.getByRole("button", { name: "Connect wallet" }).click();
+  await connectThroughDialog(page);
+  await page.getByRole("button", { name: "Sign in with this wallet" }).click();
+  await expect(page.getByRole("heading", { name: "Overview" })).toBeVisible({ timeout: 30_000 });
+
+  const sidebar = page.getByRole("navigation", { name: "Dashboard" });
+  await sidebar.getByRole("link", { name: "Organization", exact: true }).click();
+  const enable = page.getByRole("button", { name: "Enable Stele Gate" });
+  const hide = page.getByRole("button", { name: "Hide Stele Gate" });
+  await expect(enable.or(hide)).toBeVisible({ timeout: 30_000 });
+  const wasEnabled = await hide.isVisible();
+  if (!wasEnabled) await enable.click();
+  await expect(hide).toBeVisible({ timeout: 30_000 });
+
+  // Gate adds its own group to the sidebar; every page opens with its tabs.
+  await sidebar.getByRole("link", { name: "Gate", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Stele Gate" })).toBeVisible();
+  for (const [link, heading] of [
+    ["Policies", "Policies"],
+    ["AccessPasses", "AccessPasses"],
+    ["Program integration", "Program integration"],
+    ["Testing", "Testing"],
+  ] as const) {
+    await sidebar.getByRole("link", { name: link, exact: true }).click();
+    await expect(page.getByRole("heading", { name: heading, exact: true })).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "Stele Gate" })).toBeVisible();
+  }
+  await expect(page.getByText("Register your Solana program")).toHaveCount(0);
+  await sidebar.getByRole("link", { name: "Program integration", exact: true }).click();
+  await expect(page.getByText("1. Register your Solana program")).toBeVisible();
+
+  // Leave the organization as it was.
+  if (!wasEnabled) {
+    await sidebar.getByRole("link", { name: "Organization", exact: true }).click();
+    await hide.click();
+    await expect(enable).toBeVisible({ timeout: 30_000 });
+    await expect(sidebar.getByRole("link", { name: "Policies" })).toHaveCount(0);
+  }
+});

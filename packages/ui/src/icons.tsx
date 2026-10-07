@@ -129,3 +129,17 @@ export const CreditCardIcon = icon(
 );
 export const LayersIcon = icon(<path d="m12 3 9 5-9 5-9-5zM3 13l9 5 9-5M3 17.5l9 5 9-5" />);
 export const DownloadIcon = icon(<path d="M12 4v11M7 10l5 5 5-5M5 20h14" />);
+export const CodeIcon = icon(<path d="m8 8-4 4 4 4M16 8l4 4-4 4M13.5 5l-3 14" />);
+export const GateIcon = icon(
+  <>
+    <path d="M4 21V8l8-5 8 5v13" />
+    <path d="M9 21v-6h6v6M9 11h6" />
+  </>,
+);
+export const TicketIcon = icon(
+  <path d="M3 8a2 2 0 0 0 2-2h14a2 2 0 0 0 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 0-2 2H5a2 2 0 0 0-2-2v-2a2 2 0 0 0 0-4zM10 6v12" />,
+);
+export const RefreshIcon = icon(
+  <path d="M20 11a8 8 0 0 0-14.9-3.5M4 4v4h4M4 13a8 8 0 0 0 14.9 3.5M20 20v-4h-4" />,
+);
+export const PlayIcon = icon(<path d="M7 5l12 7-12 7z" />);

@@ -7,7 +7,15 @@ the exact text with a passkey (Face ID, Touch ID, Windows Hello) or a wallet, wi
 later, anyone can check what was agreed against Solana, without Stele's servers or the company's
 database.
 
-> Prove what was agreed.
+> Prove what was agreed. Enforce what must be agreed.
+
+Stele comes in two modes:
+
+- **Stele Proof** — for websites, SaaS, apps, onboarding and consent: evidence of which exact version
+  a user accepted.
+- **Stele Gate** — for Solana programs such as RWA vaults, token offerings and permissioned credit:
+  Proof plus enforcement. Your program calls `require_current()` and refuses a protected action until
+  the signing wallet has accepted the version your policy requires. See [Stele Gate](gate.md).
 
 What the evidence does and does not depend on is spelled out in the [trust model](trust-model.md).
 
@@ -43,6 +51,8 @@ company can tell.
 - **Verification** in the browser, on the command line and in code. See [Verification](verification.md).
 - **API, webhooks and SDK** to link acceptances to your users and react to them on your servers. See
   the [SDK & API reference](api.md).
+- **Stele Gate** (opt-in): policies, AccessPasses, `require_current()` for your Solana program, an
+  Accept & Continue modal, and dashboard pages to integrate and test it. See [Stele Gate](gate.md).
 
 ## Who it is for
 
@@ -50,11 +60,14 @@ company can tell.
 - **Platforms and marketplaces** that collect acceptances at scale and want records that hold up
   under scrutiny.
 - **Users, auditors and courts**, who can check the evidence for themselves.
+- **Solana applications** whose actions must not happen without the current terms (Stele Gate).
 
 ## What it is not
 
 - **Not an identity service.** A signature proves control of a key, not who controls it. Link
   acceptances to your own signed-in users when you need to know which customer signed.
+- **Not KYC or a compliance engine.** Face ID unlocks a passkey on the device; it does not identify
+  anyone to Stele. Gate enforces one rule — acceptance of a required version — not regulation.
 - **Not legal advice.** Stele makes the record verifiable; whether an agreement is enforceable depends
   on the applicable law.
 - **Not a place for personal data.** Published documents are public and permanent. Only public keys,
@@ -63,6 +76,7 @@ company can tell.
 ## Learn more
 
 - [How Stele works](how-it-works.md)
+- [Stele Gate](gate.md)
 - [Get started](get-started.md)
 - [What a signature proves](acceptance-signing.md)
 - [Security architecture](security.md) and [threat model](threat-model.md)

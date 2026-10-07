@@ -7,11 +7,11 @@ import { SteleLogo, buttonClasses, cn } from "@stele/ui";
 import { NetworkSwitcher } from "@/components/network-switcher";
 
 const NAV = [
-  { href: "/product", label: "Product" },
+  { href: "/proof", label: "Proof" },
+  { href: "/gate", label: "Gate" },
   { href: "/how-it-works", label: "How it works" },
-  { href: "/security", label: "Security" },
   { href: "/developers", label: "Developers" },
-  { href: "/pricing", label: "Pricing" },
+  { href: "/demo", label: "Live demo" },
   { href: "/docs", label: "Docs" },
 ];
 

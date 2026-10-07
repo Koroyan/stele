@@ -1475,3 +1475,147 @@ serves historical transactions (an archival RPC).
 IDs, enrollment and rotation statements, client-data and authenticator-data rules) and
 `spec/test-vectors/batch.json` (leaves, roots, every inclusion proof, batch IDs). Both the Rust and
 TypeScript implementations MUST reproduce them.
+
+## 18. Stele Gate — policies, access passes and `require_current`
+
+Stele Gate lets another Solana program require, before a protected action, that the signing wallet
+accepted a given version of a document. It adds two accounts and three instructions to the Stele
+program and a read-only check (`crates/stele-gate`) that the protected program runs itself. It
+changes no `stele/1` or `stele/2` byte, message, receipt or account: a gated acceptance is a
+`stele-acceptance-v1` wallet acceptance (§7) and its receipt is a `stele-receipt-v1` (§10).
+
+Stele is not in the protected transaction. The protected program reads the two accounts; there is no
+cross-program invocation into Stele, no proxy and no shared signer.
+
+### 18.1 `AccessPass`
+
+PDA `["access-pass", document, holder]`. 233 bytes including the discriminator
+`[24, 47, 32, 42, 150, 120, 87, 169]`. Rent is paid by the relayer that records the first acceptance.
+
+| Offset | Field | Type | Meaning |
+|---|---|---|---|
+| 8 | `organization` | Pubkey | The document's organization |
+| 40 | `document` | Pubkey | |
+| 72 | `holder` | Pubkey | The wallet whose Ed25519 signature recorded the acceptance |
+| 104 | `version` | Pubkey | The `DocumentVersion` most recently accepted |
+| 136 | `version_hash` | [u8; 32] | That version's fingerprint (§5) |
+| 168 | `acceptance_id` | [u8; 32] | The acceptance identifier of that acceptance (§2) |
+| 200 | `accepted_at` | i64 | Unix time it was recorded |
+| 208 | `first_accepted_at` | i64 | Unix time the pass was created |
+| 216 | `accepted_slot` | u64 | Slot it was recorded |
+| 224 | `version_number` | u32 | `DocumentVersion.version` of `version` |
+| 228 | `acceptance_count` | u32 | Gated acceptances recorded for this pass |
+| 232 | `bump` | u8 | |
+
+A pass is created and advanced only by `record_gated_acceptance` (§18.3). It is never closed and its
+`version_number` never decreases.
+
+### 18.2 `GatePolicy`
+
+PDA `["policy", document]` — one policy per document. 157 bytes including the discriminator
+`[3, 77, 45, 55, 30, 166, 143, 147]`.
+
+| Offset | Field | Type | Meaning |
+|---|---|---|---|
+| 8 | `organization` | Pubkey | |
+| 40 | `document` | Pubkey | |
+| 72 | `required_version_hash` | [u8; 32] | Fingerprint of the required version |
+| 104 | `updated_by` | Pubkey | The authority of the last change |
+| 136 | `created_at` | i64 | |
+| 144 | `updated_at` | i64 | |
+| 152 | `required_version` | u32 | The lowest version number that satisfies the policy |
+| 156 | `bump` | u8 | |
+
+Publishing a version (§6) does not change any policy.
+
+### 18.3 Instructions
+
+**`create_policy()`** — accounts: `authority` (signer), `membership` (optional, PDA
+`["member", organization, authority]`), `config`, `organization`, `document`, `version`, `policy`
+(init), `payer` (signer, mut), `system_program`. Requires: protocol not paused; `authority` holds a
+document-creating role (owner, admin or publisher) and the organization is not frozen;
+`document.organization == organization`; `version.document == document`. Sets
+`required_version` and `required_version_hash` from `version`. Emits `PolicyChanged` with
+`created = true`.
+
+**`set_policy_requirement()`** — accounts: `authority`, `membership` (optional), `config`,
+`organization`, `document`, `version`, `policy` (mut). Same authorization; additionally
+`1 ≤ version.version ≤ document.version_count` (`InvalidPolicyRequirement`, 6081) and
+`policy.document == document` (`PolicyMismatch`, 6082). The requirement may name any published
+version, lower or higher than before. Emits `PolicyChanged` with `previous_required_version`.
+
+**`record_gated_acceptance(nonce_index, nonce_tag, issued_at, expires_at)`** — accounts: `relayer`
+(signer, mut), `config`, `organization`, `document`, `version`, `nonce_shard` (mut), `holder`,
+`access_pass` (init if needed, PDA `["access-pass", document, holder]`, paid by `relayer`),
+`system_program`, `instructions_sysvar`. Performs every check and effect of `record_acceptance`
+(§8) — the Ed25519 instruction, the current version, the time window, the shard's relayer and the
+single-use nonce — and then:
+
+1. `holder` MUST equal the runtime-verified signer of the acceptance message
+   (`AccessPassMismatch`, 6080). The relayer cannot assign a pass to another wallet.
+2. On creation: sets `organization`, `document`, `holder`, `first_accepted_at`, `bump`. Otherwise
+   `document` and `holder` MUST match and the new `version_number` MUST NOT be lower.
+3. Sets `version`, `version_hash`, `version_number`, `acceptance_id`, `accepted_at`, `accepted_slot`
+   and increments `acceptance_count`.
+4. Emits `AcceptanceRecorded` (§9) and `AccessPassUpdated`.
+
+Only wallet (Ed25519) acceptances open a Gate: the holder must be able to sign the protected
+transaction. Verifiers (§11) treat `record_gated_acceptance` like `record_acceptance`, with
+`holder` at account index 6, `access_pass` at index 7 (which MUST be the PDA above) and the
+instructions sysvar at index 9.
+
+### 18.4 `require_current(access_pass, policy, user)`
+
+The check a protected program runs (`crates/stele-gate`). It reads both accounts, writes nothing and
+returns the first failure, as `ProgramError::Custom(code)`:
+
+| # | Rule | Failure |
+|---|---|---|
+| 1 | `policy` is owned by the Stele program, is at least 157 bytes, has the policy discriminator and is the PDA `["policy", policy.document]` with its stored bump | `InvalidPolicy` 7600 |
+| 2 | `user` signed the transaction | `UserNotSigner` 7601 |
+| 3 | `access_pass` is owned by the Stele program — if not, `AccessPassMissing` when it is the address `["access-pass", policy.document, user]` (the user never accepted), otherwise `AccessPassInvalid` — and is at least 233 bytes with the pass discriminator (else `AccessPassInvalid`) | 7602 / 7603 |
+| 4 | `pass.holder == user`, `pass.document == policy.document`, `pass.organization == policy.organization` | `AccessPassMismatch` 7604 |
+| 5 | `access_pass` is the PDA `["access-pass", document, user]` with its stored bump | `AccessPassInvalid` 7603 |
+| 6 | `pass.version_number ≥ policy.required_version` | `AccessPassOutdated` 7605 |
+| 7 | If equal, `pass.version_hash == policy.required_version_hash` | `FingerprintMismatch` 7606 |
+
+On success it returns the pass's organization, document, version, version number, fingerprint,
+acceptance identifier, acceptance time and the policy's required version.
+
+The protected program MUST pin the policy (store its address or compile it in) and MUST call
+`require_current` in every protected instruction. A program that accepts any policy accepts a
+policy its caller created.
+
+Off-chain readers apply the same rules (`evaluateAccess` in `@stele/protocol`), reporting `VALID`,
+`OUTDATED` (rules 6–7) or `MISSING`.
+
+### 18.5 Demo: Atlas Real Estate Vault
+
+`programs/gate-demo` (`A6DBoANAavtbG2ARK6PihqzMjhtbcZUbLnTMAWn339uR`) is a toy permissioned vault
+used by the live demo and the tests. No tokens move: deposits are recorded as demo USDC.
+
+- `create_vault(name)` — vault PDA `["vault", policy]`; the policy must be owned by the Stele program
+  and carry the policy discriminator.
+- `deposit(amount)` — accounts `investor` (signer), `vault` (mut), `policy`
+  (`address = vault.policy`, else `WrongPolicy`), `access_pass`. Calls `require_current`, then adds
+  `amount` to the totals and emits `Deposited` with the version, number, fingerprint and acceptance
+  identifier that allowed it.
+
+### 18.6 Accept & Continue
+
+A client that finds the pass `MISSING` or `OUTDATED` records a gated acceptance of the current
+version (transaction 1, submitted and paid by the relayer), waits until the pass is visible, then
+sends the protected transaction (transaction 2). The two are not atomic. If transaction 2 fails, the
+acceptance and the pass remain; if the policy is raised in between, transaction 2 fails with
+`AccessPassOutdated`.
+
+### 18.7 What a Gate check proves — and what it does not
+
+Proves: the wallet that signed the protected transaction earlier signed a `stele-acceptance-v1`
+message for a version of the policy's document at least as new as the one the policy requires at
+the moment of the check, and Solana verified that signature when it was recorded.
+
+Does not prove: who controls the wallet (not KYC); that the document's terms are legally
+enforceable; that the protected program integrates the check correctly (pinning, every
+instruction). The policy is controlled by the organization's authorities and the program by its
+upgrade authority (§15).

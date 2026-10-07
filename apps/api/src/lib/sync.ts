@@ -305,6 +305,23 @@ export interface RecordedAcceptance {
   fee: FeeFacts;
 }
 
+/**
+ * Polls until `fetch` returns a value or `timeoutMs` passes. A transaction confirmed through its
+ * signature status can take a moment before `getTransaction` serves it (the node writes
+ * transaction statuses asynchronously), so callers that just confirmed one wait here.
+ */
+export async function untilAvailable<T>(
+  fetch: () => Promise<T | null | undefined>,
+  timeoutMs = 8_000,
+): Promise<T | null> {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const value = await fetch();
+    if (value || Date.now() >= deadline) return value ?? null;
+    await new Promise((r) => setTimeout(r, 250));
+  }
+}
+
 async function fetchRecordingTransaction(chain: ChainService, signature: string) {
   const tx = await chain.rpc
     .getTransaction(signature as never, {

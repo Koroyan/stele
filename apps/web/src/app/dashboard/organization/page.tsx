@@ -665,6 +665,62 @@ function Policy({ canEdit }: { canEdit: boolean }) {
   );
 }
 
+function Products({ canEdit }: { canEdit: boolean }) {
+  const { detail, reloadDetail, withStepUp } = useDashboard();
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  if (!detail) return null;
+  const gate = detail.organization.settings.products?.gate === true;
+
+  async function toggle() {
+    setSaving(true);
+    setError(null);
+    try {
+      await withStepUp(() =>
+        api(`/v1/organizations/${detail!.organization.id}/settings`, {
+          method: "PATCH",
+          body: { products: { gate: !gate } },
+        }),
+      );
+      await reloadDetail();
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Panel
+      title="Products"
+      description="Stele Proof is always on. Stele Gate adds policies, AccessPasses and program integration to this dashboard."
+    >
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-[13.5px] text-fg-muted">
+          Stele Gate is{" "}
+          <span className="font-medium text-fg">{gate ? "enabled" : "not enabled"}</span>. Turning
+          it off hides the Gate pages only: policies and passes on Solana stay as they are, and
+          programs keep enforcing them.
+        </p>
+        <Button
+          size="sm"
+          variant={gate ? "secondary" : "primary"}
+          disabled={!canEdit}
+          loading={saving}
+          onClick={() => void toggle()}
+        >
+          {gate ? "Hide Stele Gate" : "Enable Stele Gate"}
+        </Button>
+      </div>
+      {error && (
+        <Alert tone="danger" className="mt-3">
+          {error}
+        </Alert>
+      )}
+    </Panel>
+  );
+}
+
 export default function OrganizationPage() {
   const wallet = useWallet();
   const { detail, authorityOf } = useDashboard();
@@ -684,6 +740,7 @@ export default function OrganizationPage() {
       <DomainSection canManage={isAdmin} />
       <Shards authority={authority} />
       <Policy canEdit={isAdmin} />
+      <Products canEdit={isAdmin} />
       <Panel title="Integration identifiers">
         <CodeBlock
           code={`organization: ${detail.organization.address}\nverified domain: ${detail.organization.verifiedDomain ?? "(none)"}\nrelayer: ${detail.relayer}`}

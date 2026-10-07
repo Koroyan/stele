@@ -4,12 +4,17 @@
  * reimbursed the fee. stele/1 wallet and PRF-passkey acceptances are indistinguishable on-chain by
  * design (same signed bytes, same transaction); stele/2 native-passkey acceptances, passkey
  * enrollments and Merkle batch anchors are their own instructions. A batch anchor's fee is also
- * shown per acceptance it carries.
+ * shown per acceptance it carries. Stele Gate: gated acceptances and policy changes, and deposits
+ * into the demo vault (whose compute units include `require_current`).
  *
  *   pnpm --filter @stele/localnet costs            # localnet
  *   STELE_RPC_URL=https://api.devnet.solana.com pnpm --filter @stele/localnet costs
  */
 import {
+  ACCESS_PASS_ACCOUNT_SIZE,
+  GATE_DEMO_PROGRAM_ADDRESS,
+  GATE_POLICY_ACCOUNT_SIZE,
+  anchorDiscriminator,
   decodeEventsFromLogs,
   fromBase58,
   fromBase64,
@@ -43,6 +48,11 @@ const signatures = await rpc<{ signature: string; err: unknown }[]>("getSignatur
   PROGRAM,
   { limit: 1000, commitment: "confirmed" },
 ]);
+const demoSignatures = await rpc<{ signature: string; err: unknown }[]>("getSignaturesForAddress", [
+  GATE_DEMO_PROGRAM_ADDRESS,
+  { limit: 200, commitment: "confirmed" },
+]).catch(() => []);
+const DEPOSIT = anchorDiscriminator("global", "deposit");
 
 interface Row {
   kind: string;
@@ -52,8 +62,10 @@ interface Row {
   reimbursed: number | null;
 }
 const rows: Row[] = [];
-for (const s of signatures) {
-  if (s.err) continue;
+const seen = new Set<string>();
+for (const s of [...signatures, ...demoSignatures]) {
+  if (s.err || seen.has(s.signature)) continue;
+  seen.add(s.signature);
   const [tx, raw] = await Promise.all([
     rpc<JsonTx | null>("getTransaction", [
       s.signature,
@@ -67,8 +79,21 @@ for (const s of signatures) {
   if (!tx?.meta || !raw) continue;
   const { accountKeys, instructions } = tx.transaction.message;
   for (const ix of instructions) {
-    if (accountKeys[ix.programIdIndex] !== PROGRAM) continue;
     const data = fromBase58(ix.data);
+    if (
+      accountKeys[ix.programIdIndex] === GATE_DEMO_PROGRAM_ADDRESS &&
+      DEPOSIT.every((b, i) => data[i] === b)
+    ) {
+      rows.push({
+        kind: "gate demo: vault deposit incl. require_current",
+        fee: tx.meta.fee,
+        cu: tx.meta.computeUnitsConsumed ?? 0,
+        size: fromBase64(raw.transaction[0]).length,
+        reimbursed: null,
+      });
+      continue;
+    }
+    if (accountKeys[ix.programIdIndex] !== PROGRAM) continue;
     const name = identifyInstruction(data);
     const events = decodeEventsFromLogs(tx.meta.logMessages, PROGRAM);
     let kind: string;
@@ -77,14 +102,28 @@ for (const s of signatures) {
     else if (name === "record_proof") kind = `proof: ${proofTypeByCode(data[8]!)?.name ?? "?"}`;
     else if (name === "enroll_passkey_signer") kind = "passkey enrollment (+ rent, see below)";
     else if (name === "rotate_passkey_signer") kind = "passkey rotation";
+    else if (name === "record_gated_acceptance")
+      kind = `gated acceptance (Stele Gate)${events.some((e) => e.name === "AccessPassUpdated" && e.data.created) ? ", creates the pass" : ", advances the pass"}`;
+    else if (name === "create_policy") kind = "gate policy created (+ rent, see below)";
+    else if (name === "set_policy_requirement")
+      kind = instructions.some(
+        (o) =>
+          accountKeys[o.programIdIndex] === PROGRAM &&
+          identifyInstruction(fromBase58(o.data)) === "publish_version",
+      )
+        ? "gate: publish a version and require it (one transaction)"
+        : "gate policy requirement changed";
     else if (name === "anchor_acceptance_batch") {
       const anchored = events.find((e) => e.name === "AcceptanceBatchAnchored");
       const leaves = anchored?.name === "AcceptanceBatchAnchored" ? anchored.data.leafCount : 1;
       kind = `batch anchor (${leaves} acceptances; ${Math.ceil(tx.meta.fee / leaves).toLocaleString("en-US")} lamports each)`;
     } else continue;
     const reimbursed = events.find((e) => e.name === "SponsorReimbursed");
+    const paidByOrganization = name === "create_policy" || name === "set_policy_requirement";
     rows.push({
-      kind: `${kind}${reimbursed ? ", org-sponsored" : ", Stele-sponsored"}`,
+      kind: paidByOrganization
+        ? `${kind}, paid by the organization`
+        : `${kind}${reimbursed ? ", org-sponsored" : ", Stele-sponsored"}`,
       fee: tx.meta.fee,
       cu: tx.meta.computeUnitsConsumed ?? 0,
       size: fromBase64(raw.transaction[0]).length,
@@ -114,10 +153,12 @@ for (const [kind, rs] of [...groups].sort()) {
   );
 }
 
-const [plain, sponsored, enrollment] = await Promise.all([
+const [plain, sponsored, enrollment, pass, policy] = await Promise.all([
   rpc<number>("getMinimumBalanceForRentExemption", [NONCE_SHARD_ACCOUNT_SIZE]),
   rpc<number>("getMinimumBalanceForRentExemption", [SPONSORED_NONCE_SHARD_ACCOUNT_SIZE]),
   rpc<number>("getMinimumBalanceForRentExemption", [PASSKEY_SIGNER_ACCOUNT_SIZE]),
+  rpc<number>("getMinimumBalanceForRentExemption", [ACCESS_PASS_ACCOUNT_SIZE]),
+  rpc<number>("getMinimumBalanceForRentExemption", [GATE_POLICY_ACCOUNT_SIZE]),
 ]);
 console.log(`
 One-time rent, paid by the organization's admin wallet (locked: the program has no close instruction):
@@ -125,4 +166,7 @@ One-time rent, paid by the organization's admin wallet (locked: the program has 
   enabling sponsorship on a shard       +${(sponsored - plain).toLocaleString("en-US")} lamports (${((sponsored - plain) / 1e9).toFixed(6)} SOL)
 One-time per account-bound native passkey signer (rent paid by the relayer, never the user):
   PasskeySigner enrollment (${PASSKEY_SIGNER_ACCOUNT_SIZE} bytes)       ${enrollment.toLocaleString("en-US")} lamports (${(enrollment / 1e9).toFixed(6)} SOL)
-Key-only native passkeys, PRF passkey registration, recovery kits and added passkeys: off-chain, 0 lamports.`);
+Key-only native passkeys, PRF passkey registration, recovery kits and added passkeys: off-chain, 0 lamports.
+Stele Gate (locked like all Stele accounts):
+  AccessPass (${ACCESS_PASS_ACCOUNT_SIZE} bytes, relayer, once per wallet and document)   ${pass.toLocaleString("en-US")} lamports (${(pass / 1e9).toFixed(6)} SOL)
+  GatePolicy (${GATE_POLICY_ACCOUNT_SIZE} bytes, organization, once per document)      ${policy.toLocaleString("en-US")} lamports (${(policy / 1e9).toFixed(6)} SOL)`);

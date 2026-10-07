@@ -14,7 +14,7 @@ against it.
 
 Malicious companies and employees, compromised administrators, users who later deny accepting, stolen wallets and devices, bots and Sybils, malicious frontend operators, compromised backends, rogue database administrators, API attackers with stolen credentials, phishing sites, malicious browser extensions, replay attackers, network attackers, compromised RPC and storage providers, malicious integrators, a malicious multisig signer, XSS/CSRF attackers and supply-chain attackers.
 
-## Scenario index (118 scenarios)
+## Scenario index (134 scenarios)
 
 Each row gives the primary defense. Where software cannot remove a risk entirely, it is listed under [residual risks](#residual-risks).
 
@@ -196,6 +196,27 @@ Each row gives the primary defense. Where software cannot remove a risk entirely
 | R22 | Whoever runs enrollment registers a software key for a user who never enrolled | Not preventable by signatures (synced passkeys carry no attestation); guarantees are stated for enrolled keys only; later key changes need the current key or a labeled recovery; enrollments are public. |
 | R23 | Evidence cannot be read years later | Receipts carry text, signatures and proofs; verification needs an archival Solana RPC. |
 
+### Stele Gate (`require_current`)
+
+| ID | Scenario | Primary defense |
+|---|---|---|
+| G01 | A script or the CLI calls the protected instruction directly, skipping the terms | `require_current` runs inside the protected program: no pass, no action (`AccessPassMissing`). |
+| G02 | Someone presents another wallet's pass | The pass's holder must be the transaction's signer, at the address derived from that signer. |
+| G03 | A forged pass account | Owner must be the Stele program, with the pass type and its canonical address; only Stele writes it, and only after a verified signature. |
+| G04 | A policy the attacker created | The protected program pins its policy's address; `require_current` checks the policy's owner, type and address. |
+| G05 | The relayer assigns a pass to a wallet that never signed | The holder must equal the signer Solana verified; the relayer cannot sign for users. |
+| G06 | A gated acceptance is replayed or altered | Exact message reconstruction, single-use nonce, validity window, current version only. |
+| G07 | Recording through another program | Signature-carrying instructions are top-level only. |
+| G08 | Acting under v1 after the organization requires v2 | Older passes fail with `AccessPassOutdated` until the holder accepts v2. |
+| G09 | A pass names the required number with other text | Equal version numbers must have equal fingerprints. |
+| G10 | A pass for another document | Document and organization must be the policy's. |
+| G11 | The victim's wallet named without its signature | `UserNotSigner`. |
+| G12 | The requirement changes between acceptance and action | Fails safe (`AccessPassOutdated`); the SDK re-checks and shows the new version. Not atomic — stated publicly. |
+| G13 | The organization lowers the requirement | Only its role holders can, never while frozen; every change is a public `PolicyChanged` event with the previous value. |
+| G14 | Mass new wallets drain pass rent | Rate-limited relay, optional server-issued acceptance sessions, allowed domains, balance alerts. |
+| G15 | A protected instruction forgets the check or accepts any policy | Documented MUST rules, integration wizard, live checks and test templates. Stele cannot inspect your code. |
+| G16 | The public demo's relay is abused | Exactly one demo deposit for the session's own vault and policy; per-session, per-IP and daily caps; off on mainnet. |
+
 ## Residual risks
 
 Some risks are reduced but cannot be eliminated by software. They are stated openly:
@@ -222,3 +243,6 @@ Some risks are reduced but cannot be eliminated by software. They are stated ope
 | The program upgrade authority is a single key | Devnet deployment stage | Move to a multisig before production (procedure published) |
 | The first enrollment of an account is trusted | The program cannot tell a passkey from a software P-256 key | Guarantees stated for enrolled keys only; enrollments are public; prefer Stele's hosted page when the organization is not trusted |
 | Old transactions need an archival RPC | Most public RPC endpoints keep only recent history | Keep receipts and batch manifests; use an archival provider or node |
+| Gate enforcement depends on the integration | Stele cannot inspect a protected program | Pin the policy, call `require_current` in every protected instruction, keep the four bypass tests |
+| Accept & Continue is two transactions | The acceptance is relayed and paid by Stele; the action is the user's own transaction. Merging them would put Stele's relayer into every protected transaction | The acceptance stays recorded if the action fails; the program check fails safe |
+| A Gate policy is the organization's decision | It may require, raise or lower a version | Every change is public with its previous value |

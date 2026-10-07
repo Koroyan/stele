@@ -67,6 +67,28 @@ Account-bound native passkeys add 2,456,880 lamports **once per account** (not p
 * Rent dominates only for account-bound signers' first enrollment; key-only native passkeys and PRF
   passkeys need no on-chain state at registration.
 
+## Stele Gate
+
+Measured the same way on 2026-10-07 (the live-demo flow of `pnpm --filter @stele/localnet gate-smoke`).
+
+| Transaction | Fee (lamports) | Who pays | Compute units | Transaction bytes |
+|---|---|---|---|---|
+| Gated acceptance that creates the AccessPass | 10,000 + pass rent below | Stele's relayer (fee reimbursable by a sponsored shard) | 41,978 | 1,133 |
+| Gated acceptance that advances the pass to a newer version | 10,000 | Stele's relayer | 39,368 | 1,133 |
+| `create_policy` | 5,000 + policy rent below | the organization | 23,381 | 486 |
+| `publish_version` + `set_policy_requirement` in one transaction | 5,000 | the organization | 73,056 | 610 |
+| Demo vault `deposit`, including `require_current` | 5,000 per signature | the investor (the live demo relays it: 2 signatures, 10,000) | 9,406 | 383 |
+
+| State | Size | Rent-exempt deposit | Who pays |
+|---|---|---|---|
+| `AccessPass` | 233 bytes | 2,512,560 lamports (0.00251 SOL) | Stele's relayer, once per wallet and document |
+| `GatePolicy` | 157 bytes | 1,983,600 lamports (0.00198 SOL) | the organization, once per document |
+
+`require_current` reads two accounts and writes nothing; the deposit's 9,406 units cover the whole
+instruction (Anchor's account handling, `require_current` and the vault update). A gated acceptance
+uses about 10,000–12,000 more units than a plain wallet acceptance (29,746) because it also writes
+the pass.
+
 ## Sizes and limits
 
 Solana transactions are limited to 1,232 bytes. A `stele/2` acceptance with typical browser client

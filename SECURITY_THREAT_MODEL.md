@@ -1288,3 +1288,159 @@ Format: **Attack** · **Impact** · **Current defense** (before this change) · 
 | 28 | Batched leaves cannot be altered after anchoring | Merkle root + anchored count | `batch.rs`, `batches.rs`, `batches.localnet` tampering |
 | 29 | Old receipts and accounts keep their meaning | new formats only (§15.4–15.5) | all `stele/1` suites unchanged |
 | 30 | Wallet origins are never presented as browser-attested | verifier origin semantics | report `origin.attestation` (warning) |
+
+## 8. Stele Gate (`require_current`)
+
+Added with Stele Gate (PROTOCOL_SPEC.md §18): `GatePolicy`, `AccessPass`, `create_policy`,
+`set_policy_requirement`, `record_gated_acceptance`, the `stele-gate` crate and the Atlas vault demo
+program. Everything in §1–§7 still holds. Gate adds one new property to defend: **a protected action
+runs only for a wallet that accepted the required version**. Stele is never in the protected
+transaction (no CPI, proxy or shared signer), so a Stele outage cannot authorize an action — and
+cannot block one for a wallet whose pass is already current.
+
+### 8.1 New assets
+
+| ID | Asset | Note |
+|---|---|---|
+| AS20 | `AccessPass` accounts | Only `record_gated_acceptance` writes them, after a runtime-verified signature of the holder |
+| AS21 | `GatePolicy` accounts | Changed only by the organization's owner, admins and publishers, by wallet signature |
+| AS22 | The protected program's integration | Outside Stele: pinning the policy and calling `require_current` in every protected instruction |
+
+### 8.2 Scenarios
+
+Format: **Attack** · **Impact** · **Defense** · **Residual risk**. Tests are in
+`programs/stele/tests/gate.rs` (LiteSVM), `crates/stele-gate` (unit), `packages/protocol/test/gate.test.ts`,
+`packages/sdk/test/gate.test.ts` and `tools/localnet/src/gate-smoke.ts` (local validator).
+
+#### G01 — Direct call that skips the frontend
+- **Attack:** Build the deposit transaction with a script or the CLI, never seeing the terms.
+- **Impact:** Investment without the required acceptance.
+- **Defense:** `require_current` runs inside the protected program: no pass → `AccessPassMissing`
+  (test `direct_bypass_attempts_fail_on_chain`; `gate-smoke`; `vault-deposit` against a local
+  validator shows the failed transaction).
+- **Residual risk:** None in the program; integrations that omit the call are G15.
+
+#### G02 — Someone else's pass
+- **Attack:** Pass the address of a wallet that did accept.
+- **Impact:** Borrowed access.
+- **Defense:** The pass's holder must equal the transaction signer, and the pass must sit at
+  `["access-pass", document, signer]` → `AccessPassMismatch` / `AccessPassInvalid`.
+- **Residual risk:** A user who lends their wallet lends their acceptance (a key holder is not necessarily the person — §5).
+
+#### G03 — Forged pass account
+- **Attack:** Create an account with pass-shaped data: system-owned, owned by another program, or a
+  Stele-owned account of another type or at another address.
+- **Impact:** Fake access.
+- **Defense:** Owner = Stele program, pass discriminator and length, canonical PDA with the stored
+  bump; only the Stele program can write accounts it owns and it writes the pass type only in
+  `record_gated_acceptance` (tests: system-owned, off-canonical Stele-owned, system account at the
+  PDA → `AccessPassMissing`).
+- **Residual risk:** A Stele program defect or a malicious upgrade (R15).
+
+#### G04 — Policy of the attacker's own
+- **Attack:** Create an organization, a document and a policy requiring nothing the attacker has not
+  accepted, and pass that policy.
+- **Impact:** Access under the wrong terms.
+- **Defense:** Protected programs pin the policy (`#[account(address = vault.policy)]` in the demo →
+  `WrongPolicy`); `require_current` also checks the policy's owner, type and canonical address
+  (`InvalidPolicy`).
+- **Residual risk:** An integration that does not pin the policy is not protected (G15). Documented
+  as a MUST (§18.4).
+
+#### G05 — Relayer assigns a pass to a wallet that never signed
+- **Attack:** The relayer (or a thief of its key) records a gated acceptance naming another holder.
+- **Impact:** Fabricated access and evidence.
+- **Defense:** `holder` must equal the Ed25519 signer that the runtime verified; the relayer cannot
+  produce the holder's signature (test `the_pass_belongs_to_the_signer_never_to_an_account_the_relayer_names`).
+- **Residual risk:** None beyond R01 (censorship).
+
+#### G06 — Replayed or altered acceptance
+- **Attack:** Resubmit a signed gated acceptance, or change its version, document or time.
+- **Impact:** Duplicate or misdated evidence.
+- **Defense:** The `record_acceptance` checks (§8): exact message reconstruction, single-use nonce
+  bit, validity window, current version only (test `a_tampered_or_replayed_gated_acceptance_creates_no_pass`).
+- **Residual risk:** None known.
+
+#### G07 — Recording through another program (CPI)
+- **Attack:** A program invokes `record_gated_acceptance` to bundle or hide the signature.
+- **Impact:** Ambiguous evidence.
+- **Defense:** Top-level only, as every signature-carrying instruction (test `gated_acceptance_cannot_be_invoked_through_cpi`).
+- **Residual risk:** None known.
+
+#### G08 — Outdated pass after a terms update
+- **Attack:** Keep depositing under v1 after the organization requires v2.
+- **Impact:** Actions under superseded terms.
+- **Defense:** `version_number < required_version` → `AccessPassOutdated` (tests
+  `deposits_require_the_current_offering_terms`; `gate-smoke`).
+- **Residual risk:** Publishing v2 alone changes nothing until v2 is required — intended, and shown
+  in the dashboard.
+
+#### G09 — Same number, different fingerprint
+- **Attack:** A pass naming version N of the policy's document with another fingerprint.
+- **Impact:** Access under different text.
+- **Defense:** Equal numbers require equal fingerprints (`FingerprintMismatch`). Versions are
+  immutable, so this needs corrupted state — the check is defense in depth (test
+  `forged_policies_and_fingerprints_are_rejected`).
+- **Residual risk:** None known.
+
+#### G10 — Pass for another document
+- **Attack:** Use a pass for another document of the same organization, or of another one.
+- **Impact:** Access under unrelated terms.
+- **Defense:** Pass document and organization must equal the policy's; the address is derived from
+  the policy's document → `AccessPassMismatch` / `AccessPassInvalid`.
+- **Residual risk:** None known.
+
+#### G11 — Unsigned user account
+- **Attack:** Name the victim's wallet without its signature.
+- **Impact:** Act under someone else's pass.
+- **Defense:** `UserNotSigner`; the demo also declares the investor a `Signer`.
+- **Residual risk:** None known.
+
+#### G12 — Policy raised between acceptance and action
+- **Attack / failure:** Accept & Continue is two transactions; the requirement changes in between.
+- **Impact:** The action fails after the user accepted.
+- **Defense:** Fails safe: `AccessPassOutdated`; the SDK re-checks and shows the new version. If the
+  document changes while the modal is open, the SDK refuses to sign the old text (`StaleTermsError`).
+- **Residual risk:** UX only. Not atomic — stated in every public description.
+
+#### G13 — Organization quietly lowers or changes the requirement
+- **Attack:** An insider sets the policy back to an older version.
+- **Impact:** Users act under older terms than investors expect.
+- **Defense:** Only owner/admin/publisher wallets can change it, never while frozen; every change is a
+  `PolicyChanged` event with the previous requirement, shown in the dashboard and indexed.
+- **Residual risk:** The policy is the organization's own decision; Stele makes it public, not
+  impossible.
+
+#### G14 — Pass-rent drain
+- **Attack:** Many new wallets each accept once, so the relayer pays ≈0.0025 SOL rent per pass.
+- **Impact:** Cost to Stele.
+- **Defense:** The existing relay limits: rate-limited challenges, optional server-issued acceptance
+  sessions, allowed request domains, relayer balance alerts.
+- **Residual risk:** Real for organizations that allow anonymous acceptances; recommend acceptance
+  sessions for Gate documents.
+
+#### G15 — Incomplete integration
+- **Attack / failure:** A protected instruction forgets `require_current`, or accepts any policy.
+- **Impact:** No enforcement on that path.
+- **Defense:** Documentation (MUST rules), the dashboard's wizard and live checks, test templates for
+  the four scenarios.
+- **Residual risk:** Stele cannot inspect a program's code. Integrators own this.
+
+#### G16 — Demo relay abused
+- **Attack:** Use the public demo's deposit relay to get arbitrary transactions paid.
+- **Impact:** Relayer funds spent.
+- **Defense:** The relay accepts exactly one demo `deposit` (plus an optional compute-unit limit) for
+  the session's own vault and policy, with the relayer only as fee payer; per-session, per-IP and
+  daily caps; disabled on mainnet.
+- **Residual risk:** Small fees within the caps.
+
+### 8.3 Invariants added by Gate and their tests
+
+| # | Invariant | Enforced by | Checked by |
+|---|---|---|---|
+| 31 | A protected action needs a current pass of the signer | `require_current` in the protected program | `direct_bypass_attempts_fail_on_chain`, `deposits_require_the_current_offering_terms`, `gate-smoke` |
+| 32 | Only the holder's own signature creates or advances a pass | `holder == verified signer` | `the_pass_belongs_to_the_signer_never_to_an_account_the_relayer_names` |
+| 33 | The user pays nothing to accept | relayer pays fee and rent | `a_gated_acceptance_creates_the_holders_pass_and_the_user_pays_nothing` |
+| 34 | A pass never goes back to an older version | `record_gated_acceptance` | program check; current-version-only recording |
+| 35 | Earlier acceptances stay verifiable after a requirement change | append-only acceptances | `gate-smoke` (Proof receipt `VALID`) |
+| 36 | Stele is not in the protected transaction | read-only check, no CPI | crate design; demo program has no Stele CPI |
