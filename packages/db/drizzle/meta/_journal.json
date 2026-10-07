@@ -57,6 +57,13 @@
       "when": 1791321807877,
       "tag": "0007_stele_gate",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791352029620,
+      "tag": "0008_gate_policies",
+      "breakpoints": true
     }
   ]
 }

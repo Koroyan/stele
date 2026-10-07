@@ -1,7 +1,7 @@
 /**
- * Stele Gate (PROTOCOL_SPEC.md §18) for organizations: which documents are policies, the access
- * passes their acceptances created, the Solana programs that require them, what those programs
- * recently allowed or rejected, and live checks of the requirement against the cluster.
+ * Stele Gate (PROTOCOL_SPEC.md §18) for organizations: policies, the access passes their
+ * acceptances created, the Solana programs that require them, what those programs recently allowed
+ * or rejected, and live checks of the requirement against the cluster.
  *
  * Everything here reads Solana or simulates against it; the database is an index for the dashboard.
  * Enforcement is on-chain — in the protected program — and nothing in this file can grant access.
@@ -21,14 +21,12 @@ import {
 } from "@solana/kit";
 import {
   GATE_DEMO_PROGRAM_ADDRESS,
-  checkAccessInstruction,
-  describeGateError,
+  depositInstruction,
   describeProgramError,
+  explainGateFailure,
   findAccessPassPda,
-  findMarketPda,
-  placeBetInstruction,
+  findVaultPda,
   readAccess,
-  type AccessEvaluation,
 } from "@stele/protocol";
 import {
   accessPasses,
@@ -37,6 +35,7 @@ import {
   documents,
   documentVersions,
   eq,
+  gatePolicies,
   gatePrograms,
   inArray,
   organizations,
@@ -44,20 +43,21 @@ import {
 } from "@stele/db";
 import type { Deps } from "../deps.js";
 import { badRequest, conflict, notFound } from "../errors.js";
+import { syncPolicy } from "../lib/sync.js";
 
 // ---- explaining failures ---------------------------------------------------------------------------
 
 export interface GateFailure {
-  /** The program whose instruction failed (the innermost one for a CPI). */
+  /** The program whose instruction failed. */
   program: string | null;
   code: number | null;
-  /** "stele" (Stele program error), "stele-gate" (check-mode crate error) or "program". */
+  /** "stele-gate" (require_current), "stele" (Stele program) or "program" (the app's own error). */
   source: "stele" | "stele-gate" | "program" | "runtime";
   name: string;
   message: string;
 }
 
-/** Explains a failed transaction from its logs (innermost failing program first). */
+/** Explains a failed transaction from its logs. */
 export function explainFailure(
   steleProgram: Address,
   err: unknown,
@@ -68,11 +68,11 @@ export function explainFailure(
     if (!m) continue;
     const program = m[1]!;
     const code = Number.parseInt(m[2]!, 16);
-    const gate = describeGateError(code);
-    if (gate) return { program, code, source: "stele-gate", ...gate };
+    const known = explainGateFailure(address(program), code);
+    if (known) return { program, code, ...known };
     if (program === steleProgram) {
-      const known = describeProgramError(code);
-      if (known) return { program, code, source: "stele", ...known };
+      const stele = describeProgramError(code);
+      if (stele) return { program, code, source: "stele", ...stele };
     }
     return {
       program,
@@ -82,14 +82,17 @@ export function explainFailure(
       message: `The program returned error ${code}`,
     };
   }
+  const anchorError = logs.find((l) => /AnchorError/.test(l));
   const failed = logs.find((l) => / failed: /.test(l));
   return {
     program: failed?.match(/^Program (\w+) failed/)?.[1] ?? null,
     code: null,
     source: "runtime",
-    name: "TransactionFailed",
+    name: anchorError?.match(/Error Code: (\w+)/)?.[1] ?? "TransactionFailed",
     message: (
-      failed ?? JSON.stringify(err, (_k, v: unknown) => (typeof v === "bigint" ? Number(v) : v))
+      anchorError ??
+      failed ??
+      JSON.stringify(err, (_k, v: unknown) => (typeof v === "bigint" ? Number(v) : v))
     ).slice(0, 300),
   };
 }
@@ -131,12 +134,12 @@ export async function simulate(deps: Deps, instructions: Instruction[]): Promise
 // ---- public access check -----------------------------------------------------------------------------
 
 export interface AccessView {
-  status: AccessEvaluation["status"];
+  status: "MISSING" | "OUTDATED" | "VALID";
+  policy: string;
   document: string;
   holder: string;
   accessPass: string;
-  currentVersion: { address: string | null; number: number };
-  requiredVersionNumber: number;
+  requiredVersion: number;
   pass: {
     version: string;
     versionNumber: number;
@@ -145,28 +148,25 @@ export interface AccessView {
   } | null;
 }
 
-/** Reads the holder's pass and the policy document from Solana (UX only: enforcement is on-chain). */
+/** Reads a policy and the holder's pass from Solana (UX only: enforcement is on-chain). */
 export async function accessStatus(
   deps: Deps,
-  i: { document: string; holder: string; minVersion?: number },
+  i: { policy: string; holder: string },
 ): Promise<AccessView> {
   const e = await readAccess(deps.chain.rpc, {
-    document: address(i.document),
+    policy: address(i.policy),
     holder: address(i.holder),
-    requirement: { minVersion: i.minVersion ?? 0 },
     programAddress: deps.chain.programAddress,
-  }).catch((err: unknown) => {
-    throw notFound(
-      err instanceof Error && /not found/.test(err.message) ? "Policy document" : "Access",
-    );
+  }).catch(() => {
+    throw notFound("Policy");
   });
   return {
     status: e.status,
+    policy: e.policy,
     document: e.document,
     holder: e.holder,
     accessPass: e.accessPass,
-    currentVersion: { address: e.currentVersion, number: e.currentVersionNumber },
-    requiredVersionNumber: e.requiredVersionNumber,
+    requiredVersion: e.requiredVersion,
     pass: e.pass
       ? {
           version: e.pass.version,
@@ -180,38 +180,13 @@ export async function accessStatus(
 
 // ---- organization: policies, passes, programs --------------------------------------------------------
 
-async function orgDocument(deps: Deps, organizationId: string, documentId: string) {
-  const [doc] = await deps.db
-    .select()
-    .from(documents)
-    .where(and(eq(documents.id, documentId), eq(documents.organizationId, organizationId)));
-  if (!doc) throw notFound("Document");
-  return doc;
-}
-
-export async function setDocumentGate(
-  deps: Deps,
-  organizationId: string,
-  documentId: string,
-  gated: boolean,
-) {
-  const doc = await orgDocument(deps, organizationId, documentId);
-  if (!gated) {
-    const [inUse] = await deps.db
-      .select({ id: gatePrograms.id })
-      .from(gatePrograms)
-      .where(eq(gatePrograms.policyDocumentId, doc.id));
-    if (inUse)
-      throw conflict(
-        "policy_in_use",
-        "A registered program requires this policy; remove the program first",
-      );
-  }
-  await deps.db
-    .update(documents)
-    .set({ gated, updatedAt: new Date() })
-    .where(eq(documents.id, doc.id));
-  return { documentId: doc.id, gated };
+/** After the organization's wallet created or changed a policy on-chain: mirror it. */
+export async function refreshPolicy(deps: Deps, organizationId: string, policy: string) {
+  const synced = await syncPolicy(deps.db, deps.chain, policy);
+  if (!synced) throw notFound("Policy");
+  const [doc] = await deps.db.select().from(documents).where(eq(documents.id, synced.documentId));
+  if (doc?.organizationId !== organizationId) throw notFound("Policy");
+  return synced;
 }
 
 async function versionLabels(deps: Deps, addresses: string[]) {
@@ -241,14 +216,19 @@ export async function gateOverview(deps: Deps, organizationId: string) {
     .from(documents)
     .where(eq(documents.organizationId, organizationId))
     .orderBy(documents.slug);
+  const policies = await deps.db
+    .select()
+    .from(gatePolicies)
+    .where(eq(gatePolicies.organizationId, organizationId));
+  const policyByDoc = new Map(policies.map((p) => [p.documentId, p]));
   const counts = await deps.db
     .select({
       documentId: accessPasses.documentId,
       total: sql<number>`count(*)::int`,
-      current: sql<number>`count(*) filter (where ${accessPasses.versionAddress} = ${documents.currentVersionAddress})::int`,
+      current: sql<number>`count(*) filter (where ${accessPasses.versionNumber} >= ${gatePolicies.requiredVersion})::int`,
     })
     .from(accessPasses)
-    .innerJoin(documents, eq(documents.id, accessPasses.documentId))
+    .innerJoin(gatePolicies, eq(gatePolicies.documentId, accessPasses.documentId))
     .where(eq(accessPasses.organizationId, organizationId))
     .groupBy(accessPasses.documentId);
   const byDoc = new Map(counts.map((c) => [c.documentId, c]));
@@ -271,23 +251,32 @@ export async function gateOverview(deps: Deps, organizationId: string) {
   return {
     enabled: org?.settings.products?.gate === true,
     network: deps.config.network.label,
-    steleProgram: deps.chain.programAddress,
-    demoProgram: GATE_DEMO_PROGRAM_ADDRESS,
+    steleProgram: deps.chain.programAddress as string,
+    demoProgram: GATE_DEMO_PROGRAM_ADDRESS as string,
     documents: docs.map((d) => {
       const c = byDoc.get(d.id);
       const v = d.currentVersionAddress ? labels.get(d.currentVersionAddress) : undefined;
+      const p = policyByDoc.get(d.id);
       return {
         id: d.id,
         address: d.address,
         slug: d.slug,
         documentType: d.documentType,
-        gated: d.gated,
+        versionCount: d.versionCount,
         currentVersion: d.currentVersionAddress
           ? {
               address: d.currentVersionAddress,
               number: v?.number ?? d.versionCount,
               label: v?.label ?? null,
               title: v?.title ?? null,
+            }
+          : null,
+        policy: p
+          ? {
+              address: p.address,
+              requiredVersion: p.requiredVersion,
+              requiredVersionHash: p.requiredVersionHash,
+              updatedAt: p.updatedAt,
             }
           : null,
         passes: {
@@ -307,14 +296,17 @@ export async function gateOverview(deps: Deps, organizationId: string) {
       isDemo: p.programAddress === GATE_DEMO_PROGRAM_ADDRESS,
       createdAt: p.createdAt,
     })),
-    recentPasses: recent.map((p) => ({
-      holder: p.holder,
-      document: docById.get(p.documentId)?.slug ?? null,
-      versionNumber: p.versionNumber,
-      current: docById.get(p.documentId)?.currentVersionAddress === p.versionAddress,
-      acceptedAt: p.acceptedAt,
-      txSignature: p.txSignature,
-    })),
+    recentPasses: recent.map((p) => {
+      const policy = policyByDoc.get(p.documentId);
+      return {
+        holder: p.holder,
+        document: docById.get(p.documentId)?.slug ?? null,
+        versionNumber: p.versionNumber,
+        current: policy ? p.versionNumber >= policy.requiredVersion : false,
+        acceptedAt: p.acceptedAt,
+        txSignature: p.txSignature,
+      };
+    }),
   };
 }
 
@@ -326,27 +318,28 @@ export async function listAccessPasses(
   const conds = [eq(accessPasses.organizationId, organizationId)];
   if (q.documentId) conds.push(eq(accessPasses.documentId, q.documentId));
   if (q.status === "current")
-    conds.push(sql`${accessPasses.versionAddress} = ${documents.currentVersionAddress}`);
+    conds.push(sql`${accessPasses.versionNumber} >= ${gatePolicies.requiredVersion}`);
   if (q.status === "outdated")
-    conds.push(sql`${accessPasses.versionAddress} <> ${documents.currentVersionAddress}`);
+    conds.push(sql`${accessPasses.versionNumber} < ${gatePolicies.requiredVersion}`);
   const rows = await deps.db
-    .select({ p: accessPasses, d: documents })
+    .select({ p: accessPasses, d: documents, g: gatePolicies })
     .from(accessPasses)
     .innerJoin(documents, eq(documents.id, accessPasses.documentId))
+    .innerJoin(gatePolicies, eq(gatePolicies.documentId, accessPasses.documentId))
     .where(and(...conds))
     .orderBy(desc(accessPasses.acceptedAt))
     .limit(q.limit)
     .offset(q.offset);
   return {
-    passes: rows.map(({ p, d }) => ({
+    passes: rows.map(({ p, d, g }) => ({
       address: p.address,
       holder: p.holder,
       document: { id: d.id, address: d.address, slug: d.slug },
       versionAddress: p.versionAddress,
       versionNumber: p.versionNumber,
-      currentVersionNumber: d.versionCount,
-      status:
-        p.versionAddress === d.currentVersionAddress ? ("current" as const) : ("outdated" as const),
+      versionHash: p.versionHash,
+      requiredVersion: g.requiredVersion,
+      status: p.versionNumber >= g.requiredVersion ? ("current" as const) : ("outdated" as const),
       acceptanceId: p.acceptanceId,
       acceptanceCount: p.acceptanceCount,
       acceptedAt: p.acceptedAt,
@@ -364,14 +357,19 @@ export async function registerProgram(
     label: string;
     action: string;
     policyDocumentId: string;
-    mode: "check" | "strict";
   },
 ) {
-  const doc = await orgDocument(deps, organizationId, input.policyDocumentId);
-  if (!doc.gated)
+  const [row] = await deps.db
+    .select({ d: documents, g: gatePolicies })
+    .from(documents)
+    .innerJoin(gatePolicies, eq(gatePolicies.documentId, documents.id))
+    .where(
+      and(eq(documents.id, input.policyDocumentId), eq(documents.organizationId, organizationId)),
+    );
+  if (!row)
     throw conflict(
       "not_a_policy",
-      "Make the document a Gate policy before a program can require it",
+      "Create a Gate policy for this document before a program can require it",
     );
   if (input.programAddress === deps.chain.programAddress)
     throw badRequest("invalid_program", "The Stele program cannot be a protected program");
@@ -383,21 +381,16 @@ export async function registerProgram(
       "program_not_found",
       `No executable program at ${input.programAddress} on ${deps.config.network.label}`,
     );
-  const [row] = await deps.db
+  const values = { ...input, mode: "require_current", policyDocumentId: row.d.id };
+  const [saved] = await deps.db
     .insert(gatePrograms)
-    .values({ organizationId, ...input, policyDocumentId: doc.id })
+    .values({ organizationId, ...values })
     .onConflictDoUpdate({
       target: [gatePrograms.organizationId, gatePrograms.programAddress],
-      set: {
-        label: input.label,
-        action: input.action,
-        policyDocumentId: doc.id,
-        mode: input.mode,
-        updatedAt: new Date(),
-      },
+      set: { ...values, updatedAt: new Date() },
     })
     .returning();
-  return row!;
+  return saved!;
 }
 
 export async function removeProgram(deps: Deps, organizationId: string, programId: string) {
@@ -411,17 +404,20 @@ export async function removeProgram(deps: Deps, organizationId: string, programI
 
 async function orgProgram(deps: Deps, organizationId: string, programId: string) {
   const [p] = await deps.db
-    .select({ p: gatePrograms, d: documents })
+    .select({ p: gatePrograms, d: documents, g: gatePolicies })
     .from(gatePrograms)
     .innerJoin(documents, eq(documents.id, gatePrograms.policyDocumentId))
+    .innerJoin(gatePolicies, eq(gatePolicies.documentId, documents.id))
     .where(and(eq(gatePrograms.id, programId), eq(gatePrograms.organizationId, organizationId)));
   if (!p) throw notFound("Program");
   return p;
 }
 
+export type ActivityOutcome = "allowed" | "rejected";
+
 /**
- * Recent transactions of a protected program, as the cluster reports them: succeeded ("allowed") or
- * failed ("rejected"), with the reason read from the transaction's logs.
+ * Recent transactions of a protected program, as the cluster reports them: succeeded ("allowed")
+ * or failed ("rejected"), with the reason read from the transaction's logs.
  */
 export async function programActivity(deps: Deps, organizationId: string, programId: string) {
   const { p } = await orgProgram(deps, organizationId, programId);
@@ -448,11 +444,22 @@ export async function programActivity(deps: Deps, organizationId: string, progra
       signature: s.signature,
       slot: Number(s.slot),
       blockTime: s.blockTime === null ? null : Number(s.blockTime),
-      outcome: s.err ? ("rejected" as const) : ("allowed" as const),
+      outcome: (s.err ? "rejected" : "allowed") as ActivityOutcome,
       failure,
     });
   }
-  return { program: p.programAddress, activity: out };
+  const summary = {
+    allowed: out.filter((a) => a.outcome === "allowed").length,
+    rejectedMissing: out.filter((a) => a.failure?.name === "AccessPassMissing").length,
+    rejectedOutdated: out.filter((a) => a.failure?.name === "AccessPassOutdated").length,
+    rejectedOther: out.filter(
+      (a) =>
+        a.outcome === "rejected" &&
+        a.failure?.name !== "AccessPassMissing" &&
+        a.failure?.name !== "AccessPassOutdated",
+    ).length,
+  };
+  return { program: p.programAddress, activity: out, summary };
 }
 
 export interface ProbeResult {
@@ -465,89 +472,99 @@ export interface ProbeResult {
 }
 
 /**
- * Live checks against the cluster, by simulation (nothing is signed or sent):
- * * the policy requirement itself, through Stele's `check_access` — for any registered program;
- * * the protected action end to end — only for the Stele Gate demo program, whose instruction
- *   layout Stele knows. Other programs run the same scenarios in their own test suite.
+ * Live checks against the cluster:
+ * * for the Stele demo vault, by simulating its protected `deposit` (nothing is signed or sent);
+ * * for any other program — whose instruction layout Stele cannot know — by applying the
+ *   `require_current` rule to the real pass and policy accounts on Solana. Your program's own test
+ *   suite must still run the same scenarios against its instruction (see the Testing tab).
  */
 export async function runProbes(deps: Deps, organizationId: string, programId: string) {
-  const { p, d } = await orgProgram(deps, organizationId, programId);
-  const document = address(d.address);
+  const { p, d, g } = await orgProgram(deps, organizationId, programId);
+  const policy = address(g.address);
   const passes = await deps.db
     .select()
     .from(accessPasses)
     .where(eq(accessPasses.documentId, d.id))
     .orderBy(desc(accessPasses.acceptedAt))
     .limit(200);
-  const current = passes.find((x) => x.versionAddress === d.currentVersionAddress) ?? null;
-  const outdated = passes.find((x) => x.versionAddress !== d.currentVersionAddress) ?? null;
+  const current = passes.find((x) => x.versionNumber >= g.requiredVersion) ?? null;
+  const outdated = passes.find((x) => x.versionNumber < g.requiredVersion) ?? null;
   // A fresh random wallet: it has never accepted anything.
   const stranger = getAddressDecoder().decode(crypto.getRandomValues(new Uint8Array(32)));
   const demo = p.programAddress === GATE_DEMO_PROGRAM_ADDRESS;
-  const [market] = demo ? await findMarketPda(document) : [null];
-
-  /** The instruction under test for `holder` presenting `pass`. */
-  const action = (holder: Address, pass: Address): Instruction =>
-    demo
-      ? placeBetInstruction({
-          bettor: holder,
-          market: market!,
-          policyDocument: document,
-          accessPass: pass,
-          side: 1,
-          stake: 1,
-          strict: p.mode === "strict",
-          steleProgram: deps.chain.programAddress,
-        })
-      : checkAccessInstruction({
-          programAddress: deps.chain.programAddress,
-          document,
-          accessPass: pass,
-          holder,
-        });
-  const subject = demo ? `${p.action} (${p.mode} mode)` : "check_access";
+  const [vault] = demo ? await findVaultPda(policy) : [null];
   const passOf = async (holder: Address) =>
-    (await findAccessPassPda(document, holder, deps.chain.programAddress))[0];
+    (await findAccessPassPda(address(d.address), holder, deps.chain.programAddress))[0];
 
-  const scenarios: {
-    id: string;
-    label: string;
-    expect: "reject" | "allow";
-    run: (() => Promise<Simulation>) | null;
-    skipReason?: string;
-  }[] = [
+  /** Runs one scenario: `holder` presents `pass`. */
+  const probe = async (holder: Address, pass: Address): Promise<Simulation> => {
+    if (demo) {
+      return simulate(deps, [
+        depositInstruction({
+          investor: holder,
+          vault: vault!,
+          policy,
+          accessPass: pass,
+          amount: 1,
+        }),
+      ]);
+    }
+    const e = await readAccess(deps.chain.rpc, {
+      policy,
+      holder,
+      programAddress: deps.chain.programAddress,
+    });
+    const presentedOwn = pass === e.accessPass;
+    const ok = presentedOwn && e.status === "VALID";
+    return {
+      ok,
+      unitsConsumed: null,
+      logs: [],
+      failure: ok
+        ? null
+        : {
+            program: null,
+            code: null,
+            source: "stele-gate",
+            name: !presentedOwn
+              ? "AccessPassMismatch"
+              : e.status === "OUTDATED"
+                ? "AccessPassOutdated"
+                : "AccessPassMissing",
+            message: "Evaluated against Solana with the require_current rule",
+          },
+    };
+  };
+  const subject = demo ? `${p.action}()` : "require_current";
+
+  const scenarios = [
     {
-      id: "no_pass",
-      label: `No access pass → ${subject}`,
-      expect: "reject",
-      run: async () => simulate(deps, [action(stranger, await passOf(stranger))]),
+      id: "missing_pass",
+      label: `No AccessPass → ${subject}`,
+      expect: "reject" as const,
+      run: async () => probe(stranger, await passOf(stranger)),
+      skip: null,
     },
     {
       id: "current_pass",
-      label: `Current access pass → ${subject}`,
-      expect: "allow",
-      run: current
-        ? async () => simulate(deps, [action(address(current.holder), address(current.address))])
-        : null,
-      skipReason: "No wallet has accepted the current version yet",
+      label: `Current AccessPass → ${subject}`,
+      expect: "allow" as const,
+      run: current ? async () => probe(address(current.holder), address(current.address)) : null,
+      skip: "No wallet has accepted the required version yet",
     },
     {
       id: "outdated_pass",
-      label: `Access pass for an older version → ${subject}`,
-      expect: "reject",
-      run: outdated
-        ? async () => simulate(deps, [action(address(outdated.holder), address(outdated.address))])
-        : null,
-      skipReason: "No pass for an older version exists (publish a new version to create one)",
+      label: `AccessPass for an older version → ${subject}`,
+      expect: "reject" as const,
+      run: outdated ? async () => probe(address(outdated.holder), address(outdated.address)) : null,
+      skip: "No pass for an older version exists (require a newer version to create one)",
     },
     {
       id: "direct_bypass",
-      label: `Direct call presenting someone else's pass → ${subject}`,
-      expect: "reject",
-      run: passes[0]
-        ? async () => simulate(deps, [action(stranger, address(passes[0]!.address))])
-        : null,
-      skipReason: "No access pass exists yet",
+      label: `Direct call with someone else's AccessPass → ${subject}`,
+      expect: "reject" as const,
+      run: passes[0] ? async () => probe(stranger, address(passes[0]!.address)) : null,
+      skip: "No access pass exists yet",
     },
   ];
   const results: ProbeResult[] = [];
@@ -558,7 +575,7 @@ export async function runProbes(deps: Deps, organizationId: string, programId: s
         label: s.label,
         expect: s.expect,
         outcome: "skipped",
-        detail: s.skipReason!,
+        detail: s.skip!,
         failure: null,
       });
       continue;
@@ -571,7 +588,9 @@ export async function runProbes(deps: Deps, organizationId: string, programId: s
       expect: s.expect,
       outcome: asExpected ? "passed" : "failed",
       detail: sim.ok
-        ? `Executed (${sim.unitsConsumed ?? "?"} compute units)`
+        ? sim.unitsConsumed !== null
+          ? `Executed (${sim.unitsConsumed} compute units)`
+          : "Satisfies the policy"
         : `${sim.failure?.name}: ${sim.failure?.message}`,
       failure: sim.failure,
     });

@@ -1,6 +1,7 @@
 /**
  * Stele Gate routes (PROTOCOL_SPEC.md §18). The public access check is a convenience for SDKs that
- * decide whether to show the acceptance modal; protected programs never rely on it.
+ * decide whether to show the acceptance modal; protected programs never rely on it. Policies are
+ * created and changed on-chain by the organization's own wallet; the API only mirrors them.
  */
 import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod";
 import { z } from "zod";
@@ -13,10 +14,10 @@ import {
   gateOverview,
   listAccessPasses,
   programActivity,
+  refreshPolicy,
   registerProgram,
   removeProgram,
   runProbes,
-  setDocumentGate,
 } from "../services/gate.js";
 import { base58Address, orgParams, uuid } from "./schemas.js";
 
@@ -26,11 +27,7 @@ export function gateRoutes(deps: Deps): FastifyPluginAsyncZod {
       "/v1/public/gate/access",
       {
         schema: {
-          querystring: z.object({
-            document: base58Address,
-            holder: base58Address,
-            minVersion: z.coerce.number().int().min(0).max(1_000_000).optional(),
-          }),
+          querystring: z.object({ policy: base58Address, holder: base58Address }),
         },
         config: { rateLimit: { max: 120, timeWindow: "1 minute" } },
       },
@@ -41,6 +38,16 @@ export function gateRoutes(deps: Deps): FastifyPluginAsyncZod {
       const access = await requireOrgRole(deps, req, req.params.orgId, "member");
       return gateOverview(deps, access.organizationId);
     });
+
+    /** After the organization's wallet created or changed a policy: mirror it from Solana. */
+    app.post(
+      "/v1/organizations/:orgId/gate/policies/:policy/refresh",
+      { schema: { params: orgParams.extend({ policy: base58Address }) } },
+      async (req) => {
+        const access = await requireOrgRole(deps, req, req.params.orgId, "member");
+        return refreshPolicy(deps, access.organizationId, req.params.policy);
+      },
+    );
 
     app.get(
       "/v1/organizations/:orgId/gate/passes",
@@ -61,36 +68,6 @@ export function gateRoutes(deps: Deps): FastifyPluginAsyncZod {
       },
     );
 
-    app.patch(
-      "/v1/organizations/:orgId/documents/:documentId/gate",
-      {
-        schema: {
-          params: orgParams.extend({ documentId: uuid }),
-          body: z.object({ gated: z.boolean() }),
-        },
-      },
-      async (req) => {
-        const user = requireUser(req);
-        const access = await requireOrgRole(deps, req, req.params.orgId, "admin");
-        const result = await setDocumentGate(
-          deps,
-          access.organizationId,
-          req.params.documentId,
-          req.body.gated,
-        );
-        await appendAudit(deps.db, {
-          organizationId: access.organizationId,
-          actorType: "user",
-          actorId: user.id,
-          action: req.body.gated ? "gate.policy_enabled" : "gate.policy_disabled",
-          targetType: "document",
-          targetId: req.params.documentId,
-          ipHash: hashIp(req.ip, deps.config.IP_HASH_SECRET),
-        });
-        return result;
-      },
-    );
-
     app.post(
       "/v1/organizations/:orgId/gate/programs",
       {
@@ -102,9 +79,8 @@ export function gateRoutes(deps: Deps): FastifyPluginAsyncZod {
             action: z
               .string()
               .trim()
-              .regex(/^[A-Za-z_][A-Za-z0-9_]{0,63}$/, "an instruction name such as place_bet"),
+              .regex(/^[A-Za-z_][A-Za-z0-9_]{0,63}$/, "an instruction name such as deposit"),
             policyDocumentId: uuid,
-            mode: z.enum(["check", "strict"]),
           }),
         },
       },
@@ -119,7 +95,7 @@ export function gateRoutes(deps: Deps): FastifyPluginAsyncZod {
           action: "gate.program_registered",
           targetType: "program",
           targetId: req.body.programAddress,
-          metadata: { action: req.body.action, mode: req.body.mode },
+          metadata: { action: req.body.action },
           ipHash: hashIp(req.ip, deps.config.IP_HASH_SECRET),
         });
         return { program };

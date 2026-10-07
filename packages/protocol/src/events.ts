@@ -132,6 +132,7 @@ export interface AccessPassUpdatedEvent {
   holder: Address;
   accessPass: Address;
   version: Address;
+  versionHash: Uint8Array;
   acceptanceId: Uint8Array;
   acceptedAt: bigint;
   slot: bigint;
@@ -140,9 +141,24 @@ export interface AccessPassUpdatedEvent {
   created: boolean;
 }
 
+/** Stele Gate: a policy was created or its required version changed. */
+export interface PolicyChangedEvent {
+  organization: Address;
+  document: Address;
+  policy: Address;
+  requiredVersionHash: Uint8Array;
+  actor: Address;
+  changedAt: bigint;
+  slot: bigint;
+  requiredVersion: number;
+  previousRequiredVersion: number;
+  created: boolean;
+}
+
 export type SteleEvent =
   | { name: "AcceptanceRecorded"; data: AcceptanceRecordedEvent }
   | { name: "AccessPassUpdated"; data: AccessPassUpdatedEvent }
+  | { name: "PolicyChanged"; data: PolicyChangedEvent }
   | { name: "AcceptanceBatchAnchored"; data: AcceptanceBatchAnchoredEvent }
   | { name: "PasskeyAcceptanceRecorded"; data: PasskeyAcceptanceRecordedEvent }
   | { name: "PasskeySignerChanged"; data: PasskeySignerChangedEvent }
@@ -287,11 +303,24 @@ const DECODERS: Record<SteleEvent["name"], Decoder> = {
     holder: r.address(),
     accessPass: r.address(),
     version: r.address(),
+    versionHash: r.bytes(32),
     acceptanceId: r.bytes(32),
     acceptedAt: r.i64(),
     slot: r.u64(),
     versionNumber: r.u32(),
     acceptanceCount: r.u32(),
+    created: r.bool(),
+  }),
+  PolicyChanged: (r) => ({
+    organization: r.address(),
+    document: r.address(),
+    policy: r.address(),
+    requiredVersionHash: r.bytes(32),
+    actor: r.address(),
+    changedAt: r.i64(),
+    slot: r.u64(),
+    requiredVersion: r.u32(),
+    previousRequiredVersion: r.u32(),
     created: r.bool(),
   }),
   AcceptanceBatchAnchored: (r) => ({

@@ -19,6 +19,7 @@ export const ACCOUNT_NAMES = [
   "NonceShard",
   "PasskeySigner",
   "AccessPass",
+  "GatePolicy",
 ] as const;
 export type AccountName = (typeof ACCOUNT_NAMES)[number];
 
@@ -385,15 +386,17 @@ export function decodePasskeySigner(data: Uint8Array): PasskeySignerAccount {
 }
 
 /** Size of an AccessPass account: discriminator + fields (programs/stele/src/state.rs). */
-export const ACCESS_PASS_ACCOUNT_SIZE = 8 + 32 * 4 + 32 + 8 + 8 + 8 + 4 + 4 + 1;
+export const ACCESS_PASS_ACCOUNT_SIZE = 8 + 32 * 4 + 32 + 32 + 8 + 8 + 8 + 4 + 4 + 1;
 
-/** Stele Gate: a wallet's latest acceptance of one policy document (PROTOCOL_SPEC.md §18.1). */
+/** Stele Gate: a wallet's latest acceptance of one document (PROTOCOL_SPEC.md §18.1). */
 export interface AccessPassAccount {
   organization: Address;
   document: Address;
   holder: Address;
   /** The DocumentVersion most recently accepted. */
   version: Address;
+  /** That version's fingerprint. */
+  versionHash: Uint8Array;
   acceptanceId: Uint8Array;
   acceptedAt: bigint;
   firstAcceptedAt: bigint;
@@ -410,12 +413,43 @@ export function decodeAccessPass(data: Uint8Array): AccessPassAccount {
     document: r.address(),
     holder: r.address(),
     version: r.address(),
+    versionHash: r.bytes(32),
     acceptanceId: r.bytes(32),
     acceptedAt: r.i64(),
     firstAcceptedAt: r.i64(),
     acceptedSlot: r.u64(),
     versionNumber: r.u32(),
     acceptanceCount: r.u32(),
+    bump: r.u8(),
+  };
+}
+
+/** Size of a GatePolicy account (programs/stele/src/state.rs). */
+export const GATE_POLICY_ACCOUNT_SIZE = 8 + 32 + 32 + 32 + 32 + 8 + 8 + 4 + 1;
+
+/** Stele Gate: the version of a document a protected action requires (PROTOCOL_SPEC.md §18.2). */
+export interface GatePolicyAccount {
+  organization: Address;
+  document: Address;
+  requiredVersionHash: Uint8Array;
+  updatedBy: Address;
+  createdAt: bigint;
+  updatedAt: bigint;
+  /** The lowest version number that satisfies the policy. */
+  requiredVersion: number;
+  bump: number;
+}
+
+export function decodeGatePolicy(data: Uint8Array): GatePolicyAccount {
+  const r = reader(data, "GatePolicy");
+  return {
+    organization: r.address(),
+    document: r.address(),
+    requiredVersionHash: r.bytes(32),
+    updatedBy: r.address(),
+    createdAt: r.i64(),
+    updatedAt: r.i64(),
+    requiredVersion: r.u32(),
     bump: r.u8(),
   };
 }

@@ -1004,6 +1004,8 @@ export const accessPasses = pgTable(
     holder: text("holder").notNull(),
     versionAddress: text("version_address").notNull(),
     versionNumber: integer("version_number").notNull(),
+    /** Fingerprint of the accepted version (hex). */
+    versionHash: text("version_hash"),
     acceptanceId: text("acceptance_id").notNull(),
     acceptanceCount: integer("acceptance_count").notNull(),
     acceptedAt: ts("accepted_at").notNull(),
@@ -1065,3 +1067,24 @@ export const demoSessions = pgTable(
   },
   (t) => [index("demo_sessions_ip_idx").on(t.ipHash, t.createdAt)],
 );
+
+/**
+ * Index of on-chain Gate policies (PROTOCOL_SPEC.md §18.2), mirrored from the policy accounts. The
+ * account on Solana is authoritative; protected programs read it there.
+ */
+export const gatePolicies = pgTable("gate_policies", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id")
+    .notNull()
+    .references(() => organizations.id, { onDelete: "cascade" }),
+  documentId: uuid("document_id")
+    .notNull()
+    .unique()
+    .references(() => documents.id, { onDelete: "cascade" }),
+  address: text("address").notNull().unique(),
+  requiredVersion: integer("required_version").notNull(),
+  requiredVersionHash: text("required_version_hash").notNull(),
+  updatedBy: text("updated_by").notNull(),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+});

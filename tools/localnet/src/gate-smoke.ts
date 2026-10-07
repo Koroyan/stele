@@ -1,9 +1,10 @@
 /**
  * End-to-end check of Stele Gate through the live-demo API — every step a real transaction on the
- * API's cluster (localnet or devnet):
+ * API's cluster (localnet or devnet), against the Atlas vault demo program:
  *
- *   accept v1 → bet allowed → publish v2 → bet rejected (outdated) → accept v2 → bet allowed →
- *   someone else's pass rejected → no pass rejected — in check mode and in strict (CPI) mode.
+ *   deposit without a pass → rejected · accept v1 → deposit allowed · admin publishes and requires
+ *   v2 → deposit rejected (outdated) · accept v2 → deposit allowed · someone else's pass → rejected ·
+ *   no pass → rejected · Proof receipt of the acceptance is available
  *
  *   STELE_API_URL=http://localhost:4000 pnpm --filter @stele/localnet gate-smoke
  */
@@ -21,14 +22,7 @@ import {
   type Address,
   type KeyPairSigner,
 } from "@solana/kit";
-import {
-  createRpc,
-  findAccessPassPda,
-  findMarketPda,
-  placeBetInstruction,
-  toBase58,
-  utf8,
-} from "@stele/protocol";
+import { createRpc, depositInstruction, findAccessPassPda, toBase58, utf8 } from "@stele/protocol";
 
 const API = (process.env.STELE_API_URL ?? "http://localhost:4000").replace(/\/$/, "");
 const ORIGIN = process.env.STELE_ORIGIN ?? "http://localhost:3000";
@@ -39,9 +33,11 @@ async function call<T>(method: string, path: string, body?: unknown): Promise<T>
     headers: { "content-type": "application/json", origin: ORIGIN },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
-  const json = (await res.json()) as T & { message?: string };
+  const json = (await res.json()) as T & { error?: { message?: string } };
   if (!res.ok)
-    throw new Error(`${method} ${path} → ${res.status}: ${json.message ?? JSON.stringify(json)}`);
+    throw new Error(
+      `${method} ${path} → ${res.status}: ${json.error?.message ?? JSON.stringify(json)}`,
+    );
   return json;
 }
 
@@ -52,18 +48,9 @@ const status = await call<{
   network: { label: string };
 }>("GET", "/v1/demo");
 if (!status.available) throw new Error(`demo unavailable: ${status.reason}`);
-const rpcUrl = (await call<{ rpcUrls?: string[]; publicRpcUrls?: string[] }>(
-  "GET",
-  "/v1/network",
-)) as {
-  publicRpcUrls?: string[];
-  rpcUrls?: string[];
-};
+const network = await call<{ publicRpcUrls?: string[] }>("GET", "/v1/network");
 const rpc = createRpc(
-  process.env.STELE_RPC_URL ??
-    rpcUrl.publicRpcUrls?.[0] ??
-    rpcUrl.rpcUrls?.[0] ??
-    "http://127.0.0.1:8899",
+  process.env.STELE_RPC_URL ?? network.publicRpcUrls?.[0] ?? "http://127.0.0.1:8899",
 );
 console.log(`live demo on ${status.network.label}`);
 
@@ -71,15 +58,16 @@ const session = await call<{
   token: string;
   organization: string;
   document: string;
-  market: string;
-  version: { number: number; signature: string };
+  documentSlug: string;
+  policy: string;
+  vault: string;
 }>("POST", "/v1/demo/sessions", { kind: "gate" });
-console.log(`session: policy document ${session.document}, market ${session.market}`);
+console.log(`policy ${session.policy}, vault ${session.vault}`);
 const document = address(session.document);
-const [market] = await findMarketPda(document);
-if (market !== session.market) throw new Error("market address mismatch");
+const policy = address(session.policy);
+const vault = address(session.vault);
 
-async function accept(wallet: KeyPairSigner): Promise<string> {
+async function accept(wallet: KeyPairSigner) {
   const ch = await call<{ challengeId: string; clientBinding: string; message: string }>(
     "POST",
     "/v1/acceptance/challenges",
@@ -87,23 +75,22 @@ async function accept(wallet: KeyPairSigner): Promise<string> {
   );
   const [signatures] = await wallet.signMessages([{ content: utf8(ch.message), signatures: {} }]);
   const signature = toBase58(new Uint8Array(signatures![wallet.address]!));
-  const res = await call<{ transactionSignature: string; acceptanceId: string }>(
+  return call<{ transactionSignature: string; acceptanceId: string }>(
     "POST",
     `/v1/acceptance/challenges/${ch.challengeId}/submit`,
     { clientBinding: ch.clientBinding, signature },
   );
-  return res.transactionSignature;
 }
 
 async function access(holder: Address) {
-  return call<{
-    status: string;
-    pass: { versionNumber: number } | null;
-    currentVersion: { number: number };
-  }>("GET", `/v1/public/gate/access?document=${session.document}&holder=${holder}`);
+  return call<{ status: string; requiredVersion: number; pass: { versionNumber: number } | null }>(
+    "GET",
+    `/v1/public/gate/access?policy=${policy}&holder=${holder}`,
+  );
 }
 
-async function bet(bettor: KeyPairSigner, pass: Address, strict: boolean) {
+async function deposit(investor: KeyPairSigner, passOwner: Address) {
+  const [accessPass] = await findAccessPassPda(document, passOwner);
   const { value: blockhash } = await rpc.getLatestBlockhash().send();
   const message = pipe(
     createTransactionMessage({ version: 0 }),
@@ -112,23 +99,21 @@ async function bet(bettor: KeyPairSigner, pass: Address, strict: boolean) {
     (m) =>
       appendTransactionMessageInstructions(
         [
-          placeBetInstruction({
-            bettor: bettor.address,
-            market,
-            policyDocument: document,
-            accessPass: pass,
-            side: 1,
-            stake: 10,
-            strict,
+          depositInstruction({
+            investor: investor.address,
+            vault,
+            policy,
+            accessPass,
+            amount: 5_000_000_000n,
           }),
         ],
         m,
       ),
   );
-  const tx = await partiallySignTransaction([bettor.keyPair], compileTransaction(message));
+  const tx = await partiallySignTransaction([investor.keyPair], compileTransaction(message));
   return call<{ ok: boolean; signature: string; failure: { name: string } | null }>(
     "POST",
-    "/v1/demo/sessions/bet",
+    "/v1/demo/sessions/deposit",
     { token: session.token, transaction: getBase64EncodedWireTransaction(tx) },
   );
 }
@@ -139,49 +124,54 @@ function expect(label: string, ok: boolean, detail: string) {
   if (!ok) failures++;
 }
 
-const alice = await generateKeyPairSigner();
+const investor = await generateKeyPairSigner();
 const mallory = await generateKeyPairSigner();
-const [alicePass] = await findAccessPassPda(document, alice.address);
-const [malloryPass] = await findAccessPassPda(document, mallory.address);
 
-for (const strict of [false, true]) {
-  const mode = strict ? "strict (CPI)" : "check";
-  if (strict) {
-    // Fresh state for the second round: publish another version, both passes become outdated.
-    await call("POST", "/v1/demo/sessions/publish", { token: session.token });
-  }
-  let r = await bet(alice, alicePass, strict);
-  expect(`[${mode}] bet before accepting`, !r.ok, r.failure?.name ?? "ALLOWED");
+let r = await deposit(investor, investor.address);
+expect("deposit before accepting (direct call)", !r.ok, r.failure?.name ?? "ALLOWED");
 
-  const acceptTx = await accept(alice);
-  const a1 = await access(alice.address);
-  expect(
-    `[${mode}] access after accepting`,
-    a1.status === "VALID",
-    `${a1.status} (tx ${acceptTx.slice(0, 12)}…)`,
-  );
-  r = await bet(alice, alicePass, strict);
-  expect(
-    `[${mode}] bet with a current pass`,
-    r.ok,
-    r.ok ? `allowed (tx ${r.signature.slice(0, 12)}…)` : r.failure!.name,
-  );
+const first = await accept(investor);
+let a = await access(investor.address);
+expect(
+  "AccessPass after accepting v1",
+  a.status === "VALID",
+  `${a.status} v${a.pass?.versionNumber}`,
+);
+r = await deposit(investor, investor.address);
+expect(
+  "deposit with the v1 pass",
+  r.ok,
+  r.ok ? `allowed (tx ${r.signature.slice(0, 12)}…)` : r.failure!.name,
+);
 
-  await call("POST", "/v1/demo/sessions/publish", { token: session.token });
-  const a2 = await access(alice.address);
-  expect(`[${mode}] access after a new version`, a2.status === "OUTDATED", a2.status);
-  r = await bet(alice, alicePass, strict);
-  expect(`[${mode}] bet with an outdated pass`, !r.ok, r.failure?.name ?? "ALLOWED");
+await call("POST", "/v1/demo/sessions/publish", { token: session.token });
+a = await access(investor.address);
+expect(
+  "admin publishes and requires v2",
+  a.status === "OUTDATED" && a.requiredVersion === 2,
+  `${a.status}, requires v${a.requiredVersion}`,
+);
+r = await deposit(investor, investor.address);
+expect("deposit with the outdated v1 pass", !r.ok, r.failure?.name ?? "ALLOWED");
 
-  await accept(alice);
-  r = await bet(alice, alicePass, strict);
-  expect(`[${mode}] bet after accepting the new version`, r.ok, r.ok ? "allowed" : r.failure!.name);
+await accept(investor);
+r = await deposit(investor, investor.address);
+expect("deposit after accepting v2", r.ok, r.ok ? "allowed" : r.failure!.name);
 
-  r = await bet(mallory, alicePass, strict);
-  expect(`[${mode}] direct bypass with someone else's pass`, !r.ok, r.failure?.name ?? "ALLOWED");
-  r = await bet(mallory, malloryPass, strict);
-  expect(`[${mode}] direct bypass without a pass`, !r.ok, r.failure?.name ?? "ALLOWED");
-}
+r = await deposit(mallory, investor.address);
+expect("direct call with someone else's pass", !r.ok, r.failure?.name ?? "ALLOWED");
+r = await deposit(mallory, mallory.address);
+expect("direct call without a pass", !r.ok, r.failure?.name ?? "ALLOWED");
+
+const receipt = await call<{ receipt: { acceptance?: { acceptanceId?: string } } }>(
+  "GET",
+  `/v1/public/acceptances/${first.acceptanceId}/receipt`,
+);
+expect(
+  "Proof receipt of the v1 acceptance",
+  !!receipt.receipt,
+  `acceptance ${first.acceptanceId.slice(0, 12)}…`,
+);
 
 if (failures > 0) {
   console.error(`${failures} check(s) failed`);

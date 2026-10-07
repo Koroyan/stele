@@ -14,6 +14,7 @@ export const SEEDS = {
   nonceShard: "nonce-shard",
   passkeySigner: "passkey-signer",
   accessPass: "access-pass",
+  policy: "policy",
 } as const;
 
 const addressBytes = (a: Address): Uint8Array => new Uint8Array(getAddressEncoder().encode(a));
@@ -90,6 +91,10 @@ export const findAccessPassPda = (
   holder: Address,
   programAddress: Address = defaultProgram(),
 ) => derive(programAddress, [SEEDS.accessPass, addressBytes(document), addressBytes(holder)]);
+
+/** Stele Gate: the policy of a `document` (one per document). */
+export const findPolicyPda = (document: Address, programAddress: Address = defaultProgram()) =>
+  derive(programAddress, [SEEDS.policy, addressBytes(document)]);
 
 export const BPF_UPGRADEABLE_LOADER_ADDRESS = address(
   "BPFLoaderUpgradeab1e11111111111111111111111",

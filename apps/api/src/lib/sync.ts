@@ -33,6 +33,7 @@ import {
   webauthnChallenge,
   type SteleEvent,
   decodeDocument,
+  decodeGatePolicy,
   decodeDocumentVersion,
   decodeMember,
   decodeNonceShard,
@@ -61,6 +62,7 @@ import { decodeWireTransaction } from "@stele/verifier";
 import {
   accessPasses,
   acceptances,
+  gatePolicies,
   and,
   documents,
   documentVersions,
@@ -880,6 +882,7 @@ async function indexAccessPass(
       holder: p.holder,
       versionAddress: p.version,
       versionNumber: p.versionNumber,
+      versionHash: toHex(p.versionHash),
       acceptanceId: i.acceptanceId,
       acceptanceCount: p.acceptanceCount,
       acceptedAt: new Date(Number(p.acceptedAt) * 1000),
@@ -896,6 +899,7 @@ async function indexAccessPass(
         set: {
           versionAddress: sql`case when excluded.slot >= ${accessPasses.slot} then excluded.version_address else ${accessPasses.versionAddress} end`,
           versionNumber: sql`case when excluded.slot >= ${accessPasses.slot} then excluded.version_number else ${accessPasses.versionNumber} end`,
+          versionHash: sql`case when excluded.slot >= ${accessPasses.slot} then excluded.version_hash else ${accessPasses.versionHash} end`,
           acceptanceId: sql`case when excluded.slot >= ${accessPasses.slot} then excluded.acceptance_id else ${accessPasses.acceptanceId} end`,
           acceptanceCount: sql`greatest(${accessPasses.acceptanceCount}, excluded.acceptance_count)`,
           acceptedAt: sql`greatest(${accessPasses.acceptedAt}, excluded.accepted_at)`,
@@ -906,4 +910,36 @@ async function indexAccessPass(
         },
       });
   }
+}
+
+/**
+ * Stele Gate: mirrors a policy account (and marks its document as a Gate policy, so wallet
+ * acceptances are recorded with `record_gated_acceptance` and create access passes).
+ */
+export async function syncPolicy(
+  db: Database,
+  chain: ChainService,
+  policyAddress: string,
+): Promise<{ id: string; documentId: string; requiredVersion: number } | null> {
+  const data = await fetchAccountData(chain.rpc, address(policyAddress));
+  if (!data) return null;
+  const policy = decodeGatePolicy(data);
+  const doc = await syncDocument(db, chain, policy.document);
+  if (!doc) return null;
+  const values = {
+    organizationId: doc.organizationId,
+    documentId: doc.id,
+    address: policyAddress,
+    requiredVersion: policy.requiredVersion,
+    requiredVersionHash: toHex(policy.requiredVersionHash),
+    updatedBy: policy.updatedBy,
+    updatedAt: new Date(),
+  };
+  const [row] = await db
+    .insert(gatePolicies)
+    .values(values)
+    .onConflictDoUpdate({ target: gatePolicies.address, set: values })
+    .returning({ id: gatePolicies.id });
+  await db.update(documents).set({ gated: true }).where(eq(documents.id, doc.id));
+  return { id: row!.id, documentId: doc.id, requiredVersion: policy.requiredVersion };
 }

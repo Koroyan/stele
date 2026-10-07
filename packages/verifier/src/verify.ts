@@ -27,6 +27,7 @@ import {
   decodePublishVersionArgs,
   decodeRecordAcceptanceArgs,
   ED25519_PROGRAM_ADDRESS,
+  findAccessPassPda,
   findConfigPda,
   findDocumentPda,
   findDomainRecordPda,
@@ -782,7 +783,11 @@ export async function verifyDocumentVersion(
 function findAcceptanceInstructions(programId: string, instructions: DecodedInstruction[]) {
   return instructions
     .filter(
-      (ix) => ix.programId === programId && identifyInstruction(ix.data) === "record_acceptance",
+      (ix) =>
+        ix.programId === programId &&
+        // record_gated_acceptance records the same acceptance and also advances a Gate AccessPass.
+        (identifyInstruction(ix.data) === "record_acceptance" ||
+          identifyInstruction(ix.data) === "record_gated_acceptance"),
     )
     .map((ix) => ({ ix, previous: instructions[ix.index - 1] ?? null }));
 }
@@ -1074,7 +1079,9 @@ export async function verifyAcceptance(
     b.pass(
       "tx.shape",
       "Transaction structure",
-      "A canonical Ed25519 verification immediately precedes a top-level record_acceptance instruction.",
+      identifyInstruction(chosen.ix.data) === "record_gated_acceptance"
+        ? "A canonical Ed25519 verification immediately precedes a top-level record_gated_acceptance instruction (it also created or advanced the signer's Stele Gate AccessPass)."
+        : "A canonical Ed25519 verification immediately precedes a top-level record_acceptance instruction.",
     );
 
     // 3. Signature (re-verified locally — the runtime's verdict is not taken on trust).
@@ -1140,13 +1147,27 @@ export async function verifyAcceptance(
 
     // 5. Accounts referenced by the instruction.
     const [configPda] = await findConfigPda(ctx.programId);
-    const [, configAddr, orgAddr, docAddr, versionAddr, shardAddr, sysvar] = ix.accounts;
+    const gated = identifyInstruction(ix.data) === "record_gated_acceptance";
+    // record_gated_acceptance adds [holder, access pass, system program] before the sysvar.
+    const [, configAddr, orgAddr, docAddr, versionAddr, shardAddr] = ix.accounts;
+    const sysvar = ix.accounts[gated ? 9 : 6];
+    let gateAccountsOk = true;
+    if (gated) {
+      const [expectedPass] = await findAccessPassPda(
+        toAddress(docAddr!),
+        toAddress(signer),
+        toAddress(ctx.programId),
+      );
+      gateAccountsOk = ix.accounts[6] === signer && ix.accounts[7] === expectedPass;
+    }
     b.expect(
-      configAddr === configPda && sysvar === INSTRUCTIONS_SYSVAR_ADDRESS,
+      configAddr === configPda && sysvar === INSTRUCTIONS_SYSVAR_ADDRESS && gateAccountsOk,
       "tx.accounts",
       "Instruction accounts",
-      "Configuration and instructions-sysvar accounts are the canonical ones.",
-      "Instruction references unexpected configuration or sysvar accounts.",
+      gated
+        ? "Configuration and instructions-sysvar accounts are the canonical ones; the AccessPass is the signer's, at its canonical address."
+        : "Configuration and instructions-sysvar accounts are the canonical ones.",
+      "Instruction references unexpected configuration, sysvar or access-pass accounts.",
     );
     b.expect(
       message.networkLabel === ctx.config!.networkLabel,

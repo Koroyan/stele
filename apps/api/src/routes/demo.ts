@@ -11,7 +11,7 @@ import {
   demoSessionState,
   demoStatus,
   publishDemoVersion,
-  relayDemoBet,
+  relayDemoDeposit,
 } from "../services/demo.js";
 
 const token = z.string().min(20).max(128);
@@ -47,12 +47,12 @@ export function demoRoutes(deps: Deps): FastifyPluginAsyncZod {
     );
 
     app.post(
-      "/v1/demo/sessions/bet",
+      "/v1/demo/sessions/deposit",
       {
         schema: { body: z.object({ token, transaction: z.string().min(100).max(2_000) }) },
         config: { rateLimit: { max: 30, timeWindow: "1 minute" } },
       },
-      async (req) => relayDemoBet(deps, req.body.token, req.body.transaction),
+      async (req) => relayDemoDeposit(deps, req.body.token, req.body.transaction),
     );
   };
 }

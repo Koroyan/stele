@@ -2,13 +2,13 @@
  * The public live demo (devnet and localnet only; refused on mainnet by config). Every interaction is
  * a real transaction on the configured cluster — nothing is mocked:
  *
- * * a session creates its own policy document under the operator's demo organization (so publishing
- *   v2 in one browser never changes another visitor's), publishes v1 and — for Gate — opens the demo
- *   market that requires it;
+ * * a Gate session creates its own "Investor Offering Terms" under the operator's demo organization
+ *   (so publishing v2 in one browser never changes another visitor's), publishes v1, creates the
+ *   Gate policy requiring it and opens the "Atlas Real Estate Vault" whose deposits require it;
  * * the visitor accepts through the ordinary acceptance API with an in-browser demo wallet, which
- *   creates the on-chain access pass;
- * * bets are signed by that demo wallet and relayed with the relayer as fee payer, after a strict
- *   shape check; failing bets are submitted too (skipPreflight) so the rejection is recorded
+ *   creates the on-chain AccessPass;
+ * * deposits are signed by that demo wallet and relayed with the relayer as fee payer, after a strict
+ *   shape check; failing deposits are submitted too (skipPreflight) so the rejection is recorded
  *   on-chain and can be opened in an explorer.
  *
  * Budgets cap sessions per day and per IP address; the demo organization's key never signs
@@ -20,30 +20,34 @@ import {
   getTransactionDecoder,
   partiallySignTransaction,
   type Address,
+  type Instruction,
   type KeyPairSigner,
   type Transaction,
 } from "@solana/kit";
 import { COMPUTE_BUDGET_PROGRAM_ADDRESS } from "@solana-program/compute-budget";
 import {
   GATE_DEMO_PROGRAM_ADDRESS,
+  anchorDiscriminator,
   authoringInput,
+  bytesEqual,
   canonicalizeContent,
   confirmSignature,
   createDocumentInstruction,
-  createMarketInstruction,
-  decodeBetPlacedFromLogs,
+  createPolicyInstruction,
+  createVaultInstruction,
+  decodeDepositedFromLogs,
   findConfigPda,
   findDocumentPda,
-  findMarketPda,
+  findPolicyPda,
+  findVaultPda,
+  fromBase58,
   fromBase64,
   identifyInstruction,
   preparePublication,
   publishVersionInstruction,
-  fromBase58,
+  setPolicyRequirementInstruction,
   toHex,
   verifyEd25519,
-  anchorDiscriminator,
-  bytesEqual,
 } from "@stele/protocol";
 import { decodeWireTransaction } from "@stele/verifier";
 import {
@@ -61,7 +65,7 @@ import type { Deps } from "../deps.js";
 import { ApiError, badRequest, notFound } from "../errors.js";
 import { randomToken, sha256Hex } from "../lib/crypto.js";
 import { loadSigner } from "../lib/keys.js";
-import { syncDocument } from "../lib/sync.js";
+import { syncDocument, syncPolicy } from "../lib/sync.js";
 import { explainFailure, type GateFailure } from "./gate.js";
 
 const SESSION_TTL_MS = 24 * 60 * 60 * 1000;
@@ -76,35 +80,42 @@ const TEXTS: Record<
   { title: string; documentType: string; versions: { source: string; summary: string | null }[] }
 > = {
   gate: {
-    title: "Risk Disclosure",
-    documentType: "disclaimer",
+    title: "Investor Offering Terms",
+    documentType: "contract",
     versions: [
       {
-        source: `# Risk Disclosure
+        source: `# Investor Offering Terms — Atlas Real Estate Vault
 
-Prediction markets are risky. You can lose the full amount you stake.
+## The offering
+Units of the vault represent a share of the net rental income of a portfolio of commercial properties.
 
-## Before you bet
-- Markets can be illiquid: you may not be able to exit a position.
-- Outcomes are resolved by each market's rules, which can be disputed.
-- Nothing on this site is investment advice.
+## Risks
+- You can lose some or all of your investment.
+- Units are illiquid: redemptions are processed quarterly and may be suspended.
+- Past performance does not predict future returns.
 
-This is a Stele Gate demo on a Solana test network. No real funds are used.`,
+## Fees
+A 1.5% annual management fee is deducted from distributions.
+
+This is a Stele Gate demo on a Solana test network. No real assets or funds are involved.`,
         summary: null,
       },
       {
-        source: `# Risk Disclosure
+        source: `# Investor Offering Terms — Atlas Real Estate Vault
 
-Prediction markets are risky. You can lose the full amount you stake.
+## The offering
+Units of the vault represent a share of the net rental income of a portfolio of commercial properties.
 
-## Before you bet
-- Markets can be illiquid: you may not be able to exit a position.
-- Outcomes are resolved by each market's rules, which can be disputed.
-- Nothing on this site is investment advice.
-- New: markets may be unavailable in your jurisdiction. You confirm that you are allowed to take part where you live.
+## Risks
+- You can lose some or all of your investment.
+- Units are illiquid: redemptions are processed twice a year and may be suspended.
+- Past performance does not predict future returns.
 
-This is a Stele Gate demo on a Solana test network. No real funds are used.`,
-        summary: "Adds a jurisdiction confirmation.",
+## Fees
+A 1.75% annual management fee is deducted from distributions.
+
+This is a Stele Gate demo on a Solana test network. No real assets or funds are involved.`,
+        summary: "Redemptions are now processed twice a year; the management fee rises to 1.75%.",
       },
     ],
   },
@@ -205,12 +216,17 @@ export async function demoStatus(deps: Deps) {
   };
 }
 
+/**
+ * Publishes version `n` of a demo document. For Gate sessions the same transaction raises the
+ * policy to it — the demo's "the admin publishes v2 and requires it".
+ */
 async function publishNext(
   deps: Deps,
   kind: Kind,
   organization: Address,
   document: Address,
   n: number,
+  requirePolicy: boolean,
 ) {
   const signer = await owner(deps);
   const text = versionText(kind, n);
@@ -236,7 +252,7 @@ async function publishNext(
     })
     .onConflictDoNothing();
   const [config] = await findConfigPda(deps.chain.programAddress);
-  const signature = await deps.chain.send(signer, [
+  const instructions: Instruction[] = [
     publishVersionInstruction({
       programAddress: deps.chain.programAddress,
       authority: signer,
@@ -255,13 +271,30 @@ async function publishNext(
       storageUri: prepared.storageUri,
       expectedVersionHash: prepared.versionHash,
     }),
-  ]);
+  ];
+  if (requirePolicy) {
+    const [policy] = await findPolicyPda(document, deps.chain.programAddress);
+    instructions.push(
+      setPolicyRequirementInstruction({
+        programAddress: deps.chain.programAddress,
+        authority: signer,
+        membership: null,
+        config,
+        organization,
+        document,
+        version: prepared.versionAccount,
+        policy,
+      }),
+    );
+  }
+  const signature = await deps.chain.send(signer, instructions);
   await syncDocument(deps.db, deps.chain, document);
   return {
     address: prepared.versionAccount as string,
     number: prepared.versionNumber,
     fingerprint: toHex(prepared.versionHash),
     signature,
+    required: requirePolicy,
   };
 }
 
@@ -276,7 +309,7 @@ export async function createDemoSession(deps: Deps, i: { kind: Kind; ipHash: str
   const org = await demoOrganization(deps);
   const signer = await owner(deps);
   const organization = address(org.address);
-  const slug = `${i.kind === "gate" ? "risk" : "terms"}-${toHex(crypto.getRandomValues(new Uint8Array(6)))}`;
+  const slug = `${i.kind === "gate" ? "offering" : "terms"}-${toHex(crypto.getRandomValues(new Uint8Array(6)))}`;
   const [document] = await findDocumentPda(organization, slug, deps.chain.programAddress);
   const [config] = await findConfigPda(deps.chain.programAddress);
   const created = await deps.chain.send(signer, [
@@ -293,28 +326,42 @@ export async function createDemoSession(deps: Deps, i: { kind: Kind; ipHash: str
       locale: "en-US",
     }),
   ]);
-  const v1 = await publishNext(deps, i.kind, organization, document, 1);
+  const v1 = await publishNext(deps, i.kind, organization, document, 1, false);
   const synced = await syncDocument(deps.db, deps.chain, document);
   if (!synced) throw new ApiError(502, "demo_failed", "The demo document could not be indexed");
-  let market: Address | null = null;
+  let policy: Address | null = null;
+  let vault: Address | null = null;
   if (i.kind === "gate") {
-    await deps.db.update(documents).set({ gated: true }).where(eq(documents.id, synced.id));
-    [market] = await findMarketPda(document);
+    [policy] = await findPolicyPda(document, deps.chain.programAddress);
+    [vault] = await findVaultPda(policy);
     await deps.chain.send(signer, [
-      createMarketInstruction({
-        creator: signer.address,
-        policyDocument: document,
-        market,
-        question: "Will Stele Gate block a direct bypass?",
+      createPolicyInstruction({
+        programAddress: deps.chain.programAddress,
+        authority: signer,
+        membership: null,
+        config,
+        organization,
+        document,
+        version: address(v1.address),
+        policy,
+        payer: signer,
+      }),
+      createVaultInstruction({
+        manager: signer.address,
+        policy,
+        vault,
+        name: "Atlas Real Estate Vault",
       }),
     ]);
+    await syncPolicy(deps.db, deps.chain, policy);
   }
   const token = randomToken(32);
   await deps.db.insert(demoSessions).values({
     tokenHash: sha256Hex(token),
     kind: i.kind,
     documentId: synced.id,
-    marketAddress: market,
+    // The Gate demo's protected account (the vault); the column predates the vault demo.
+    marketAddress: vault,
     ipHash: i.ipHash,
     expiresAt: new Date(Date.now() + SESSION_TTL_MS),
   });
@@ -324,7 +371,8 @@ export async function createDemoSession(deps: Deps, i: { kind: Kind; ipHash: str
     organization: org.address,
     document,
     documentSlug: slug,
-    market,
+    policy,
+    vault,
     version: v1,
     transactions: { createDocument: created, publish: v1.signature },
   };
@@ -361,7 +409,7 @@ export async function demoSessionState(deps: Deps, token: string) {
     organization: deps.config.STELE_DEMO_ORGANIZATION!,
     document: d.address,
     documentSlug: d.slug,
-    market: s.marketAddress,
+    vault: s.marketAddress,
     currentVersion: d.currentVersionAddress,
     versions,
     publishesLeft: MAX_VERSIONS_PER_SESSION - s.publishCount,
@@ -369,6 +417,7 @@ export async function demoSessionState(deps: Deps, token: string) {
   };
 }
 
+/** Publishes the next version; in a Gate session it is also required by the policy. */
 export async function publishDemoVersion(deps: Deps, token: string) {
   const { s, d } = await session(deps, token);
   if (s.publishCount >= MAX_VERSIONS_PER_SESSION)
@@ -379,28 +428,35 @@ export async function publishDemoVersion(deps: Deps, token: string) {
     .where(and(eq(demoSessions.id, s.id), eq(demoSessions.publishCount, s.publishCount)))
     .returning({ n: demoSessions.publishCount });
   if (!claimed) throw new ApiError(409, "demo_busy", "Another publication is in progress");
-  return publishNext(
+  const gate = s.kind === "gate";
+  const published = await publishNext(
     deps,
     s.kind as Kind,
     address(deps.config.STELE_DEMO_ORGANIZATION!),
     address(d.address),
     d.versionCount + 1,
+    gate,
   );
+  if (gate) {
+    const [policy] = await findPolicyPda(address(d.address), deps.chain.programAddress);
+    await syncPolicy(deps.db, deps.chain, policy);
+  }
+  return published;
 }
 
-const BET_NAMES = new Set(["place_bet", "place_bet_strict"]);
 const MAX_DEMO_COMPUTE_UNITS = 60_000;
 
 /**
- * Relays a bet the visitor's demo wallet signed. The relayer pays the fee and signs nothing else:
- * the transaction must be exactly [compute budget?] [one Gate demo bet] for this session's market.
+ * Relays a deposit the visitor's demo wallet signed. The relayer pays the fee and signs nothing
+ * else: the transaction must be exactly [compute budget?] [one vault deposit] for this session.
  */
-export async function relayDemoBet(deps: Deps, token: string, wireBase64: string) {
+export async function relayDemoDeposit(deps: Deps, token: string, wireBase64: string) {
   const { s, d } = await session(deps, token);
   if (s.kind !== "gate" || !s.marketAddress)
     throw badRequest("not_a_gate_session", "Not a Gate demo session");
   if (s.actionCount >= MAX_ACTIONS_PER_SESSION)
     throw new ApiError(429, "demo_limit", "This demo session has used its transactions");
+  const [policy] = await findPolicyPda(address(d.address), deps.chain.programAddress);
 
   let tx: Transaction;
   let decoded: ReturnType<typeof decodeWireTransaction>;
@@ -417,49 +473,45 @@ export async function relayDemoBet(deps: Deps, token: string, wireBase64: string
   };
   if (decoded.accountKeys[0] !== relayer) fail("the fee payer must be the Stele relayer");
   if (decoded.numRequiredSignatures !== 2)
-    fail("expected exactly the relayer and the bettor as signers");
-  const bettor = decoded.accountKeys[1]!;
-  if (bettor === relayer) fail("the relayer cannot be the bettor");
+    fail("expected exactly the relayer and the investor as signers");
+  const investor = decoded.accountKeys[1]!;
+  if (investor === relayer) fail("the relayer cannot be the investor");
   const ixs = decoded.instructions;
-  const bet = ixs[ixs.length - 1];
-  if (!bet || bet.programId !== GATE_DEMO_PROGRAM_ADDRESS)
-    fail("the last instruction must be a Gate demo bet");
-  const name = bytesEqual(bet!.data.subarray(0, 8), anchorDiscriminator("global", "place_bet"))
-    ? "place_bet"
-    : bytesEqual(bet!.data.subarray(0, 8), anchorDiscriminator("global", "place_bet_strict"))
-      ? "place_bet_strict"
-      : null;
-  if (!name || !BET_NAMES.has(name)) fail("only place_bet and place_bet_strict are relayed");
+  const dep = ixs[ixs.length - 1];
+  if (!dep || dep.programId !== GATE_DEMO_PROGRAM_ADDRESS)
+    fail("the last instruction must be a vault deposit");
+  if (!bytesEqual(dep!.data.subarray(0, 8), anchorDiscriminator("global", "deposit")))
+    fail("only deposit is relayed");
   if (
-    bet!.accounts[0] !== bettor ||
-    bet!.accounts[1] !== s.marketAddress ||
-    bet!.accounts[2] !== d.address
+    dep!.accounts[0] !== investor ||
+    dep!.accounts[1] !== s.marketAddress ||
+    dep!.accounts[2] !== policy
   )
-    fail("the bet must be the signer's, on this session's market and policy");
-  if (bet!.accounts.includes(relayer)) fail("the relayer cannot appear in the bet");
+    fail("the deposit must be the signer's, into this session's vault, under its policy");
+  if (dep!.accounts.includes(relayer)) fail("the relayer cannot appear in the deposit");
   for (const ix of ixs.slice(0, -1)) {
     if (ix.programId !== COMPUTE_BUDGET_PROGRAM_ADDRESS)
-      fail("only a compute budget may precede the bet");
+      fail("only a compute budget may precede the deposit");
     // SetComputeUnitLimit (2) only, bounded; no priority fee on the relayer's account.
     if (ix.data[0] !== 2 || ix.data.length !== 5)
-      fail("only SetComputeUnitLimit may precede the bet");
+      fail("only SetComputeUnitLimit may precede the deposit");
     const units = new DataView(ix.data.buffer, ix.data.byteOffset).getUint32(1, true);
     if (units > MAX_DEMO_COMPUTE_UNITS) fail("compute limit too high");
   }
   if (ixs.length > 2) fail("unexpected instructions");
-  // Never let identifyInstruction treat demo data as a Stele instruction (defence in depth).
-  if (identifyInstruction(bet!.data) !== null) fail("not a demo instruction");
+  // Never let a Stele instruction through this path (defence in depth).
+  if (identifyInstruction(dep!.data) !== null) fail("not a demo instruction");
 
-  const bettorSignature = tx.signatures[address(bettor)];
+  const investorSignature = tx.signatures[address(investor)];
   if (
-    !bettorSignature ||
+    !investorSignature ||
     !verifyEd25519(
-      new Uint8Array(bettorSignature),
+      new Uint8Array(investorSignature),
       new Uint8Array(tx.messageBytes),
-      fromBase58(bettor),
+      fromBase58(investor),
     )
   )
-    fail("the bettor's signature is missing or invalid");
+    fail("the investor's signature is missing or invalid");
 
   await deps.db
     .update(demoSessions)
@@ -471,7 +523,7 @@ export async function relayDemoBet(deps: Deps, token: string, wireBase64: string
   const { value: latest } = await deps.chain.rpc
     .getLatestBlockhash({ commitment: "confirmed" })
     .send();
-  // Failing bets are submitted too: the rejection is then a real, explorable transaction.
+  // Failing deposits are submitted too: the rejection is then a real, explorable transaction.
   const signature = await deps.chain.rpc
     .sendTransaction(wire, {
       encoding: "base64",
@@ -496,20 +548,21 @@ export async function relayDemoBet(deps: Deps, token: string, wireBase64: string
   const failure: GateFailure | null = ok
     ? null
     : explainFailure(deps.chain.programAddress, result.meta?.err, logs);
-  const event = ok ? (decodeBetPlacedFromLogs(logs)[0] ?? null) : null;
+  const event = ok ? (decodeDepositedFromLogs(logs)[0] ?? null) : null;
   return {
     signature,
     slot: Number(result.slot),
     ok,
-    instruction: name,
     failure,
-    bet: event
+    deposit: event
       ? {
-          bettor: event.bettor,
-          policyVersionNumber: event.policyVersionNumber,
-          stake: Number(event.stake),
-          betCount: Number(event.betCount),
-          strict: event.strict,
+          investor: event.investor as string,
+          amount: Number(event.amount),
+          totalDeposited: Number(event.totalDeposited),
+          depositCount: Number(event.depositCount),
+          termsVersionNumber: event.termsVersionNumber,
+          termsFingerprint: toHex(event.termsFingerprint),
+          acceptanceId: toHex(event.acceptanceId),
         }
       : null,
   };

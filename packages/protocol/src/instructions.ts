@@ -63,7 +63,8 @@ export const INSTRUCTION_NAMES = [
   "revoke_passkey_signer",
   "anchor_acceptance_batch",
   "record_gated_acceptance",
-  "check_access",
+  "create_policy",
+  "set_policy_requirement",
 ] as const;
 export type InstructionName = (typeof INSTRUCTION_NAMES)[number];
 
@@ -610,21 +611,63 @@ export function recordGatedAcceptanceInstruction(
 }
 
 /**
- * Stele Gate: the read-only requirement check protected programs call through a CPI
- * (PROTOCOL_SPEC.md §18.3). `minVersion` 0 means the document's current version.
+ * Stele Gate: creates the policy of `document`, requiring `version` (PROTOCOL_SPEC.md §18.2).
+ * Signed by the organization's owner, an admin or a publisher.
  */
-export function checkAccessInstruction(
+export function createPolicyInstruction(
   i: Base & {
+    authority: SignerInput;
+    membership: Address | null;
+    config: Address;
+    organization: Address;
     document: Address;
-    accessPass: Address;
-    holder: SignerInput;
-    minVersion?: number;
+    version: Address;
+    policy: Address;
+    payer: SignerInput;
   },
 ): Instruction {
   return build(
-    "check_access",
-    [ro(i.document), ro(i.accessPass), signer(i.holder, false)],
-    (w) => w.u32(i.minVersion ?? 0),
+    "create_policy",
+    [
+      signer(i.authority, false),
+      optional(i.membership, i.programAddress),
+      ro(i.config),
+      ro(i.organization),
+      ro(i.document),
+      ro(i.version),
+      rw(i.policy),
+      signer(i.payer, true),
+      ro(SYSTEM_PROGRAM_ADDRESS),
+    ],
+    () => undefined,
+    i.programAddress,
+  );
+}
+
+/** Stele Gate: changes the version a policy requires (raising it makes older passes insufficient). */
+export function setPolicyRequirementInstruction(
+  i: Base & {
+    authority: SignerInput;
+    membership: Address | null;
+    config: Address;
+    organization: Address;
+    document: Address;
+    version: Address;
+    policy: Address;
+  },
+): Instruction {
+  return build(
+    "set_policy_requirement",
+    [
+      signer(i.authority, false),
+      optional(i.membership, i.programAddress),
+      ro(i.config),
+      ro(i.organization),
+      ro(i.document),
+      ro(i.version),
+      rw(i.policy),
+    ],
+    () => undefined,
     i.programAddress,
   );
 }

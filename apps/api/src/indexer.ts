@@ -24,6 +24,7 @@ import {
   syncOrganization,
   syncPasskeySigner,
   syncShard,
+  syncPolicy,
 } from "./lib/sync.js";
 import { enqueueWebhook } from "./lib/webhooks.js";
 
@@ -101,6 +102,8 @@ async function processTransaction(deps: Deps, signature: string): Promise<void> 
       name === "record_passkey_acceptance"
     )
       sawAcceptance = true;
+    else if (name === "create_policy" || name === "set_policy_requirement")
+      await syncPolicy(deps.db, deps.chain, ix.accounts[6]!);
     else if (ENROLLMENT_ACCOUNT[name] !== undefined) {
       const changed = await syncPasskeySigner(
         deps.db,
