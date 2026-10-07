@@ -251,8 +251,9 @@ default), a Solana wallet, or — for signers registered before native passkeys 
 key. Users never pay fees: Stele or the organization (through a sponsored nonce shard) does. Beyond
 documents, the same machinery records proofs of purchases, refunds, consents and more
 (`record_proof`). Stele Gate (policies, AccessPasses, `require_current`, the demo vault, the SDK
-modal and the dashboard) is implemented and tested on a local validator; its Devnet deployment
-follows the next program upgrade. Before mainnet use: an independent security audit of the program and protocol,
+modal and the dashboard) is implemented and tested on a local validator, and both programs run on
+Devnet (Stele upgraded and the demo vault `A6DBoANAavtbG2ARK6PihqzMjhtbcZUbLnTMAWn339uR` deployed on
+2026-10-07, byte-identical to the tested build). Before mainnet use: an independent security audit of the program and protocol,
 the upgrade authority moved to a multisig, a reproducible-build release, and the
 [mainnet checklist](docs/deployment.md#mainnet-checklist).
 

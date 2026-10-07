@@ -9,6 +9,7 @@ multisig. **The program is not immutable**, and no Stele material should say oth
 | Authority | Holder | Kind |
 |---|---|---|
 | Program upgrade authority — `6sTKscWmUtBQRMpNCiEpurCJxpjx7GK5rzk7e265kpwV` | `C6q9uiQsmxy5E2hx3hjv1i36i98vXvtBF35Hfq54GJ4p` | **single key** (a file on one workstation) |
+| Gate demo program upgrade authority — `A6DBoANAavtbG2ARK6PihqzMjhtbcZUbLnTMAWn339uR` (Atlas vault, demo only) | `C6q9uiQsmxy5E2hx3hjv1i36i98vXvtBF35Hfq54GJ4p` | single key |
 | Protocol admin (`ProtocolConfig.admin`: pause, attestor, admin hand-over) | `C6q9uiQsmxy5E2hx3hjv1i36i98vXvtBF35Hfq54GJ4p` | single key |
 | Domain attestor | `tc2njAHNGKp6wfcn6Ts1t1MgFf122EnHpHth4woHaUe` | hot key (API server) |
 | Relayer (fee payer for recordings) | `EdLvTmdNd7JG68po2Up6B4b1uU6uLZ8EEUCDhdMbVAUX` | hot key (API server) |
