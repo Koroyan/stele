@@ -292,11 +292,27 @@ pub struct AccessPassUpdated {
     pub holder: Pubkey,
     pub access_pass: Pubkey,
     pub version: Pubkey,
+    pub version_hash: [u8; 32],
     pub acceptance_id: [u8; 32],
     pub accepted_at: i64,
     pub slot: u64,
     pub version_number: u32,
     pub acceptance_count: u32,
     /// True when this acceptance created the pass.
+    pub created: bool,
+}
+
+/// Stele Gate: a policy was created or its required version changed.
+#[event]
+pub struct PolicyChanged {
+    pub organization: Pubkey,
+    pub document: Pubkey,
+    pub policy: Pubkey,
+    pub required_version_hash: [u8; 32],
+    pub actor: Pubkey,
+    pub changed_at: i64,
+    pub slot: u64,
+    pub required_version: u32,
+    pub previous_required_version: u32,
     pub created: bool,
 }

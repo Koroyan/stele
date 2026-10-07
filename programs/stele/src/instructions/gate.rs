@@ -1,27 +1,175 @@
 //! Stele Gate (PROTOCOL_SPEC.md §18): acceptance as a precondition for actions in other programs.
 //!
-//! * `record_gated_acceptance` records a wallet's signed acceptance exactly like `record_acceptance`
-//!   (same message, same checks, same nonce and accumulator) and then creates or advances the
-//!   holder's [`AccessPass`] for that document. Nothing else can write a pass.
-//! * `check_access` is a read-only check that protected programs invoke through a CPI ("strict
-//!   mode"): it fails unless the holder signed the transaction and holds a pass that satisfies the
-//!   requirement for the given document. Programs that prefer not to CPI can read the same accounts
-//!   themselves with the `stele-gate` crate ("check mode").
+//! * `create_policy` / `set_policy_requirement` — the organization states which version of one of
+//!   its documents a protected action requires (a [`GatePolicy`], one per document).
+//! * `record_gated_acceptance` — records a wallet's signed acceptance exactly like
+//!   `record_acceptance` (same message, same checks, same nonce and accumulator) and then creates
+//!   or advances the holder's [`AccessPass`] for that document. Nothing else can write a pass.
 //!
-//! A pass satisfies "current version" only while its version is the document's `current_version`,
-//! so publishing a new version makes every older pass outdated at once. The evidence of the older
-//! acceptance is untouched; only the permission moves on.
+//! Enforcement is not here: the organization's own program reads the pass and the policy and
+//! rejects the action unless the requirement is met (`stele_gate::require_current`). Stele is never
+//! in the execution path of the protected action.
 
 use anchor_lang::prelude::*;
-use anchor_lang::solana_program::program::set_return_data;
 
-use crate::constants::{ACCESS_PASS_SEED, CONFIG_SEED};
+use crate::authority::{authorize, DOCUMENT_CREATOR_ROLES};
+use crate::constants::{ACCESS_PASS_SEED, CONFIG_SEED, MEMBER_SEED, POLICY_SEED};
 use crate::error::SteleError;
-use crate::events::AccessPassUpdated;
+use crate::events::{AccessPassUpdated, PolicyChanged};
 use crate::instructions::acceptance::{record_signed_acceptance, AcceptanceAccounts};
 use crate::state::{
-    AccessPass, Document, DocumentVersion, NonceShard, Organization, ProtocolConfig,
+    AccessPass, Document, DocumentVersion, GatePolicy, Member, NonceShard, Organization,
+    ProtocolConfig,
 };
+
+// ---- policies ----------------------------------------------------------------------------------------
+
+#[derive(Accounts)]
+pub struct CreatePolicy<'info> {
+    pub authority: Signer<'info>,
+    #[account(
+        seeds = [MEMBER_SEED, organization.key().as_ref(), authority.key().as_ref()],
+        bump = membership.bump
+    )]
+    pub membership: Option<Box<Account<'info, Member>>>,
+    #[account(seeds = [CONFIG_SEED], bump = config.bump)]
+    pub config: Box<Account<'info, ProtocolConfig>>,
+    pub organization: Box<Account<'info, Organization>>,
+    #[account(
+        constraint = document.organization == organization.key() @ SteleError::DocumentOrganizationMismatch
+    )]
+    pub document: Box<Account<'info, Document>>,
+    /// The version the policy requires (must be a published version of `document`).
+    #[account(
+        constraint = version.document == document.key() @ SteleError::VersionDocumentMismatch
+    )]
+    pub version: Box<Account<'info, DocumentVersion>>,
+    #[account(
+        init,
+        payer = payer,
+        space = 8 + GatePolicy::INIT_SPACE,
+        seeds = [POLICY_SEED, document.key().as_ref()],
+        bump
+    )]
+    pub policy: Box<Account<'info, GatePolicy>>,
+    #[account(mut)]
+    pub payer: Signer<'info>,
+    pub system_program: Program<'info, System>,
+}
+
+pub fn create_policy(ctx: Context<CreatePolicy>) -> Result<()> {
+    let a = &ctx.accounts;
+    require!(!a.config.paused, SteleError::ProtocolPaused);
+    let org_key = a.organization.key();
+    let authority = a.authority.key();
+    authorize(
+        &a.organization,
+        &org_key,
+        &authority,
+        a.membership.as_deref().map(|m| &**m),
+        DOCUMENT_CREATOR_ROLES,
+        true,
+    )?;
+    let clock = Clock::get()?;
+    let document = a.document.key();
+    let (required_version, required_hash) = (a.version.version, a.version.version_hash);
+    let policy_key = a.policy.key();
+    let policy = &mut ctx.accounts.policy;
+    policy.organization = org_key;
+    policy.document = document;
+    policy.required_version = required_version;
+    policy.required_version_hash = required_hash;
+    policy.updated_by = authority;
+    policy.created_at = clock.unix_timestamp;
+    policy.updated_at = clock.unix_timestamp;
+    policy.bump = ctx.bumps.policy;
+    emit!(PolicyChanged {
+        organization: org_key,
+        document,
+        policy: policy_key,
+        required_version_hash: required_hash,
+        actor: authority,
+        changed_at: clock.unix_timestamp,
+        slot: clock.slot,
+        required_version,
+        previous_required_version: 0,
+        created: true,
+    });
+    Ok(())
+}
+
+#[derive(Accounts)]
+pub struct SetPolicyRequirement<'info> {
+    pub authority: Signer<'info>,
+    #[account(
+        seeds = [MEMBER_SEED, organization.key().as_ref(), authority.key().as_ref()],
+        bump = membership.bump
+    )]
+    pub membership: Option<Box<Account<'info, Member>>>,
+    #[account(seeds = [CONFIG_SEED], bump = config.bump)]
+    pub config: Box<Account<'info, ProtocolConfig>>,
+    pub organization: Box<Account<'info, Organization>>,
+    #[account(
+        constraint = document.organization == organization.key() @ SteleError::DocumentOrganizationMismatch
+    )]
+    pub document: Box<Account<'info, Document>>,
+    #[account(
+        constraint = version.document == document.key() @ SteleError::VersionDocumentMismatch
+    )]
+    pub version: Box<Account<'info, DocumentVersion>>,
+    #[account(
+        mut,
+        seeds = [POLICY_SEED, document.key().as_ref()],
+        bump = policy.bump,
+        constraint = policy.document == document.key() @ SteleError::PolicyMismatch
+    )]
+    pub policy: Box<Account<'info, GatePolicy>>,
+}
+
+/// Changes the version the policy requires (raising it makes every older pass insufficient).
+pub fn set_policy_requirement(ctx: Context<SetPolicyRequirement>) -> Result<()> {
+    let a = &ctx.accounts;
+    require!(!a.config.paused, SteleError::ProtocolPaused);
+    let org_key = a.organization.key();
+    let authority = a.authority.key();
+    authorize(
+        &a.organization,
+        &org_key,
+        &authority,
+        a.membership.as_deref().map(|m| &**m),
+        DOCUMENT_CREATOR_ROLES,
+        true,
+    )?;
+    require!(
+        a.version.version >= 1 && a.version.version <= a.document.version_count,
+        SteleError::InvalidPolicyRequirement
+    );
+    let clock = Clock::get()?;
+    let document = a.document.key();
+    let (required_version, required_hash) = (a.version.version, a.version.version_hash);
+    let policy_key = a.policy.key();
+    let policy = &mut ctx.accounts.policy;
+    let previous = policy.required_version;
+    policy.required_version = required_version;
+    policy.required_version_hash = required_hash;
+    policy.updated_by = authority;
+    policy.updated_at = clock.unix_timestamp;
+    emit!(PolicyChanged {
+        organization: org_key,
+        document,
+        policy: policy_key,
+        required_version_hash: required_hash,
+        actor: authority,
+        changed_at: clock.unix_timestamp,
+        slot: clock.slot,
+        required_version,
+        previous_required_version: previous,
+        created: false,
+    });
+    Ok(())
+}
+
+// ---- gated acceptance ----------------------------------------------------------------------------------
 
 #[derive(Accounts)]
 pub struct RecordGatedAcceptance<'info> {
@@ -93,6 +241,7 @@ pub fn record_gated_acceptance(
     let document = a.document.key();
     let version_key = a.version.key();
     let version_number = a.version.version;
+    let version_hash = a.version.version_hash;
     let pass_key = a.access_pass.key();
     let pass = &mut ctx.accounts.access_pass;
     let created = pass.holder == Pubkey::default();
@@ -109,10 +258,11 @@ pub fn record_gated_acceptance(
         // `record_signed_acceptance` only accepts the current version, so versions never go back.
         require!(
             version_number >= pass.version_number,
-            SteleError::AccessPassOutdated
+            SteleError::AccessPassMismatch
         );
     }
     pass.version = version_key;
+    pass.version_hash = version_hash;
     pass.version_number = version_number;
     pass.acceptance_id = recorded.acceptance_id;
     pass.accepted_at = recorded.recorded_at;
@@ -128,6 +278,7 @@ pub fn record_gated_acceptance(
         holder: recorded.signer,
         access_pass: pass_key,
         version: version_key,
+        version_hash,
         acceptance_id: recorded.acceptance_id,
         accepted_at: recorded.recorded_at,
         slot: recorded.slot,
@@ -135,71 +286,5 @@ pub fn record_gated_acceptance(
         acceptance_count: pass.acceptance_count,
         created,
     });
-    Ok(())
-}
-
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, Debug, PartialEq, Eq)]
-pub struct CheckAccessArgs {
-    /// `0`: the pass must name the document's current version. `n > 0`: any accepted version
-    /// numbered `n` or later satisfies the requirement.
-    pub min_version: u32,
-}
-
-#[derive(Accounts)]
-pub struct CheckAccess<'info> {
-    /// The policy document. The calling program must pin this address: Stele cannot know which
-    /// document a third-party action requires.
-    pub document: Box<Account<'info, Document>>,
-    /// CHECK: validated in the handler (address, owner, type) so that an absent pass fails with
-    /// `AccessPassMissing` rather than a generic account error.
-    pub access_pass: UncheckedAccount<'info>,
-    /// The pass holder must have signed the transaction that performs the protected action.
-    pub holder: Signer<'info>,
-}
-
-/// Succeeds only for a valid pass of `holder` for `document`. On success the return data is the
-/// accepted version's address followed by its number (u32, little-endian).
-pub fn check_access(ctx: Context<CheckAccess>, args: CheckAccessArgs) -> Result<()> {
-    let document = &ctx.accounts.document;
-    let holder = ctx.accounts.holder.key();
-    let info = &ctx.accounts.access_pass;
-
-    let (expected, _) = Pubkey::find_program_address(
-        &[ACCESS_PASS_SEED, document.key().as_ref(), holder.as_ref()],
-        ctx.program_id,
-    );
-    require_keys_eq!(info.key(), expected, SteleError::AccessPassMismatch);
-    if info.data_is_empty() || info.owner != ctx.program_id {
-        return err!(SteleError::AccessPassMissing);
-    }
-    let pass = AccessPass::try_deserialize(&mut &info.try_borrow_data()?[..])?;
-    require_keys_eq!(
-        pass.document,
-        document.key(),
-        SteleError::AccessPassMismatch
-    );
-    require_keys_eq!(pass.holder, holder, SteleError::AccessPassMismatch);
-
-    if args.min_version == 0 {
-        require_keys_eq!(
-            pass.version,
-            document.current_version,
-            SteleError::AccessPassOutdated
-        );
-    } else {
-        require!(
-            args.min_version <= document.version_count,
-            SteleError::InvalidAccessRequirement
-        );
-        require!(
-            pass.version_number >= args.min_version,
-            SteleError::AccessPassOutdated
-        );
-    }
-
-    let mut out = [0u8; 36];
-    out[..32].copy_from_slice(pass.version.as_ref());
-    out[32..].copy_from_slice(&pass.version_number.to_le_bytes());
-    set_return_data(&out);
     Ok(())
 }

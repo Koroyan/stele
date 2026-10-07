@@ -1,6 +1,6 @@
 [package]
 name = "stele-gate-demo"
-description = "Stele Gate demo: a prediction market whose bets require the current Risk Disclosure acceptance"
+description = "Stele Gate demo: Atlas Real Estate Vault — deposits require the current Investor Offering Terms"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

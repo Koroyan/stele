@@ -4195,6 +4195,8 @@ dependencies = [
  "solana-transaction",
  "stele-canonical",
  "stele-core",
+ "stele-gate",
+ "stele-gate-demo",
 ]
 
 [[package]]

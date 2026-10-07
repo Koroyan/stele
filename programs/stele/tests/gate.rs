@@ -1,38 +1,39 @@
-//! Stele Gate: access passes written only by verified acceptances, the current-version rule, the
-//! `check_access` CPI, and a protected program (the Gate demo market) that cannot be called
-//! successfully without a valid pass — in check mode and in strict (CPI) mode.
+//! Stele Gate: policies set by the organization, access passes written only by verified
+//! acceptances, and a protected program (the Atlas vault demo) whose `deposit` calls
+//! `stele_gate::require_current` — so a direct call without a current pass fails on-chain.
 
 #![allow(clippy::result_large_err)]
 
 mod common;
 
-use anchor_lang::{AccountDeserialize, InstructionData};
+use anchor_lang::{AccountDeserialize, AccountSerialize, InstructionData};
 use common::*;
+use solana_account::Account;
 use solana_address::Address;
 use solana_instruction::{AccountMeta, Instruction};
 use solana_keypair::Keypair;
 use solana_signer::Signer;
 use stele::error::SteleError;
-use stele::state::AccessPass;
+use stele::state::{AccessPass, GatePolicy};
 use stele_gate::GateError;
-use stele_gate_demo::Market;
+use stele_gate_demo::Vault;
 
 const GATE_DEMO_SO: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../target/deploy/stele_gate_demo.so"
 );
 
-fn gate_demo_id() -> Address {
+fn vault_program() -> Address {
     to_addr(&stele_gate_demo::ID)
 }
 
-fn deploy_gate_demo(env: &mut Env) {
+fn deploy_vault_program(env: &mut Env) {
     let so = std::fs::read(GATE_DEMO_SO).expect(
         "missing target/deploy/stele_gate_demo.so — run scripts/dev/build-program.sh first",
     );
     env.svm
-        .add_program(gate_demo_id(), &so)
-        .expect("load Gate demo");
+        .add_program(vault_program(), &so)
+        .expect("load the vault demo");
 }
 
 fn access_pass_pda(document: &Address, holder: &Address) -> Address {
@@ -43,13 +44,71 @@ fn access_pass_pda(document: &Address, holder: &Address) -> Address {
     ])
 }
 
-fn market_pda(document: &Address) -> Address {
+fn policy_pda(document: &Address) -> Address {
+    pda(&[stele::constants::POLICY_SEED, document.as_ref()])
+}
+
+fn vault_pda(policy: &Address) -> Address {
     Address::find_program_address(
-        &[stele_gate_demo::MARKET_SEED, document.as_ref()],
-        &gate_demo_id(),
+        &[stele_gate_demo::VAULT_SEED, policy.as_ref()],
+        &vault_program(),
     )
     .0
 }
+
+fn gate_err(e: GateError) -> u32 {
+    e as u32
+}
+
+fn vault_err(e: stele_gate_demo::VaultError) -> u32 {
+    e.into()
+}
+
+// ---- policies ---------------------------------------------------------------------------------------
+
+fn policy_ix(
+    authority: &Address,
+    t: &Target,
+    version: &Address,
+    create: bool,
+    membership: Option<Address>,
+) -> Instruction {
+    let mut accounts = vec![
+        signer_ro(*authority),
+        optional(membership),
+        ro(config_pda()),
+        ro(t.org),
+        ro(t.document),
+        ro(*version),
+        rw(policy_pda(&t.document)),
+    ];
+    if create {
+        accounts.push(signer_rw(*authority));
+        accounts.push(ro(system_program()));
+        ix(stele::instruction::CreatePolicy {}, accounts)
+    } else {
+        ix(stele::instruction::SetPolicyRequirement {}, accounts)
+    }
+}
+
+fn create_policy(env: &mut Env, owner: &Keypair, t: &Target, version: &Address) -> TxResult {
+    let i = policy_ix(&owner.pubkey(), t, version, true, None);
+    env.send(&[i], owner, &[])
+}
+
+fn require_version(env: &mut Env, owner: &Keypair, t: &Target, version: &Address) -> TxResult {
+    let i = policy_ix(&owner.pubkey(), t, version, false, None);
+    env.send(&[i], owner, &[])
+}
+
+fn policy(env: &Env, document: &Address) -> GatePolicy {
+    let acc = env
+        .raw_account(&policy_pda(document))
+        .expect("policy exists");
+    GatePolicy::try_deserialize(&mut acc.data.as_slice()).expect("policy")
+}
+
+// ---- gated acceptance -------------------------------------------------------------------------------
 
 fn gated_ix(relayer: &Address, holder: &Address, t: &Target, a: &AcceptParams) -> Instruction {
     ix(
@@ -74,6 +133,14 @@ fn gated_ix(relayer: &Address, holder: &Address, t: &Target, a: &AcceptParams) -
     )
 }
 
+fn signed_ed25519(env: &Env, user: &Keypair, t: &Target, a: &AcceptParams) -> Instruction {
+    let message = env.acceptance_message(&t.org, &t.version, &t.shard, &user.pubkey(), a);
+    let sig = user.sign_message(message.as_bytes());
+    let mut sig_bytes = [0u8; 64];
+    sig_bytes.copy_from_slice(sig.as_ref());
+    ed25519_ix(&user.pubkey().to_bytes(), &sig_bytes, message.as_bytes())
+}
+
 /// The user signs the ordinary acceptance message; the relayer records it with the gated
 /// instruction, naming `holder` (normally the user) as the pass holder.
 fn accept_gated_as(
@@ -83,11 +150,7 @@ fn accept_gated_as(
     t: &Target,
     a: &AcceptParams,
 ) -> TxResult {
-    let message = env.acceptance_message(&t.org, &t.version, &t.shard, &user.pubkey(), a);
-    let sig = user.sign_message(message.as_bytes());
-    let mut sig_bytes = [0u8; 64];
-    sig_bytes.copy_from_slice(sig.as_ref());
-    let ed = ed25519_ix(&user.pubkey().to_bytes(), &sig_bytes, message.as_bytes());
+    let ed = signed_ed25519(env, user, t, a);
     let relayer = env.relayer.insecure_clone();
     let rec = gated_ix(&relayer.pubkey(), holder, t, a);
     env.send(&[ed, rec], &relayer, &[])
@@ -105,95 +168,155 @@ fn pass(env: &Env, document: &Address, holder: &Address) -> AccessPass {
     AccessPass::try_deserialize(&mut acc.data.as_slice()).expect("access pass")
 }
 
-fn check_ix(document: &Address, pass: &Address, holder: &Address, min_version: u32) -> Instruction {
-    ix(
-        stele::instruction::CheckAccess {
-            args: stele::instructions::CheckAccessArgs { min_version },
-        },
-        vec![ro(*document), ro(*pass), signer_ro(*holder)],
-    )
-}
+// ---- the protected program ----------------------------------------------------------------------------
 
-fn check(env: &mut Env, document: &Address, holder: &Keypair, min_version: u32) -> TxResult {
-    let pass = access_pass_pda(document, &holder.pubkey());
-    let i = check_ix(document, &pass, &holder.pubkey(), min_version);
-    let relayer = env.relayer.insecure_clone();
-    env.send(&[i], &relayer, &[holder])
-}
-
-fn create_market(env: &mut Env, creator: &Keypair, document: &Address) -> Address {
-    let market = market_pda(document);
+fn create_vault(env: &mut Env, manager: &Keypair, policy: &Address) -> TxResult {
     let i = Instruction {
-        program_id: gate_demo_id(),
+        program_id: vault_program(),
         accounts: vec![
-            signer_rw(creator.pubkey()),
-            ro(*document),
-            rw(market),
+            signer_rw(manager.pubkey()),
+            ro(*policy),
+            rw(vault_pda(policy)),
             ro(system_program()),
         ],
-        data: stele_gate_demo::instruction::CreateMarket {
-            question: "Will the demo pass its tests?".into(),
+        data: stele_gate_demo::instruction::CreateVault {
+            name: "Atlas Real Estate Vault".into(),
         }
         .data(),
     };
-    assert_ok(&env.send(&[i], creator, &[]));
-    market
+    env.send(&[i], manager, &[])
 }
 
-struct Bet {
-    market: Address,
-    document: Address,
-    pass: Address,
-    strict: bool,
-    stele_program: Address,
-}
-
-fn bet_ix(bettor: &Address, b: &Bet, side: u8, stake: u64) -> Instruction {
-    let mut accounts = vec![
-        AccountMeta::new_readonly(*bettor, true),
-        rw(b.market),
-        ro(b.document),
-        ro(b.pass),
-    ];
-    let data = if b.strict {
-        accounts.push(ro(b.stele_program));
-        stele_gate_demo::instruction::PlaceBetStrict { side, stake }.data()
-    } else {
-        stele_gate_demo::instruction::PlaceBet { side, stake }.data()
-    };
+fn deposit_ix(
+    investor: &Address,
+    vault: &Address,
+    policy: &Address,
+    pass: &Address,
+) -> Instruction {
     Instruction {
-        program_id: gate_demo_id(),
-        accounts,
-        data,
+        program_id: vault_program(),
+        accounts: vec![
+            AccountMeta::new_readonly(*investor, true),
+            rw(*vault),
+            ro(*policy),
+            ro(*pass),
+        ],
+        data: stele_gate_demo::instruction::Deposit {
+            amount: 5_000_000_000, // 5,000 demo USDC
+        }
+        .data(),
     }
 }
 
-fn place_bet(env: &mut Env, bettor: &Keypair, b: &Bet) -> TxResult {
-    let i = bet_ix(&bettor.pubkey(), b, 1, 100);
+/// A direct call to `deposit`, as a script or the CLI would make it (no frontend, no SDK).
+fn deposit(
+    env: &mut Env,
+    investor: &Keypair,
+    vault: &Address,
+    policy: &Address,
+    pass: &Address,
+) -> TxResult {
+    let i = deposit_ix(&investor.pubkey(), vault, policy, pass);
     let relayer = env.relayer.insecure_clone();
-    env.send(&[i], &relayer, &[bettor])
+    env.send(&[i], &relayer, &[investor])
 }
 
-fn bet_for(t: &Target, market: Address, holder: &Address, strict: bool) -> Bet {
-    Bet {
-        market,
-        document: t.document,
-        pass: access_pass_pda(&t.document, holder),
-        strict,
-        stele_program: program_id(),
+fn vault(env: &Env, a: &Address) -> Vault {
+    let acc = env.raw_account(a).expect("vault");
+    Vault::try_deserialize(&mut acc.data.as_slice()).expect("vault")
+}
+
+/// Organization + Investor Offering Terms v1 + policy (requires v1) + vault.
+struct Setup {
+    env: Env,
+    owner: Keypair,
+    t: Target,
+    policy: Address,
+    vault: Address,
+}
+
+fn setup() -> Setup {
+    let mut env = Env::new();
+    deploy_vault_program(&mut env);
+    let fx = env.fixture();
+    let t = fx.target;
+    assert_ok(&create_policy(&mut env, &fx.owner, &t, &t.version));
+    let policy = policy_pda(&t.document);
+    let manager = env.funded();
+    assert_ok(&create_vault(&mut env, &manager, &policy));
+    Setup {
+        vault: vault_pda(&policy),
+        env,
+        owner: fx.owner,
+        t,
+        policy,
     }
 }
 
-fn market(env: &Env, a: &Address) -> Market {
-    let acc = env.raw_account(a).expect("market");
-    Market::try_deserialize(&mut acc.data.as_slice()).expect("market")
+/// Overwrites an account in the test VM (to model states the real program never produces).
+fn forge(env: &mut Env, at: &Address, owner: &Address, data: Vec<u8>) {
+    env.svm
+        .set_account(
+            *at,
+            Account {
+                lamports: 10_000_000,
+                data,
+                owner: *owner,
+                executable: false,
+                rent_epoch: 0,
+            },
+        )
+        .expect("set account");
 }
 
-fn gate_err(e: GateError) -> u32 {
-    e as u32
+// ---- tests: policies ----------------------------------------------------------------------------------
+
+#[test]
+fn the_organization_sets_and_raises_the_required_version() {
+    let mut env = Env::new();
+    let fx = env.fixture();
+    let t = fx.target;
+    let stranger = env.funded();
+
+    // Only an authority of the organization may create the policy.
+    let i = policy_ix(&stranger.pubkey(), &t, &t.version, true, None);
+    assert_stele_err(&env.send(&[i], &stranger, &[]), SteleError::Unauthorized);
+
+    assert_ok(&create_policy(&mut env, &fx.owner, &t, &t.version));
+    let p = policy(&env, &t.document);
+    assert_eq!(p.organization, to_pk(&t.org));
+    assert_eq!(p.document, to_pk(&t.document));
+    assert_eq!(p.required_version, 1);
+    assert_eq!(
+        p.required_version_hash,
+        env.version(&t.version).version_hash
+    );
+    // One policy per document.
+    env.advance(1);
+    assert_failed(&create_policy(&mut env, &fx.owner, &t, &t.version));
+
+    // A version of another document cannot be required.
+    let (other, res) = env.create_document(&fx.owner, &t.org, "other", "other", "en-US");
+    assert_ok(&res);
+    let other_v1 = env.publish(&fx.owner, &t.org, &other, "other text");
+    assert_stele_err(
+        &require_version(&mut env, &fx.owner, &t, &other_v1),
+        SteleError::VersionDocumentMismatch,
+    );
+
+    // Publishing v2 does not change the requirement; the organization raises it explicitly.
+    env.advance(60);
+    let v2 = env.publish(&fx.owner, &t.org, &t.document, "version two content");
+    assert_eq!(policy(&env, &t.document).required_version, 1);
+    let i = policy_ix(&stranger.pubkey(), &t, &v2, false, None);
+    assert_stele_err(&env.send(&[i], &stranger, &[]), SteleError::Unauthorized);
+    assert_ok(&require_version(&mut env, &fx.owner, &t, &v2));
+    let p = policy(&env, &t.document);
+    assert_eq!(p.required_version, 2);
+    assert_eq!(p.required_version_hash, env.version(&v2).version_hash);
 }
 
-// ---- access passes -------------------------------------------------------------------------------
+// ---- tests: access passes -----------------------------------------------------------------------------
 
 #[test]
 fn a_gated_acceptance_creates_the_holders_pass_and_the_user_pays_nothing() {
@@ -201,7 +324,7 @@ fn a_gated_acceptance_creates_the_holders_pass_and_the_user_pays_nothing() {
     let fx = env.fixture();
     let t = fx.target;
     let user = env.funded();
-    let user_lamports = env.lamports(&user.pubkey());
+    let before = env.lamports(&user.pubkey());
     let a = env.default_accept(1);
 
     let meta = accept_gated(&mut env, &user, &t, &a).expect("gated acceptance recorded");
@@ -210,32 +333,27 @@ fn a_gated_acceptance_creates_the_holders_pass_and_the_user_pays_nothing() {
     assert_eq!(p.document, to_pk(&t.document));
     assert_eq!(p.holder, to_pk(&user.pubkey()));
     assert_eq!(p.version, to_pk(&t.version));
+    assert_eq!(p.version_hash, env.version(&t.version).version_hash);
     assert_eq!(p.version_number, 1);
     assert_eq!(p.acceptance_count, 1);
-    assert_eq!(p.first_accepted_at, p.accepted_at);
     assert_ne!(p.acceptance_id, [0u8; 32]);
-    // The acceptance is an ordinary one: same shard, nonce and accumulator.
+    // It is an ordinary acceptance too: same shard, nonce and accumulator (the Proof record).
     assert_eq!(env.shard(&t.shard).accepted_count, 1);
-    // Fee and the pass's rent come from the relayer; the user's balance is untouched.
-    assert_eq!(env.lamports(&user.pubkey()), user_lamports);
-    println!(
-        "gated acceptance: {} CU, pass {} bytes",
-        meta.compute_units_consumed,
-        env.raw_account(&access_pass_pda(&t.document, &user.pubkey()))
-            .unwrap()
-            .data
-            .len()
-    );
     assert_eq!(
-        env.raw_account(&access_pass_pda(&t.document, &user.pubkey()))
-            .unwrap()
-            .data
-            .len(),
-        stele_gate::ACCESS_PASS_LEN
+        env.lamports(&user.pubkey()),
+        before,
+        "the user pays nothing"
     );
-
-    assert_ok(&check(&mut env, &t.document, &user, 0));
-    assert_ok(&check(&mut env, &t.document, &user, 1));
+    let size = env
+        .raw_account(&access_pass_pda(&t.document, &user.pubkey()))
+        .unwrap()
+        .data
+        .len();
+    assert_eq!(size, stele_gate::ACCESS_PASS_LEN);
+    println!(
+        "gated acceptance: {} CU, pass {size} bytes",
+        meta.compute_units_consumed
+    );
 }
 
 #[test]
@@ -265,8 +383,9 @@ fn a_tampered_or_replayed_gated_acceptance_creates_no_pass() {
     let a = env.default_accept(3);
 
     // Signed over a different message (the program rebuilds the real one).
-    let mut message = env.acceptance_message(&t.org, &t.version, &t.shard, &user.pubkey(), &a);
-    message = message.replace("Acme Inc.", "Acme Inc!");
+    let message = env
+        .acceptance_message(&t.org, &t.version, &t.shard, &user.pubkey(), &a)
+        .replace("Acme Inc.", "Acme Inc!");
     let sig = user.sign_message(message.as_bytes());
     let mut sig_bytes = [0u8; 64];
     sig_bytes.copy_from_slice(sig.as_ref());
@@ -295,97 +414,6 @@ fn a_tampered_or_replayed_gated_acceptance_creates_no_pass() {
 }
 
 #[test]
-fn publishing_a_new_version_makes_the_pass_outdated_until_it_is_accepted() {
-    let mut env = Env::new();
-    let fx = env.fixture();
-    let t = fx.target;
-    let user = env.funded();
-    let a = env.default_accept(4);
-    assert_ok(&accept_gated(&mut env, &user, &t, &a));
-    let first = pass(&env, &t.document, &user.pubkey());
-
-    env.advance(60);
-    let v2 = env.publish(&fx.owner, &t.org, &t.document, "version two content");
-    // The evidence for v1 is untouched; the permission now requires v2.
-    assert_eq!(
-        pass(&env, &t.document, &user.pubkey()).version,
-        to_pk(&t.version)
-    );
-    assert_stele_err(
-        &check(&mut env, &t.document, &user, 0),
-        SteleError::AccessPassOutdated,
-    );
-    assert_ok(&check(&mut env, &t.document, &user, 1));
-    assert_stele_err(
-        &check(&mut env, &t.document, &user, 2),
-        SteleError::AccessPassOutdated,
-    );
-    assert_stele_err(
-        &check(&mut env, &t.document, &user, 3),
-        SteleError::InvalidAccessRequirement,
-    );
-
-    // Accepting the old version is impossible (only the current one can be recorded).
-    let stale = env.default_accept(5);
-    assert_stele_err(
-        &accept_gated(&mut env, &user, &t, &stale),
-        SteleError::VersionNotCurrent,
-    );
-
-    let t2 = Target { version: v2, ..t };
-    let a2 = env.default_accept(6);
-    assert_ok(&accept_gated(&mut env, &user, &t2, &a2));
-    let second = pass(&env, &t.document, &user.pubkey());
-    assert_eq!(second.version, to_pk(&v2));
-    assert_eq!(second.version_number, 2);
-    assert_eq!(second.acceptance_count, 2);
-    assert_eq!(second.first_accepted_at, first.first_accepted_at);
-    assert_ne!(second.acceptance_id, first.acceptance_id);
-    assert_ok(&check(&mut env, &t.document, &user, 0));
-    assert_ok(&check(&mut env, &t.document, &user, 2));
-}
-
-#[test]
-fn check_access_refuses_missing_foreign_and_unsigned_passes() {
-    let mut env = Env::new();
-    let fx = env.fixture();
-    let t = fx.target;
-    let alice = env.funded();
-    let mallory = env.funded();
-    let a = env.default_accept(7);
-    assert_ok(&accept_gated(&mut env, &alice, &t, &a));
-
-    // Mallory never accepted.
-    assert_stele_err(
-        &check(&mut env, &t.document, &mallory, 0),
-        SteleError::AccessPassMissing,
-    );
-
-    // Mallory presents Alice's pass.
-    let alices = access_pass_pda(&t.document, &alice.pubkey());
-    let i = check_ix(&t.document, &alices, &mallory.pubkey(), 0);
-    let relayer = env.relayer.insecure_clone();
-    assert_stele_err(
-        &env.send(&[i], &relayer, &[&mallory]),
-        SteleError::AccessPassMismatch,
-    );
-
-    // Alice's pass without Alice's signature.
-    let mut i = check_ix(&t.document, &alices, &alice.pubkey(), 0);
-    i.accounts[2].is_signer = false;
-    assert_failed(&env.send(&[i], &relayer, &[]));
-
-    // Another document of the same organization: Alice's pass is for the first one only.
-    let (other, res) = env.create_document(&fx.owner, &t.org, "risk", "risk-disclosure", "en-US");
-    assert_ok(&res);
-    env.publish(&fx.owner, &t.org, &other, "risk text");
-    assert_stele_err(
-        &check(&mut env, &other, &alice, 0),
-        SteleError::AccessPassMissing,
-    );
-}
-
-#[test]
 fn gated_acceptance_cannot_be_invoked_through_cpi() {
     let mut env = Env::new();
     let probe = env.deploy_cpi_probe();
@@ -393,11 +421,7 @@ fn gated_acceptance_cannot_be_invoked_through_cpi() {
     let t = fx.target;
     let user = env.funded();
     let a = env.default_accept(8);
-    let message = env.acceptance_message(&t.org, &t.version, &t.shard, &user.pubkey(), &a);
-    let sig = user.sign_message(message.as_bytes());
-    let mut sig_bytes = [0u8; 64];
-    sig_bytes.copy_from_slice(sig.as_ref());
-    let ed = ed25519_ix(&user.pubkey().to_bytes(), &sig_bytes, message.as_bytes());
+    let ed = signed_ed25519(&env, &user, &t, &a);
     let relayer = env.relayer.insecure_clone();
     let rec = gated_ix(&relayer.pubkey(), &user.pubkey(), &t, &a);
     let mut accounts = vec![ro(program_id())];
@@ -413,179 +437,215 @@ fn gated_acceptance_cannot_be_invoked_through_cpi() {
     );
 }
 
-// ---- a protected program -------------------------------------------------------------------------
+// ---- tests: the protected deposit ---------------------------------------------------------------------
 
-fn protected_market() -> (Env, Fixture, Address) {
-    let mut env = Env::new();
-    deploy_gate_demo(&mut env);
-    let fx = env.fixture();
-    let creator = env.funded();
-    let market = create_market(&mut env, &creator, &fx.target.document);
-    (env, fx, market)
+#[test]
+fn deposits_require_the_current_offering_terms() {
+    let Setup {
+        mut env,
+        owner,
+        t,
+        policy,
+        vault: v,
+    } = setup();
+    let investor = env.funded();
+    let my_pass = access_pass_pda(&t.document, &investor.pubkey());
+
+    // 1. No pass: a direct call to deposit() fails on-chain.
+    assert_custom(
+        &deposit(&mut env, &investor, &v, &policy, &my_pass),
+        gate_err(GateError::AccessPassMissing),
+    );
+
+    // 2. Accept v1 (records the Proof acceptance and creates the pass): deposit succeeds.
+    let a = env.default_accept(10);
+    assert_ok(&accept_gated(&mut env, &investor, &t, &a));
+    let meta = deposit(&mut env, &investor, &v, &policy, &my_pass).expect("deposit with v1");
+    println!(
+        "deposit with require_current: {} CU",
+        meta.compute_units_consumed
+    );
+    assert_eq!(vault(&env, &v).deposit_count, 1);
+    assert_eq!(vault(&env, &v).total_deposited, 5_000_000_000);
+
+    // 3. The organization publishes v2. Until it requires v2, v1 still satisfies the policy.
+    env.advance(60);
+    let v2 = env.publish(&owner, &t.org, &t.document, "offering terms v2");
+    env.advance(1);
+    assert_ok(&deposit(&mut env, &investor, &v, &policy, &my_pass));
+
+    // 4. It requires v2: the v1 pass is outdated and the deposit fails.
+    assert_ok(&require_version(&mut env, &owner, &t, &v2));
+    env.advance(1);
+    assert_custom(
+        &deposit(&mut env, &investor, &v, &policy, &my_pass),
+        gate_err(GateError::AccessPassOutdated),
+    );
+
+    // 5. Accept v2: the same pass now names v2 and the deposit succeeds.
+    let t2 = Target { version: v2, ..t };
+    let a2 = env.default_accept(11);
+    assert_ok(&accept_gated(&mut env, &investor, &t2, &a2));
+    env.advance(1);
+    assert_ok(&deposit(&mut env, &investor, &v, &policy, &my_pass));
+    assert_eq!(vault(&env, &v).deposit_count, 3);
+    let p = pass(&env, &t.document, &investor.pubkey());
+    assert_eq!((p.version_number, p.acceptance_count), (2, 2));
+    // The v1 acceptance stays on record: both acceptances are in the shard's accumulator.
+    assert_eq!(env.shard(&t.shard).accepted_count, 2);
 }
 
 #[test]
-fn the_protected_program_runs_only_with_a_current_pass_in_both_modes() {
-    for strict in [false, true] {
-        let (mut env, fx, m) = protected_market();
-        let t = fx.target;
-        let user = env.funded();
-        let b = bet_for(&t, m, &user.pubkey(), strict);
+fn direct_bypass_attempts_fail_on_chain() {
+    let Setup {
+        mut env,
+        owner,
+        t,
+        policy,
+        vault: v,
+    } = setup();
+    let alice = env.funded();
+    let mallory = env.funded();
+    let alices_pass = access_pass_pda(&t.document, &alice.pubkey());
+    let a = env.default_accept(20);
+    assert_ok(&accept_gated(&mut env, &alice, &t, &a));
+    let relayer = env.relayer.insecure_clone();
 
-        // 1. No pass: a direct call to the program fails.
-        let res = place_bet(&mut env, &user, &b);
-        if strict {
-            assert_stele_err(&res, SteleError::AccessPassMissing);
-        } else {
-            assert_custom(&res, gate_err(GateError::AccessPassMissing));
-        }
+    // Wrong wallet: Mallory presents Alice's valid pass.
+    assert_custom(
+        &deposit(&mut env, &mallory, &v, &policy, &alices_pass),
+        gate_err(GateError::AccessPassMismatch),
+    );
 
-        // 2. Accept v1 (gated): the same call succeeds.
-        let a = env.default_accept(10);
-        assert_ok(&accept_gated(&mut env, &user, &t, &a));
-        let meta = place_bet(&mut env, &user, &b).expect("bet with a current pass");
-        println!(
-            "place_bet{}: {} CU",
-            if strict { "_strict" } else { "" },
-            meta.compute_units_consumed
-        );
-        let after = market(&env, &m);
-        assert_eq!(after.bet_count, 1);
-        assert_eq!(after.yes_stake, 100);
+    // Unsigned holder: Alice's pass and Alice as investor, without Alice's signature.
+    let mut i = deposit_ix(&alice.pubkey(), &v, &policy, &alices_pass);
+    i.accounts[0].is_signer = false;
+    assert_failed(&env.send(&[i], &relayer, &[]));
 
-        // 3. Publish v2: the v1 pass no longer satisfies the requirement.
-        env.advance(60);
-        let v2 = env.publish(&fx.owner, &t.org, &t.document, "version two content");
-        let res = place_bet(&mut env, &user, &b);
-        if strict {
-            assert_stele_err(&res, SteleError::AccessPassOutdated);
-        } else {
-            assert_custom(&res, gate_err(GateError::AccessPassOutdated));
-        }
-
-        // 4. Accept v2: allowed again.
-        let t2 = Target { version: v2, ..t };
-        let a2 = env.default_accept(11);
-        assert_ok(&accept_gated(&mut env, &user, &t2, &a2));
-        env.advance(1);
-        assert_ok(&place_bet(&mut env, &user, &b));
-        assert_eq!(market(&env, &m).bet_count, 2);
-    }
-}
-
-#[test]
-fn direct_bypass_attempts_are_rejected_on_chain() {
-    for strict in [false, true] {
-        let (mut env, fx, m) = protected_market();
-        let t = fx.target;
-        let alice = env.funded();
-        let mallory = env.funded();
-        let a = env.default_accept(20);
-        assert_ok(&accept_gated(&mut env, &alice, &t, &a));
-        let relayer = env.relayer.insecure_clone();
-
-        // Mallory presents Alice's valid pass.
-        let stolen = Bet {
-            pass: access_pass_pda(&t.document, &alice.pubkey()),
-            ..bet_for(&t, m, &mallory.pubkey(), strict)
-        };
-        let res = place_bet(&mut env, &mallory, &stolen);
-        if strict {
-            assert_stele_err(&res, SteleError::AccessPassMismatch);
-        } else {
-            assert_custom(&res, gate_err(GateError::AccessPassMismatch));
-        }
-
-        // Mallory uses Alice's pass and names Alice as the bettor, without Alice's signature.
-        let mut i = bet_ix(
-            &alice.pubkey(),
-            &bet_for(&t, m, &alice.pubkey(), strict),
-            1,
-            100,
-        );
-        i.accounts[0].is_signer = false;
-        assert_failed(&env.send(&[i], &relayer, &[]));
-
-        // Mallory publishes her own policy, accepts it, and presents that document and pass.
-        let own_owner = env.funded();
-        let own_org = env.create_org(&own_owner, "Mallory Ltd", None);
-        let (own_doc, res) =
-            env.create_document(&own_owner, &own_org, "terms", "terms-of-service", "en-US");
-        assert_ok(&res);
-        let own_v1 = env.publish(&own_owner, &own_org, &own_doc, "anything goes");
-        let relayer_pk = relayer.pubkey();
-        let (own_shard, res) = env.create_shard(&own_owner, &own_org, 0, &relayer_pk);
-        assert_ok(&res);
-        let own = Target {
-            org: own_org,
-            document: own_doc,
-            version: own_v1,
-            shard: own_shard,
-        };
-        let a = env.default_accept(21);
-        assert_ok(&accept_gated(&mut env, &mallory, &own, &a));
-        let forged = Bet {
-            market: m,
-            document: own_doc,
-            pass: access_pass_pda(&own_doc, &mallory.pubkey()),
-            strict,
-            stele_program: program_id(),
-        };
-        assert_custom(
-            &place_bet(&mut env, &mallory, &forged),
-            gate_err(GateError::PolicyMismatch),
-        );
-
-        // A look-alike "pass" account Mallory controls.
-        let fake = env.funded().pubkey();
-        let fake_bet = Bet {
-            pass: fake,
-            ..bet_for(&t, m, &mallory.pubkey(), strict)
-        };
-        let res = place_bet(&mut env, &mallory, &fake_bet);
-        if strict {
-            assert_stele_err(&res, SteleError::AccessPassMismatch);
-        } else {
-            assert_custom(&res, gate_err(GateError::AccessPassInvalid));
-        }
-
-        if strict {
-            // A fake "Stele" program for the CPI.
-            let impostor = Bet {
-                stele_program: env.deploy_cpi_probe(),
-                ..bet_for(&t, m, &alice.pubkey(), true)
-            };
-            assert_failed(&place_bet(&mut env, &alice, &impostor));
-        }
-
-        assert_eq!(market(&env, &m).bet_count, 0, "no bypass placed a bet");
-        // Alice herself can bet.
-        assert_ok(&place_bet(
-            &mut env,
-            &alice,
-            &bet_for(&t, m, &alice.pubkey(), strict),
-        ));
-    }
-}
-
-#[test]
-fn a_market_must_be_guarded_by_a_stele_document() {
-    let mut env = Env::new();
-    deploy_gate_demo(&mut env);
-    let creator = env.funded();
-    let not_a_document = env.funded().pubkey();
-    let i = Instruction {
-        program_id: gate_demo_id(),
-        accounts: vec![
-            signer_rw(creator.pubkey()),
-            ro(not_a_document),
-            rw(market_pda(&not_a_document)),
-            ro(system_program()),
-        ],
-        data: stele_gate_demo::instruction::CreateMarket {
-            question: "?".into(),
-        }
-        .data(),
+    // Wrong policy: Mallory's own organization, document, policy and pass.
+    let m_org = env.create_org(&mallory, "Mallory Ltd", None);
+    let (m_doc, res) = env.create_document(&mallory, &m_org, "terms", "terms-of-service", "en-US");
+    assert_ok(&res);
+    let m_v1 = env.publish(&mallory, &m_org, &m_doc, "anything goes");
+    let relayer_pk = relayer.pubkey();
+    let (m_shard, res) = env.create_shard(&mallory, &m_org, 0, &relayer_pk);
+    assert_ok(&res);
+    let m = Target {
+        org: m_org,
+        document: m_doc,
+        version: m_v1,
+        shard: m_shard,
     };
-    assert_failed(&env.send(&[i], &creator, &[]));
+    assert_ok(&create_policy(&mut env, &mallory, &m, &m_v1));
+    let a = env.default_accept(21);
+    assert_ok(&accept_gated(&mut env, &mallory, &m, &a));
+    let m_policy = policy_pda(&m_doc);
+    let m_pass = access_pass_pda(&m_doc, &mallory.pubkey());
+    // … the vault pins its own policy,
+    assert_custom(
+        &deposit(&mut env, &mallory, &v, &m_policy, &m_pass),
+        vault_err(stele_gate_demo::VaultError::WrongPolicy),
+    );
+    // … and a pass for another organization's document never satisfies this policy.
+    assert_custom(
+        &deposit(&mut env, &mallory, &v, &policy, &m_pass),
+        gate_err(GateError::AccessPassMismatch),
+    );
+
+    // Reused pass from another document (another policy) of the same organization.
+    let (doc2, res) = env.create_document(&owner, &t.org, "privacy", "privacy-policy", "en-US");
+    assert_ok(&res);
+    let d2v1 = env.publish(&owner, &t.org, &doc2, "privacy text");
+    let t_doc2 = Target {
+        document: doc2,
+        version: d2v1,
+        ..t
+    };
+    let a = env.default_accept(22);
+    assert_ok(&accept_gated(&mut env, &mallory, &t_doc2, &a));
+    assert_custom(
+        &deposit(
+            &mut env,
+            &mallory,
+            &v,
+            &policy,
+            &access_pass_pda(&doc2, &mallory.pubkey()),
+        ),
+        gate_err(GateError::AccessPassMismatch),
+    );
+
+    // Forged pass: Alice's pass data, holder rewritten to Mallory, in an account Mallory controls.
+    let alice_data = env.raw_account(&alices_pass).unwrap().data;
+    let mut forged_data = alice_data.clone();
+    forged_data[72..104].copy_from_slice(mallory.pubkey().as_ref());
+    let lookalike = Keypair::new().pubkey();
+    forge(&mut env, &lookalike, &system_program(), forged_data.clone());
+    assert_custom(
+        &deposit(&mut env, &mallory, &v, &policy, &lookalike),
+        gate_err(GateError::AccessPassInvalid),
+    );
+    // … even Stele-owned (impossible on-chain, modelled here) but off the canonical address.
+    forge(&mut env, &lookalike, &program_id(), forged_data);
+    assert_custom(
+        &deposit(&mut env, &mallory, &v, &policy, &lookalike),
+        gate_err(GateError::AccessPassInvalid),
+    );
+    // … or a system account at Mallory's own pass address (the address of "no pass").
+    let m_pass_here = access_pass_pda(&t.document, &mallory.pubkey());
+    forge(&mut env, &m_pass_here, &system_program(), alice_data);
+    assert_custom(
+        &deposit(&mut env, &mallory, &v, &policy, &m_pass_here),
+        gate_err(GateError::AccessPassMissing),
+    );
+
+    assert_eq!(vault(&env, &v).deposit_count, 0, "no bypass deposited");
+    assert_ok(&deposit(&mut env, &alice, &v, &policy, &alices_pass));
+}
+
+#[test]
+fn forged_policies_and_fingerprints_are_rejected() {
+    let Setup {
+        mut env,
+        t,
+        policy: real_policy,
+        vault: v,
+        ..
+    } = setup();
+    let alice = env.funded();
+    let alices_pass = access_pass_pda(&t.document, &alice.pubkey());
+    let a = env.default_accept(30);
+    assert_ok(&accept_gated(&mut env, &alice, &t, &a));
+
+    // A vault pinned to a "policy" off its canonical address (modelled: Stele-owned).
+    let mut fake = policy(&env, &t.document);
+    fake.required_version = 0;
+    let mut data = Vec::new();
+    fake.try_serialize(&mut data).unwrap();
+    let fake_policy = Keypair::new().pubkey();
+    forge(&mut env, &fake_policy, &program_id(), data);
+    let manager = env.funded();
+    assert_ok(&create_vault(&mut env, &manager, &fake_policy));
+    let fake_vault = vault_pda(&fake_policy);
+    assert_custom(
+        &deposit(&mut env, &alice, &fake_vault, &fake_policy, &alices_pass),
+        gate_err(GateError::InvalidPolicy),
+    );
+
+    // A vault cannot even be opened for a non-Stele account.
+    let not_policy = env.funded().pubkey();
+    assert_custom(
+        &create_vault(&mut env, &manager, &not_policy),
+        vault_err(stele_gate_demo::VaultError::NotAStelePolicy),
+    );
+
+    // The pass names the required version number with a different fingerprint (corrupted state).
+    let mut p = pass(&env, &t.document, &alice.pubkey());
+    p.version_hash[0] ^= 0xff;
+    let mut data = Vec::new();
+    p.try_serialize(&mut data).unwrap();
+    forge(&mut env, &alices_pass, &program_id(), data);
+    assert_custom(
+        &deposit(&mut env, &alice, &v, &real_policy, &alices_pass),
+        gate_err(GateError::FingerprintMismatch),
+    );
 }

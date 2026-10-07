@@ -1,40 +1,29 @@
 //! # Stele Gate for Solana programs
 //!
-//! Require that the signer of a protected action has accepted a Stele policy document — by default
-//! its **current** version — before the action executes (PROTOCOL_SPEC.md §18).
-//!
-//! A frontend checkbox can be skipped by any custom client. A requirement evaluated by the program
-//! that executes the action cannot. Two integration modes enforce the same rule:
-//!
-//! * **Check mode** — [`verify_access`]: the protected program reads the Stele `Document` and
-//!   `AccessPass` accounts itself (owner, type and field checks; no CPI).
-//! * **Strict mode** — [`require_access_cpi`]: the protected program calls Stele's `check_access`
-//!   instruction through a CPI, so the rule is evaluated by the Stele program itself.
-//!
-//! In both modes the protected program must pin the policy document's address (a constant or a
-//! value in its own state). Stele cannot know which document a third-party action requires; if a
-//! program accepted any document, a caller could present a document it published itself.
+//! One call in your protected instruction: the signer must hold a Stele AccessPass that satisfies
+//! your Stele policy — they accepted the policy's document at the required version or later
+//! (PROTOCOL_SPEC.md §18).
 //!
 //! ```ignore
-//! use stele_gate::{verify_access, Requirement};
-//!
-//! let granted = verify_access(
-//!     &market.policy_document,          // pinned by the protected program
-//!     &ctx.accounts.policy_document,
-//!     &ctx.accounts.access_pass,
-//!     &ctx.accounts.bettor,             // must be a signer
-//!     Requirement::CurrentVersion,
-//! )?;
+//! pub fn deposit(ctx: Context<Deposit>, amount: u64) -> Result<()> {
+//!     stele_gate::require_current(
+//!         &ctx.accounts.access_pass,
+//!         &ctx.accounts.policy,   // pinned: #[account(address = vault.policy)]
+//!         &ctx.accounts.investor, // a Signer
+//!     )?;
+//!     // … the protected action
+//! }
 //! ```
 //!
-//! Errors are `ProgramError::Custom` codes 7600–7608 ([`GateError`]).
+//! A frontend checkbox can be skipped by any custom client; this check runs inside your program,
+//! so a direct call without a valid pass fails on-chain. Your program must pin the policy's
+//! address (store it, or make it a constant): otherwise a caller could present a policy of their
+//! own. Stele is not in the execution path — no CPI, no proxy, no shared signer.
+//!
+//! Errors are `ProgramError::Custom` codes 7600–7606 ([`GateError`]).
 
 use anchor_lang::solana_program::{
-    account_info::AccountInfo,
-    instruction::{AccountMeta, Instruction},
-    program::{get_return_data, invoke},
-    program_error::ProgramError,
-    pubkey::Pubkey,
+    account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey,
 };
 
 /// The Stele program (the same address on localnet and devnet).
@@ -45,76 +34,73 @@ pub const STELE_PROGRAM_ID: Pubkey = Pubkey::new_from_array([
 
 /// Seed of an access pass: `[ACCESS_PASS_SEED, document, holder]` under [`STELE_PROGRAM_ID`].
 pub const ACCESS_PASS_SEED: &[u8] = b"access-pass";
+/// Seed of a policy: `[POLICY_SEED, document]` under [`STELE_PROGRAM_ID`].
+pub const POLICY_SEED: &[u8] = b"policy";
 
-/// Anchor discriminators of the Stele accounts and instruction read here.
+/// Anchor discriminators of the Stele accounts read here.
 pub const ACCESS_PASS_DISCRIMINATOR: [u8; 8] = [24, 47, 32, 42, 150, 120, 87, 169];
+pub const POLICY_DISCRIMINATOR: [u8; 8] = [3, 77, 45, 55, 30, 166, 143, 147];
+/// Kept for programs that read Stele documents (e.g. to check a policy's document exists).
 pub const DOCUMENT_DISCRIMINATOR: [u8; 8] = [226, 212, 133, 177, 48, 5, 171, 243];
-pub const CHECK_ACCESS_DISCRIMINATOR: [u8; 8] = [74, 62, 42, 188, 96, 229, 63, 50];
 
-/// Byte length of an `AccessPass` account (discriminator included).
-pub const ACCESS_PASS_LEN: usize = 201;
+/// Byte lengths of the accounts (discriminator included).
+pub const ACCESS_PASS_LEN: usize = 233;
+pub const POLICY_LEN: usize = 157;
 
-// Normative layouts (PROTOCOL_SPEC.md §6.2 and §18.1); offsets include the discriminator.
+// Normative layouts (PROTOCOL_SPEC.md §18.1); offsets include the discriminator.
 mod layout {
+    pub const PASS_ORGANIZATION: usize = 8;
     pub const PASS_DOCUMENT: usize = 40;
     pub const PASS_HOLDER: usize = 72;
     pub const PASS_VERSION: usize = 104;
-    pub const PASS_ACCEPTED_AT: usize = 168;
-    pub const PASS_VERSION_NUMBER: usize = 192;
-    pub const DOCUMENT_CURRENT_VERSION: usize = 104;
-    pub const DOCUMENT_VERSION_COUNT: usize = 152;
-    pub const DOCUMENT_MIN_LEN: usize = 156;
+    pub const PASS_VERSION_HASH: usize = 136;
+    pub const PASS_ACCEPTANCE_ID: usize = 168;
+    pub const PASS_ACCEPTED_AT: usize = 200;
+    pub const PASS_VERSION_NUMBER: usize = 224;
+    pub const PASS_BUMP: usize = 232;
+
+    pub const POLICY_ORGANIZATION: usize = 8;
+    pub const POLICY_DOCUMENT: usize = 40;
+    pub const POLICY_REQUIRED_HASH: usize = 72;
+    pub const POLICY_REQUIRED_VERSION: usize = 152;
+    pub const POLICY_BUMP: usize = 156;
 }
 
-/// What the holder must have accepted.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Requirement {
-    /// The document's current version: publishing a new version makes older passes outdated.
-    CurrentVersion,
-    /// Version `n` or any later one (`n >= 1`).
-    AtLeast(u32),
-}
-
-impl Requirement {
-    /// The `min_version` argument of Stele's `check_access` (`0` = current version).
-    pub fn min_version(self) -> u32 {
-        match self {
-            Requirement::CurrentVersion => 0,
-            Requirement::AtLeast(n) => n,
-        }
-    }
-}
-
-/// The acceptance that satisfied the requirement.
+/// The acceptance that satisfied the policy.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct GrantedAccess {
-    /// The accepted `DocumentVersion` account.
+    pub organization: Pubkey,
+    pub document: Pubkey,
+    /// The accepted `DocumentVersion` account and its number and fingerprint.
     pub version: Pubkey,
     pub version_number: u32,
+    pub version_hash: [u8; 32],
+    /// The policy's required version (≤ `version_number`).
+    pub required_version: u32,
+    /// The acceptance identifier (the Proof receipt of this acceptance).
+    pub acceptance_id: [u8; 32],
+    /// When the holder accepted (Unix seconds).
+    pub accepted_at: i64,
 }
 
 /// Gate failures, returned as `ProgramError::Custom(code)`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u32)]
 pub enum GateError {
-    /// The document account is not the policy document the program requires.
-    PolicyMismatch = 7600,
-    /// The document account is not a Stele `Document`.
-    InvalidDocument = 7601,
-    /// The holder did not sign the transaction.
-    HolderNotSigner = 7602,
-    /// The holder has never accepted this policy (no access pass).
-    AccessPassMissing = 7603,
-    /// The account is not a Stele `AccessPass`.
-    AccessPassInvalid = 7604,
-    /// The pass belongs to another document or holder.
-    AccessPassMismatch = 7605,
-    /// The pass names an older version than the requirement.
-    AccessPassOutdated = 7606,
-    /// The requirement names a version the document does not have.
-    InvalidRequirement = 7607,
-    /// The program account passed for Stele is not the Stele program.
-    InvalidSteleProgram = 7608,
+    /// The policy account is not a Stele policy at its canonical address.
+    InvalidPolicy = 7600,
+    /// The user did not sign the transaction.
+    UserNotSigner = 7601,
+    /// The user has never accepted the policy's document (no access pass).
+    AccessPassMissing = 7602,
+    /// The account is not a Stele access pass at its canonical address.
+    AccessPassInvalid = 7603,
+    /// The pass belongs to another wallet or another document.
+    AccessPassMismatch = 7604,
+    /// The pass names an older version than the policy requires.
+    AccessPassOutdated = 7605,
+    /// The pass names the required version number with a different fingerprint.
+    FingerprintMismatch = 7606,
 }
 
 impl From<GateError> for ProgramError {
@@ -131,10 +117,21 @@ pub fn access_pass_address(document: &Pubkey, holder: &Pubkey) -> (Pubkey, u8) {
     )
 }
 
+/// The policy address of `document`.
+pub fn policy_address(document: &Pubkey) -> (Pubkey, u8) {
+    Pubkey::find_program_address(&[POLICY_SEED, document.as_ref()], &STELE_PROGRAM_ID)
+}
+
 fn read_pubkey(data: &[u8], at: usize) -> Pubkey {
     let mut b = [0u8; 32];
     b.copy_from_slice(&data[at..at + 32]);
     Pubkey::new_from_array(b)
+}
+
+fn read_32(data: &[u8], at: usize) -> [u8; 32] {
+    let mut b = [0u8; 32];
+    b.copy_from_slice(&data[at..at + 32]);
+    b
 }
 
 fn read_u32(data: &[u8], at: usize) -> u32 {
@@ -143,41 +140,60 @@ fn read_u32(data: &[u8], at: usize) -> u32 {
     u32::from_le_bytes(b)
 }
 
-/// Check mode: succeeds only if `holder` signed and holds an access pass for `policy_document`
-/// that satisfies `requirement`.
+fn read_i64(data: &[u8], at: usize) -> i64 {
+    let mut b = [0u8; 8];
+    b.copy_from_slice(&data[at..at + 8]);
+    i64::from_le_bytes(b)
+}
+
+fn is_canonical(key: &Pubkey, seeds: &[&[u8]], bump: u8) -> bool {
+    let mut with_bump: Vec<&[u8]> = seeds.to_vec();
+    let bump = [bump];
+    with_bump.push(&bump);
+    Pubkey::create_program_address(&with_bump, &STELE_PROGRAM_ID)
+        .map(|k| k == *key)
+        .unwrap_or(false)
+}
+
+/// Succeeds only if `user` signed the transaction and holds an access pass that satisfies `policy`:
+/// the pass is the Stele account at `[access-pass, policy.document, user]` and names the policy's
+/// required version or a later one (same fingerprint when it is the required version itself).
 ///
 /// Only the Stele program can create accounts it owns, and it writes the `AccessPass` type only
-/// after verifying the holder's signed acceptance; the owner and discriminator checks below are
-/// therefore what makes the pass's contents trustworthy.
-pub fn verify_access(
-    policy_document: &Pubkey,
-    document: &AccountInfo,
+/// after verifying the holder's signature over the exact document text; together with the owner,
+/// type and canonical-address checks below, that is what makes the pass trustworthy.
+pub fn require_current(
     access_pass: &AccountInfo,
-    holder: &AccountInfo,
-    requirement: Requirement,
+    policy: &AccountInfo,
+    user: &AccountInfo,
 ) -> Result<GrantedAccess, ProgramError> {
-    if document.key != policy_document {
-        return Err(GateError::PolicyMismatch.into());
+    // The policy: a Stele GatePolicy at its canonical address.
+    let p = policy.try_borrow_data()?;
+    if *policy.owner != STELE_PROGRAM_ID || p.len() < POLICY_LEN || p[..8] != POLICY_DISCRIMINATOR {
+        return Err(GateError::InvalidPolicy.into());
     }
-    if !holder.is_signer {
-        return Err(GateError::HolderNotSigner.into());
+    let document = read_pubkey(&p, layout::POLICY_DOCUMENT);
+    if !is_canonical(
+        policy.key,
+        &[POLICY_SEED, document.as_ref()],
+        p[layout::POLICY_BUMP],
+    ) {
+        return Err(GateError::InvalidPolicy.into());
+    }
+    let organization = read_pubkey(&p, layout::POLICY_ORGANIZATION);
+    let required_version = read_u32(&p, layout::POLICY_REQUIRED_VERSION);
+    let required_hash = read_32(&p, layout::POLICY_REQUIRED_HASH);
+
+    // The user: must have signed this transaction.
+    if !user.is_signer {
+        return Err(GateError::UserNotSigner.into());
     }
 
-    let doc = document.try_borrow_data()?;
-    if *document.owner != STELE_PROGRAM_ID
-        || doc.len() < layout::DOCUMENT_MIN_LEN
-        || doc[..8] != DOCUMENT_DISCRIMINATOR
-    {
-        return Err(GateError::InvalidDocument.into());
-    }
-
+    // The pass: a Stele AccessPass at [access-pass, document, user].
     let pass = access_pass.try_borrow_data()?;
-    if pass.is_empty() && access_pass.lamports() == 0 {
-        return Err(GateError::AccessPassMissing.into());
-    }
     if *access_pass.owner != STELE_PROGRAM_ID {
         // An uninitialized pass address (pre-funded or not) is owned by the system program.
-        let (expected, _) = access_pass_address(document.key, holder.key);
+        let (expected, _) = access_pass_address(&document, user.key);
         return Err(if *access_pass.key == expected {
             GateError::AccessPassMissing
         } else {
@@ -188,112 +204,45 @@ pub fn verify_access(
     if pass.len() < ACCESS_PASS_LEN || pass[..8] != ACCESS_PASS_DISCRIMINATOR {
         return Err(GateError::AccessPassInvalid.into());
     }
-    if read_pubkey(&pass, layout::PASS_DOCUMENT) != *document.key
-        || read_pubkey(&pass, layout::PASS_HOLDER) != *holder.key
+    if read_pubkey(&pass, layout::PASS_HOLDER) != *user.key
+        || read_pubkey(&pass, layout::PASS_DOCUMENT) != document
+        || read_pubkey(&pass, layout::PASS_ORGANIZATION) != organization
     {
         return Err(GateError::AccessPassMismatch.into());
     }
-
-    let version = read_pubkey(&pass, layout::PASS_VERSION);
-    let version_number = read_u32(&pass, layout::PASS_VERSION_NUMBER);
-    match requirement {
-        Requirement::CurrentVersion => {
-            if version != read_pubkey(&doc, layout::DOCUMENT_CURRENT_VERSION) {
-                return Err(GateError::AccessPassOutdated.into());
-            }
-        }
-        Requirement::AtLeast(n) => {
-            if n == 0 || n > read_u32(&doc, layout::DOCUMENT_VERSION_COUNT) {
-                return Err(GateError::InvalidRequirement.into());
-            }
-            if version_number < n {
-                return Err(GateError::AccessPassOutdated.into());
-            }
-        }
-    }
-    Ok(GrantedAccess {
-        version,
-        version_number,
-    })
-}
-
-/// When the holder last accepted (Unix seconds), read from a pass already checked by
-/// [`verify_access`].
-pub fn accepted_at(access_pass: &AccountInfo) -> Result<i64, ProgramError> {
-    let pass = access_pass.try_borrow_data()?;
-    if pass.len() < ACCESS_PASS_LEN || pass[..8] != ACCESS_PASS_DISCRIMINATOR {
+    if !is_canonical(
+        access_pass.key,
+        &[ACCESS_PASS_SEED, document.as_ref(), user.key.as_ref()],
+        pass[layout::PASS_BUMP],
+    ) {
         return Err(GateError::AccessPassInvalid.into());
     }
-    let mut b = [0u8; 8];
-    b.copy_from_slice(&pass[layout::PASS_ACCEPTED_AT..layout::PASS_ACCEPTED_AT + 8]);
-    Ok(i64::from_le_bytes(b))
-}
 
-/// Stele's `check_access` instruction for a CPI.
-pub fn check_access_instruction(
-    document: &Pubkey,
-    access_pass: &Pubkey,
-    holder: &Pubkey,
-    requirement: Requirement,
-) -> Instruction {
-    let mut data = Vec::with_capacity(12);
-    data.extend_from_slice(&CHECK_ACCESS_DISCRIMINATOR);
-    data.extend_from_slice(&requirement.min_version().to_le_bytes());
-    Instruction {
-        program_id: STELE_PROGRAM_ID,
-        accounts: vec![
-            AccountMeta::new_readonly(*document, false),
-            AccountMeta::new_readonly(*access_pass, false),
-            AccountMeta::new_readonly(*holder, true),
-        ],
-        data,
+    // The requirement.
+    let version_number = read_u32(&pass, layout::PASS_VERSION_NUMBER);
+    let version_hash = read_32(&pass, layout::PASS_VERSION_HASH);
+    if version_number < required_version {
+        return Err(GateError::AccessPassOutdated.into());
     }
-}
-
-/// Strict mode: the Stele program evaluates the requirement through a CPI. Fails with Stele's own
-/// error (`AccessPassMissing`, `AccessPassOutdated`, …) when the requirement is not met.
-pub fn require_access_cpi<'info>(
-    stele_program: &AccountInfo<'info>,
-    policy_document: &Pubkey,
-    document: &AccountInfo<'info>,
-    access_pass: &AccountInfo<'info>,
-    holder: &AccountInfo<'info>,
-    requirement: Requirement,
-) -> Result<GrantedAccess, ProgramError> {
-    if *stele_program.key != STELE_PROGRAM_ID {
-        return Err(GateError::InvalidSteleProgram.into());
+    if version_number == required_version && version_hash != required_hash {
+        return Err(GateError::FingerprintMismatch.into());
     }
-    if document.key != policy_document {
-        return Err(GateError::PolicyMismatch.into());
-    }
-    if !holder.is_signer {
-        return Err(GateError::HolderNotSigner.into());
-    }
-    let ix = check_access_instruction(document.key, access_pass.key, holder.key, requirement);
-    invoke(
-        &ix,
-        &[
-            document.clone(),
-            access_pass.clone(),
-            holder.clone(),
-            stele_program.clone(),
-        ],
-    )?;
-    match get_return_data() {
-        Some((program, data)) if program == STELE_PROGRAM_ID && data.len() == 36 => {
-            Ok(GrantedAccess {
-                version: read_pubkey(&data, 0),
-                version_number: read_u32(&data, 32),
-            })
-        }
-        _ => Err(GateError::InvalidSteleProgram.into()),
-    }
+    Ok(GrantedAccess {
+        organization,
+        document,
+        version: read_pubkey(&pass, layout::PASS_VERSION),
+        version_number,
+        version_hash,
+        required_version,
+        acceptance_id: read_32(&pass, layout::PASS_ACCEPTANCE_ID),
+        accepted_at: read_i64(&pass, layout::PASS_ACCEPTED_AT),
+    })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use anchor_lang::{Discriminator, Space};
+    use anchor_lang::{AccountSerialize, Discriminator, Space};
 
     #[test]
     fn constants_match_the_stele_program() {
@@ -303,27 +252,29 @@ mod tests {
             stele::state::AccessPass::DISCRIMINATOR
         );
         assert_eq!(
+            POLICY_DISCRIMINATOR,
+            stele::state::GatePolicy::DISCRIMINATOR
+        );
+        assert_eq!(
             DOCUMENT_DISCRIMINATOR,
             stele::state::Document::DISCRIMINATOR
         );
-        assert_eq!(
-            CHECK_ACCESS_DISCRIMINATOR,
-            <stele::instruction::CheckAccess as Discriminator>::DISCRIMINATOR
-        );
         assert_eq!(ACCESS_PASS_LEN, 8 + stele::state::AccessPass::INIT_SPACE);
+        assert_eq!(POLICY_LEN, 8 + stele::state::GatePolicy::INIT_SPACE);
         assert_eq!(ACCESS_PASS_SEED, stele::constants::ACCESS_PASS_SEED);
+        assert_eq!(POLICY_SEED, stele::constants::POLICY_SEED);
     }
 
     #[test]
     fn layout_offsets_match_the_serialized_accounts() {
         use anchor_lang::prelude::Pubkey as P;
-        use anchor_lang::AccountSerialize;
         let pass = stele::state::AccessPass {
             organization: P::new_from_array([1; 32]),
             document: P::new_from_array([2; 32]),
             holder: P::new_from_array([3; 32]),
             version: P::new_from_array([4; 32]),
-            acceptance_id: [5; 32],
+            version_hash: [5; 32],
+            acceptance_id: [6; 32],
             accepted_at: 0x0102_0304_0506_0708,
             first_accepted_at: 9,
             accepted_slot: 10,
@@ -334,55 +285,70 @@ mod tests {
         let mut data = Vec::new();
         pass.try_serialize(&mut data).unwrap();
         assert_eq!(data.len(), ACCESS_PASS_LEN);
+        assert_eq!(
+            read_pubkey(&data, layout::PASS_ORGANIZATION),
+            pass.organization
+        );
         assert_eq!(read_pubkey(&data, layout::PASS_DOCUMENT), pass.document);
         assert_eq!(read_pubkey(&data, layout::PASS_HOLDER), pass.holder);
         assert_eq!(read_pubkey(&data, layout::PASS_VERSION), pass.version);
+        assert_eq!(read_32(&data, layout::PASS_VERSION_HASH), pass.version_hash);
+        assert_eq!(
+            read_32(&data, layout::PASS_ACCEPTANCE_ID),
+            pass.acceptance_id
+        );
+        assert_eq!(read_i64(&data, layout::PASS_ACCEPTED_AT), pass.accepted_at);
         assert_eq!(
             read_u32(&data, layout::PASS_VERSION_NUMBER),
             pass.version_number
         );
-        let mut at = [0u8; 8];
-        at.copy_from_slice(&data[layout::PASS_ACCEPTED_AT..layout::PASS_ACCEPTED_AT + 8]);
-        assert_eq!(i64::from_le_bytes(at), pass.accepted_at);
+        assert_eq!(data[layout::PASS_BUMP], pass.bump);
 
-        let doc = stele::state::Document {
+        let policy = stele::state::GatePolicy {
             organization: P::new_from_array([1; 32]),
-            created_by: P::new_from_array([2; 32]),
-            head_hash: [3; 32],
-            current_version: P::new_from_array([4; 32]),
+            document: P::new_from_array([2; 32]),
+            required_version_hash: [3; 32],
+            updated_by: P::new_from_array([4; 32]),
             created_at: 5,
-            last_published_at: 6,
-            version_count: 0x0102_0304,
-            bump: 7,
-            slug: "terms".into(),
-            document_type: "terms-of-service".into(),
-            locale: "en-US".into(),
+            updated_at: 6,
+            required_version: 0x0102_0304,
+            bump: 253,
         };
         let mut data = Vec::new();
-        doc.try_serialize(&mut data).unwrap();
+        policy.try_serialize(&mut data).unwrap();
+        assert_eq!(data.len(), POLICY_LEN);
         assert_eq!(
-            read_pubkey(&data, layout::DOCUMENT_CURRENT_VERSION),
-            doc.current_version
+            read_pubkey(&data, layout::POLICY_ORGANIZATION),
+            policy.organization
+        );
+        assert_eq!(read_pubkey(&data, layout::POLICY_DOCUMENT), policy.document);
+        assert_eq!(
+            read_32(&data, layout::POLICY_REQUIRED_HASH),
+            policy.required_version_hash
         );
         assert_eq!(
-            read_u32(&data, layout::DOCUMENT_VERSION_COUNT),
-            doc.version_count
+            read_u32(&data, layout::POLICY_REQUIRED_VERSION),
+            policy.required_version
         );
+        assert_eq!(data[layout::POLICY_BUMP], policy.bump);
     }
 
     #[test]
-    fn requirement_arguments() {
-        assert_eq!(Requirement::CurrentVersion.min_version(), 0);
-        assert_eq!(Requirement::AtLeast(4).min_version(), 4);
-        let ix = check_access_instruction(
-            &Pubkey::new_from_array([1; 32]),
-            &Pubkey::new_from_array([2; 32]),
-            &Pubkey::new_from_array([3; 32]),
-            Requirement::AtLeast(4),
-        );
-        assert_eq!(ix.program_id, STELE_PROGRAM_ID);
-        assert_eq!(&ix.data[..8], &CHECK_ACCESS_DISCRIMINATOR);
-        assert_eq!(&ix.data[8..], &4u32.to_le_bytes());
-        assert!(ix.accounts[2].is_signer && !ix.accounts[2].is_writable);
+    fn addresses_are_the_programs() {
+        let doc = Pubkey::new_from_array([7; 32]);
+        let holder = Pubkey::new_from_array([8; 32]);
+        let (pass, bump) = access_pass_address(&doc, &holder);
+        assert!(is_canonical(
+            &pass,
+            &[ACCESS_PASS_SEED, doc.as_ref(), holder.as_ref()],
+            bump
+        ));
+        assert!(!is_canonical(
+            &pass,
+            &[ACCESS_PASS_SEED, holder.as_ref(), doc.as_ref()],
+            bump
+        ));
+        let (policy, bump) = policy_address(&doc);
+        assert!(is_canonical(&policy, &[POLICY_SEED, doc.as_ref()], bump));
     }
 }

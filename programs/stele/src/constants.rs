@@ -31,3 +31,6 @@ pub const SECP256R1_SELF_INDEX: u16 = u16::MAX;
 
 /// Seed of a Stele Gate access pass: `[ACCESS_PASS_SEED, document, holder]`.
 pub const ACCESS_PASS_SEED: &[u8] = b"access-pass";
+
+/// Seed of a Stele Gate policy: `[POLICY_SEED, document]` (one policy per document).
+pub const POLICY_SEED: &[u8] = b"policy";

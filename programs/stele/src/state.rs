@@ -256,12 +256,12 @@ pub struct PasskeySigner {
     pub bump: u8,
 }
 
-/// Stele Gate: the latest acceptance of one policy document by one wallet (PROTOCOL_SPEC.md §18).
+/// Stele Gate: the latest acceptance of one document by one wallet (PROTOCOL_SPEC.md §18).
 /// Only `record_gated_acceptance` writes it, after verifying the holder's signature over the
 /// document's then-current version, so its contents are as trustworthy as the acceptance itself.
-/// A pass satisfies a "current version" requirement only while `version` is still the document's
-/// `current_version`: publishing a new version makes every older pass outdated without touching it.
-/// The acceptance evidence for older versions stays in the ledger. Never closed.
+/// Whether a pass satisfies a requirement is decided against a [`GatePolicy`]: when the
+/// organization requires a newer version, every older pass stops satisfying it without being
+/// touched. The acceptance evidence for older versions stays in the ledger. Never closed.
 #[account]
 #[derive(InitSpace)]
 pub struct AccessPass {
@@ -271,11 +271,32 @@ pub struct AccessPass {
     pub holder: Pubkey,
     /// The `DocumentVersion` most recently accepted.
     pub version: Pubkey,
+    /// That version's fingerprint (`DocumentVersion.version_hash`).
+    pub version_hash: [u8; 32],
     pub acceptance_id: [u8; 32],
     pub accepted_at: i64,
     pub first_accepted_at: i64,
     pub accepted_slot: u64,
     pub version_number: u32,
     pub acceptance_count: u32,
+    pub bump: u8,
+}
+
+/// Stele Gate: what a protected action requires — an accepted version of one document, at least
+/// `required_version` (PROTOCOL_SPEC.md §18.2). The organization sets and raises it (owner, admin
+/// or publisher); publishing a new version does not change it until the organization requires it,
+/// so a typo fix need not lock everyone out. Protected programs pin the policy's address.
+#[account]
+#[derive(InitSpace)]
+pub struct GatePolicy {
+    pub organization: Pubkey,
+    pub document: Pubkey,
+    /// Fingerprint of the required version (`DocumentVersion.version_hash`).
+    pub required_version_hash: [u8; 32],
+    pub updated_by: Pubkey,
+    pub created_at: i64,
+    pub updated_at: i64,
+    /// The lowest version number that satisfies the policy.
+    pub required_version: u32,
     pub bump: u8,
 }

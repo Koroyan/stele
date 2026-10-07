@@ -284,7 +284,11 @@ pub mod stele {
         )
     }
 
-    pub fn check_access(ctx: Context<CheckAccess>, args: CheckAccessArgs) -> Result<()> {
-        instructions::gate::check_access(ctx, args)
+    pub fn create_policy(ctx: Context<CreatePolicy>) -> Result<()> {
+        instructions::gate::create_policy(ctx)
+    }
+
+    pub fn set_policy_requirement(ctx: Context<SetPolicyRequirement>) -> Result<()> {
+        instructions::gate::set_policy_requirement(ctx)
     }
 }
