@@ -1,9 +1,9 @@
 /**
- * @stele/sdk — verified agreement acceptance.
+ * @stelehq/sdk — verified agreement acceptance.
  *
  * ```ts
- * import { SteleClient, loadVerifiedDocument, acceptDocument } from "@stele/sdk";
- * const client = new SteleClient({ apiBaseUrl: "https://api.stele.example" });
+ * import { SteleClient, loadVerifiedDocument, acceptDocument } from "@stelehq/sdk";
+ * const client = new SteleClient({ apiBaseUrl: "https://stele.site/api" });
  * const doc = await loadVerifiedDocument({ client, organization: "acme.example", document: "terms-of-service" });
  * const result = await acceptDocument({ client, verified: doc, signer, requestDomain: location.hostname });
  * ```
@@ -29,4 +29,4 @@ export {
   shortFingerprint,
   type Block,
   type Content,
-} from "@stele/protocol";
+} from "@stelehq/protocol";

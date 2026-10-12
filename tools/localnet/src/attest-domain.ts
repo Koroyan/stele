@@ -22,7 +22,7 @@ import {
   getClusterUnixTimestamp,
   signSendAndConfirm,
   validateVerifiedDomain,
-} from "@stele/protocol";
+} from "@stelehq/protocol";
 import {
   appendTransactionMessageInstructions,
   createTransactionMessage,

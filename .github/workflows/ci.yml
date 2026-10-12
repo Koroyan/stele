@@ -120,7 +120,7 @@ jobs:
       - name: API, verifier and SDK tests against the validator
         run: |
           pnpm --filter @stele/api test
-          pnpm --filter @stele/verifier test
+          pnpm --filter @stelehq/verifier test
           pnpm test:integration
       # Against the production artifacts: the API bundle and the standalone Next.js server.
       - name: Browser end-to-end tests

@@ -15,9 +15,9 @@ The normative byte-level rules live in the [protocol specification](../PROTOCOL_
 | `stele` program | `programs/stele` | Enforces every invariant: authority, immutability, fingerprints, signature verification, replay protection | — |
 | Shared Rust core | `crates/stele-core` | Validation, fingerprint JSON, acceptance message, RFC 3339, accumulator. Compiled into the program | — |
 | Off-chain canonicalizer (Rust) | `crates/stele-canonical` | Reference canonicalization, cross-checked against TypeScript with shared vectors | — |
-| `@stele/protocol` | `packages/protocol` | TypeScript mirror: canonicalization, hashing, messages, PDAs, account/instruction codecs | — |
-| `@stele/verifier` | `packages/verifier` | Independent verifier library and `stele-verify` CLI | — |
-| `@stele/sdk` | `packages/sdk` | REST client, verified document loading, acceptance flow, React component, server helpers | — |
+| `@stelehq/protocol` | `packages/protocol` | TypeScript mirror: canonicalization, hashing, messages, PDAs, account/instruction codecs | — |
+| `@stelehq/verifier` | `packages/verifier` | Independent verifier library and `stele-verify` CLI | — |
+| `@stelehq/sdk` | `packages/sdk` | REST client, verified document loading, acceptance flow, React component, server helpers | — |
 | API | `apps/api` (`main.ts`) | REST API, acceptance relayer, DNS attestor, webhooks, audit log | Relayer and attestor hot keys |
 | Workers | `apps/api` (`worker-main.ts`, or in-process) | Webhook delivery, finality tracking, challenge expiry, domain renewal | Attestor (renewal) |
 | Indexer | `apps/api` (`indexer-main.ts`, or in-process) | Mirrors program state and acceptances from the chain; can rebuild the database | — |

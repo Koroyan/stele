@@ -9,8 +9,8 @@
  *
  * ```tsx
  * <TermsAcceptance
- *   apiBaseUrl="https://stele.example/api"
- *   appUrl="https://stele.example"
+ *   apiBaseUrl="https://stele.site/api"
+ *   appUrl="https://stele.site"
  *   organization="acme.com"
  *   document="terms-of-service"
  *   onAccepted={(r) => console.log(r.acceptanceId)}
@@ -22,9 +22,9 @@ import type { AcceptanceResult, MessageSigner } from "./accept";
 import { mount, type EmbedOptions } from "./embed";
 
 export interface TermsAcceptanceProps {
-  /** Stele API base URL, e.g. `https://stele.example/api`. */
+  /** Stele API base URL, e.g. `https://stele.site/api`. */
   apiBaseUrl: string;
-  /** Where receipts open, e.g. `https://stele.example`. */
+  /** Where receipts open, e.g. `https://stele.site`. */
   appUrl?: string;
   organization: string;
   document: string;

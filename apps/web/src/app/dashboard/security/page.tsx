@@ -15,7 +15,7 @@ import {
   proposeOwnerInstruction,
   proposeRecoveryInstruction,
   type OrganizationAccount,
-} from "@stele/protocol";
+} from "@stelehq/protocol";
 import { Alert, Badge, Button, Field, Fingerprint, Input, KeyValue } from "@stele/ui";
 import {
   PageHeader,

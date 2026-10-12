@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { buildAcceptanceMessage, sha256, toBase58, utf8 } from "@stele/protocol";
+import { buildAcceptanceMessage, sha256, toBase58, utf8 } from "@stelehq/protocol";
 import {
   ArrowRightIcon,
   CodeIcon,

@@ -10,8 +10,8 @@
     "lint": "eslint src"
   },
   "dependencies": {
-    "@stele/sdk": "workspace:*",
-    "@stele/verifier": "workspace:*"
+    "@stelehq/sdk": "workspace:*",
+    "@stelehq/verifier": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^24.10.1",

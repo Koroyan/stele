@@ -35,6 +35,7 @@ COPY --from=prod-deps /repo/apps/api/node_modules ./apps/api/node_modules
 COPY --from=build /repo/apps/api/dist ./apps/api/dist
 COPY --from=build /repo/apps/api/package.json ./apps/api/package.json
 WORKDIR /app/apps/api
+RUN mkdir -p /data/storage && chown node:node /data/storage
 USER node
 EXPOSE 4000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \

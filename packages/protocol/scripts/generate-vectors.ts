@@ -6,7 +6,7 @@
  * against regressions (`packages/protocol/test/vectors.test.ts`). Anchor values (SHA-256 of "abc",
  * calendar dates) are additionally hard-coded in both test suites.
  *
- * Run: pnpm --filter @stele/protocol vectors
+ * Run: pnpm --filter @stelehq/protocol vectors
  */
 import { writeFileSync, mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";

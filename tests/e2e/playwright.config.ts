@@ -11,8 +11,7 @@ import { defineConfig, devices } from "@playwright/test";
 const CI = Boolean(process.env.CI);
 const PRODUCTION = CI || process.env.E2E_PRODUCTION === "1";
 const BASE_URL = process.env.BASE_URL ?? "http://localhost:3000";
-const NETWORKS =
-  "localnet=http://localhost:3000,devnet=https://devnet.app.stele.example,testnet=,mainnet=https://app.stele.example";
+const NETWORKS = "devnet=https://devnet.app.stele.example,mainnet=https://app.stele.example";
 
 export default defineConfig({
   testDir: "tests",

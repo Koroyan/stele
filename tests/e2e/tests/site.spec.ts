@@ -8,9 +8,9 @@ const PAGES: { path: string; heading: string | RegExp }[] = [
   { path: "/how-it-works", heading: "Prove what was agreed. Enforce what must be agreed." },
   { path: "/demo", heading: "Try Stele with real transactions." },
   { path: "/security", heading: /Evidence you can check/ },
-  { path: "/developers", heading: /Verifiable acceptance/ },
+  { path: "/developers", heading: "Build with Stele." },
   { path: "/pricing", heading: /Pay for evidence/ },
-  { path: "/docs", heading: "Stele documentation" },
+  { path: "/docs", heading: "Where do you want to start?" },
   { path: "/docs/spec", heading: /Protocol/ },
   { path: "/docs/get-started", heading: "Get started" },
   { path: "/docs/api", heading: "SDK & API" },
@@ -103,11 +103,31 @@ test.describe("public site", () => {
       "true",
     );
     await page.goto("/developers");
-    await expect(page.getByRole("tab", { name: "Python", exact: true })).toHaveAttribute(
-      "aria-selected",
-      "true",
-    );
     await expect(page.getByText(`${origin}/api/v1`).first()).toBeVisible();
+  });
+
+  test("the developers section: install, references and a live API request", async ({ page }) => {
+    await page.goto("/developers");
+    await expect(page.getByText("npm install @stelehq/sdk")).toBeVisible();
+    await expect(page.getByText("cargo add stele-gate")).toBeVisible();
+    const tabs = page.getByRole("navigation", { name: "Developers" });
+
+    await tabs.getByRole("link", { name: "SDK", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "SDK reference" })).toBeVisible();
+    await expect(page.getByText("createSteleGate(options)").first()).toBeVisible();
+
+    await tabs.getByRole("link", { name: "On-chain", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "On-chain reference" })).toBeVisible();
+    await expect(page.getByText("AccessPassMissing").first()).toBeVisible();
+
+    // The explorer is built from the API's OpenAPI document and sends real requests.
+    await tabs.getByRole("link", { name: "API", exact: true }).click();
+    const endpoints = page.getByRole("navigation", { name: "API endpoints" });
+    await endpoints.getByRole("button", { name: /network, program and keys/ }).click();
+    await expect(page.getByText("Public", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Send request" }).click();
+    await expect(page.locator("pre").filter({ hasText: '"programId"' })).toBeVisible();
+    await expect(page.getByText("200", { exact: true })).toBeVisible();
   });
 
   // Operator documentation stays in the repository: it is neither routed nor linked publicly.

@@ -24,7 +24,7 @@ import {
   findConfigPda,
   findNonceShardPda,
   findOrganizationPda,
-} from "@stele/protocol";
+} from "@stelehq/protocol";
 import { PROGRAM, RPC_URL, airdrop, send } from "./chain.js";
 import { DATA_DIR, REPO_ROOT, keypairPath, signer } from "./keys.js";
 

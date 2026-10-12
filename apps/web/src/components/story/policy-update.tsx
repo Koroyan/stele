@@ -46,7 +46,7 @@ export function PolicyUpdate() {
   const passState = s >= 5 ? "valid" : s >= 2 ? "outdated" : "valid";
   return (
     <StoryFrame seq={seq} title="When the policy changes" captions={CAPTIONS}>
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 @min-[720px]:grid-cols-3">
         <div className="space-y-3">
           <p className="text-[11.5px] font-semibold uppercase tracking-[0.08em] text-fg-subtle">
             Published versions

@@ -11,7 +11,7 @@ import {
   manageMemberInstruction,
   ROLE_ADMIN,
   ROLE_PUBLISHER,
-} from "@stele/protocol";
+} from "@stelehq/protocol";
 import { Alert, Badge, Button, Dialog, Field, Fingerprint, Input } from "@stele/ui";
 import { rolesLabel } from "@/components/dashboard/labels";
 import {

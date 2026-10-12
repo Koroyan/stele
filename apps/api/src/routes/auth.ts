@@ -5,7 +5,7 @@
 import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod";
 import { z } from "zod";
 import { and, authChallenges, eq, isNull, sessions, users } from "@stele/db";
-import { fromBase64, fromBase58 } from "@stele/protocol";
+import { fromBase64, fromBase58 } from "@stelehq/protocol";
 import type { Deps } from "../deps.js";
 import { badRequest, unauthorized } from "../errors.js";
 import { appendAudit } from "../lib/audit.js";

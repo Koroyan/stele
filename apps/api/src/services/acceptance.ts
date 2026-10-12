@@ -53,7 +53,7 @@ import {
   utf8,
   validateRequestDomain,
   verifyEd25519,
-} from "@stele/protocol";
+} from "@stelehq/protocol";
 import {
   acceptanceChallenges,
   acceptanceSessions,
@@ -308,6 +308,50 @@ export async function issueChallenge(
 
   // Fees: decided before anyone signs (refused early when nobody can pay).
   const plan = await planSponsorship(deps, org);
+  // One acceptance per signer and version (and per linked user): signing the same text again
+  // proves nothing new and would only spend fees. Refused before anyone signs; the earlier
+  // acceptance is returned so the caller can reuse its receipt.
+  const externalRef = sessionRow?.externalUserRef ?? null;
+  const [previous] = await deps.db
+    .select({ acceptanceId: acceptances.acceptanceId })
+    .from(acceptances)
+    .where(
+      and(
+        eq(acceptances.documentId, doc.id),
+        eq(acceptances.versionAddress, doc.currentVersionAddress),
+        eq(acceptances.signerAddress, input.signer),
+        externalRef === null
+          ? isNull(acceptances.externalUserRef)
+          : eq(acceptances.externalUserRef, externalRef),
+      ),
+    )
+    .limit(1);
+  const [inFlight] = previous
+    ? []
+    : await deps.db
+        .select({ acceptanceId: acceptanceChallenges.acceptanceId })
+        .from(acceptanceChallenges)
+        .where(
+          and(
+            eq(acceptanceChallenges.documentId, doc.id),
+            eq(acceptanceChallenges.versionAddress, doc.currentVersionAddress),
+            eq(acceptanceChallenges.signerAddress, input.signer),
+            sql`${acceptanceChallenges.status} in ('submitted', 'confirmed', 'finalized')`,
+            externalRef === null
+              ? isNull(acceptanceChallenges.externalUserRef)
+              : eq(acceptanceChallenges.externalUserRef, externalRef),
+          ),
+        )
+        .limit(1);
+  if (previous || inFlight) {
+    throw new ApiError(
+      409,
+      "already_accepted",
+      "This account has already accepted this exact version",
+      { acceptanceId: previous?.acceptanceId ?? inFlight?.acceptanceId ?? null },
+    );
+  }
+
   const nonce = await allocateFreeNonce(deps, org.id, plan.preferredShards);
   const now = await deps.chain.clusterTime();
   const issuedAt = now;

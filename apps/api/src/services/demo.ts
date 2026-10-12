@@ -48,8 +48,8 @@ import {
   setPolicyRequirementInstruction,
   toHex,
   verifyEd25519,
-} from "@stele/protocol";
-import { decodeWireTransaction } from "@stele/verifier";
+} from "@stelehq/protocol";
+import { decodeWireTransaction } from "@stelehq/verifier";
 import {
   and,
   contentObjects,
@@ -127,7 +127,7 @@ This is a Stele Gate demo on a Solana test network. No real assets or funds are 
         source: `# Terms of Service
 
 ## Returns
-You can return any item within **30 days** of delivery for a full refund.
+You can return any item within 30 days of delivery for a full refund.
 
 ## Payment
 Prices include VAT. We charge your card when your order ships.
@@ -139,7 +139,7 @@ This is a Stele Proof demo on a Solana test network.`,
         source: `# Terms of Service
 
 ## Returns
-You can return any item within **7 days** of delivery for a full refund.
+You can return any item within 7 days of delivery for a full refund.
 
 ## Payment
 Prices include VAT. We charge your card when your order ships.
@@ -182,6 +182,14 @@ async function demoOrganization(deps: Deps) {
     .from(organizations)
     .where(eq(organizations.address, deps.config.STELE_DEMO_ORGANIZATION!));
   if (!org) throw new ApiError(503, "demo_unavailable", "The demo organization is not indexed yet");
+  // The demo shows both ways to sign: a wallet, or a passkey (no wallet at all).
+  if (org.settings?.signingPolicy !== "WALLET_OR_PASSKEY") {
+    org.settings = { ...org.settings, signingPolicy: "WALLET_OR_PASSKEY" };
+    await deps.db
+      .update(organizations)
+      .set({ settings: org.settings })
+      .where(eq(organizations.id, org.id));
+  }
   return org;
 }
 
@@ -304,7 +312,7 @@ export async function createDemoSession(deps: Deps, i: { kind: Kind; ipHash: str
   if ((await sessionsToday(deps)) >= deps.config.STELE_DEMO_DAILY_SESSIONS)
     throw new ApiError(429, "demo_budget_exhausted", "Today's live-demo budget is used up");
   if ((await sessionsToday(deps, i.ipHash)) >= deps.config.STELE_DEMO_SESSIONS_PER_IP)
-    throw new ApiError(429, "demo_rate_limited", "Too many demo sessions from this network today");
+    throw new ApiError(429, "demo_rate_limited", "Demo limit reached for your network today. Try again tomorrow — or open any receipt from an earlier run on the Verify page");
 
   const org = await demoOrganization(deps);
   const signer = await owner(deps);

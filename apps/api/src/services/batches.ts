@@ -26,8 +26,8 @@ import {
   utf8,
   type BatchManifest,
   type BatchedEvidence,
-} from "@stele/protocol";
-import { decodeWireTransaction } from "@stele/verifier";
+} from "@stelehq/protocol";
+import { decodeWireTransaction } from "@stelehq/verifier";
 import {
   acceptanceBatches,
   acceptanceChallenges,

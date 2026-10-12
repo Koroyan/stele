@@ -20,7 +20,7 @@ import {
   findConfigPda,
   findDomainRecordPda,
   renewDomainInstruction,
-} from "@stele/protocol";
+} from "@stelehq/protocol";
 import type { Deps } from "./deps.js";
 import { appendAudit } from "./lib/audit.js";
 import { checkDomainControl } from "./lib/dns.js";

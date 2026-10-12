@@ -1,6 +1,6 @@
 /**
  * How the pieces fit, with the direction of data and execution. Illustrative: it names the real
- * components (programs/stele, crates/stele-gate, @stele/sdk) and claims nothing beyond them.
+ * components (programs/stele, crates/stele-gate, @stelehq/sdk) and claims nothing beyond them.
  */
 import type { ReactNode } from "react";
 import { cn } from "@stele/ui";
@@ -62,7 +62,7 @@ export function Architecture() {
       <div className="grid items-center gap-2 lg:grid-cols-[1fr_auto_1fr_auto_1fr_auto_1fr]">
         <Group
           title="Client"
-          where="@stele/sdk"
+          where="@stelehq/sdk"
           tone="client"
           items={[
             { name: "Stele SDK", detail: "gate(): read pass, modal, accept, continue" },

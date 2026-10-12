@@ -23,7 +23,7 @@ import {
   NONCE_SHARD_ACCOUNT_SIZE,
   PASSKEY_SIGNER_ACCOUNT_SIZE,
   SPONSORED_NONCE_SHARD_ACCOUNT_SIZE,
-} from "@stele/protocol";
+} from "@stelehq/protocol";
 import { PROGRAM, RPC_URL } from "./chain.js";
 
 async function rpc<T>(method: string, params: unknown[]): Promise<T> {

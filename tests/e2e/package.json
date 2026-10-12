@@ -11,7 +11,7 @@
   "devDependencies": {
     "@noble/curves": "^2.4.0",
     "@playwright/test": "^1.63.0",
-    "@stele/protocol": "workspace:*",
+    "@stelehq/protocol": "workspace:*",
     "@types/node": "^24.10.1",
     "tsx": "^4.20.0",
     "typescript": "~6.0.3"

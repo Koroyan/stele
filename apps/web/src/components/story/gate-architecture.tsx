@@ -48,7 +48,7 @@ export function GateArchitecture() {
   const state = (i: number): NodeState => (i === s ? "active" : i < s ? "done" : "idle");
   return (
     <StoryFrame seq={seq} title="Where Stele Gate sits" captions={CAPTIONS}>
-      <Flow>
+      <Flow nodes={NODES.length}>
         {NODES.map((n, i) => (
           <div key={n.label} className="contents">
             {i > 0 && <Connector state={i === s ? "active" : i < s ? "done" : "idle"} />}
@@ -61,7 +61,7 @@ export function GateArchitecture() {
           </div>
         ))}
       </Flow>
-      <div className="mt-5 grid gap-3 sm:grid-cols-2">
+      <div className="mt-5 grid gap-3 @min-[520px]:grid-cols-2">
         <div
           className={cn(
             "rounded-xl border p-4 transition-colors duration-500",

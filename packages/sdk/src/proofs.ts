@@ -20,7 +20,7 @@ import {
   utf8,
   verifyEd25519,
   type Statement,
-} from "@stele/protocol";
+} from "@stelehq/protocol";
 import { signForStele, type MessageSigner } from "./accept";
 import type { SigningPolicy, SteleClient } from "./client";
 import { IntegrityError } from "./verified-document";

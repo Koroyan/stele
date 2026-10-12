@@ -16,7 +16,7 @@ import {
   utf8Length,
   validateOrgName,
   validationError,
-} from "@stele/protocol";
+} from "@stelehq/protocol";
 import { Alert, Button, Card, Field, FileIcon, GateIcon, Input, cn } from "@stele/ui";
 import { api } from "@/lib/api";
 import { rpcFor } from "@/lib/chain";

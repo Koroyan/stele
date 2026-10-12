@@ -255,10 +255,15 @@ pub fn record_gated_acceptance(
         // Seeds bind the pass to (document, holder); these can only differ on a corrupted account.
         require_keys_eq!(pass.document, document, SteleError::AccessPassMismatch);
         require_keys_eq!(pass.holder, recorded.signer, SteleError::AccessPassMismatch);
-        // `record_signed_acceptance` only accepts the current version, so versions never go back.
+        // `record_signed_acceptance` only accepts the current version, so versions never go back;
+        // and a version the pass already names is not recorded twice (it would prove nothing new).
         require!(
             version_number >= pass.version_number,
             SteleError::AccessPassMismatch
+        );
+        require!(
+            version_number > pass.version_number,
+            SteleError::AccessPassAlreadyCurrent
         );
     }
     pass.version = version_key;

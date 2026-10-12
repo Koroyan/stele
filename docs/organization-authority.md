@@ -61,7 +61,7 @@ address:
 
    With the TypeScript SDK the same instruction is
    `organizationAuthorityInstruction({ name: "accept_ownership", authority: vault, organization })`
-   from `@stele/protocol`.
+   from `@stelehq/protocol`.
 3. After the multisig executes it, the dashboard shows the vault as owner. Until then, the old owner
    can cancel the proposal.
 

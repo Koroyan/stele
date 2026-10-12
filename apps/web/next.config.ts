@@ -21,7 +21,7 @@ const nextConfig: NextConfig = {
   turbopack: { root: REPO_ROOT },
   // The persistent dev cache can grow to hundreds of MB; STELE_NEXT_DEV_CACHE=false disables it.
   experimental: { turbopackFileSystemCacheForDev: process.env.STELE_NEXT_DEV_CACHE !== "false" },
-  transpilePackages: ["@stele/ui", "@stele/protocol", "@stele/sdk", "@stele/verifier"],
+  transpilePackages: ["@stele/ui", "@stelehq/protocol", "@stelehq/sdk", "@stelehq/verifier"],
   // The SDK's <script> build is loaded by integrators' sites: it must be embeddable cross-origin.
   async headers() {
     return [

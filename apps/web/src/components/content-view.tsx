@@ -9,7 +9,7 @@ import {
   describeFinding,
   inspectContent,
   type Content,
-} from "@stele/protocol";
+} from "@stelehq/protocol";
 import { cn } from "@stele/ui";
 
 function DisplayNotice({ content }: { content: Content }) {

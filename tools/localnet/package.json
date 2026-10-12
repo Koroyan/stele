@@ -17,12 +17,13 @@
     "publish-version": "tsx src/publish-version.ts",
     "live-demo": "tsx src/live-demo.ts",
     "gate-smoke": "tsx src/gate-smoke.ts",
-    "vault-deposit": "tsx src/vault-deposit.ts"
+    "vault-deposit": "tsx src/vault-deposit.ts",
+    "self-accept": "tsx src/self-accept.ts"
   },
   "dependencies": {
     "@noble/curves": "^2.4.0",
     "@solana/kit": "^8.4.0",
-    "@stele/protocol": "workspace:*"
+    "@stelehq/protocol": "workspace:*"
   },
   "devDependencies": {
     "tsx": "^4.20.0",

@@ -13,7 +13,7 @@
  * The login is a demo: pick any name. Run `pnpm localnet:demo` first, then `pnpm demo:shop`.
  */
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import { verifyWebhook } from "@stele/sdk/server";
+import { verifyWebhook } from "@stelehq/sdk/server";
 import { esc, html, page, raw, short, type Html } from "./html";
 import {
   APP_URL,
@@ -753,8 +753,8 @@ async function verifyPage(req: IncomingMessage, acceptanceId: string): Promise<s
     "Independent verification",
     html`<h1>Independent verification</h1>
       <p class="lead">
-        This server checked the acceptance itself with <code>@stele/verifier</code>, reading Solana
-        directly. It did not ask Stele whether the evidence is genuine.
+        This server checked the acceptance itself with <code>@stelehq/verifier</code>, reading
+        Solana directly. It did not ask Stele whether the evidence is genuine.
       </p>
       <p><span class="${badge}">${report.verdict}</span> ${report.summary}</p>
       <p style="font-size:13px">

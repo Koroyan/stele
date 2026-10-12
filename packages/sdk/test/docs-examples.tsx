@@ -6,7 +6,7 @@
  * a documentation change ships.)
  */
 import { writeFile } from "node:fs/promises";
-import { chainFromUrls, verifyAcceptance, verifyProof } from "@stele/verifier";
+import { chainFromUrls, verifyAcceptance, verifyProof } from "@stelehq/verifier";
 import {
   NativePasskeySigner,
   PasskeySigner,

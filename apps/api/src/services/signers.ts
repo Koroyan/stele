@@ -34,7 +34,7 @@ import {
   type PasskeyRegistrationResponse,
   type SignerEvidence,
   type WrappedKey,
-} from "@stele/protocol";
+} from "@stelehq/protocol";
 import {
   acceptanceSessions,
   and,

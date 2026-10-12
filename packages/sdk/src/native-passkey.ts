@@ -31,7 +31,7 @@ import {
   verifyP256,
   webauthnChallenge,
   type PasskeyAssertion,
-} from "@stele/protocol";
+} from "@stelehq/protocol";
 import type { NativeConfirmResult, SteleClient } from "./client";
 import { PasskeySigner } from "./passkey";
 

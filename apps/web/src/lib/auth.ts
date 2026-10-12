@@ -3,7 +3,7 @@
  * the API, names this site and network, and is single-use. Signing it authorizes a dashboard session
  * only — never a transaction or a payment.
  */
-import { fromBase58, toBase58, toBase64, utf8, verifyEd25519 } from "@stele/protocol";
+import { fromBase58, toBase58, toBase64, utf8, verifyEd25519 } from "@stelehq/protocol";
 import { api } from "./api";
 
 export interface SessionUser {

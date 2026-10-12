@@ -22,7 +22,13 @@ import {
   type Address,
   type KeyPairSigner,
 } from "@solana/kit";
-import { createRpc, depositInstruction, findAccessPassPda, toBase58, utf8 } from "@stele/protocol";
+import {
+  createRpc,
+  depositInstruction,
+  findAccessPassPda,
+  toBase58,
+  utf8,
+} from "@stelehq/protocol";
 
 const API = (process.env.STELE_API_URL ?? "http://localhost:4000").replace(/\/$/, "");
 const ORIGIN = process.env.STELE_ORIGIN ?? "http://localhost:3000";

@@ -36,7 +36,7 @@ Evidence must outlive any single server, so treat the content store as one of se
    through IPFS:
 
    ```shell
-   curl -s https://api.stele.example/v1/public/content/<content_hash> > version.json
+   curl -s https://stele.site/api/v1/public/content/<content_hash> > version.json
    sha256sum version.json                       # must print <content_hash>
    ipfs block put --cid-codec=raw --mhtype=sha2-256 version.json
    # prints the same bafkrei… CID as the version's storage URI

@@ -108,7 +108,7 @@ import {
   decodeAnchorAcceptanceBatchArgs,
   fromBase64Url,
   verifyMerkleProof,
-} from "@stele/protocol";
+} from "@stelehq/protocol";
 import { checkFees, checkSignerEvidence } from "./evidence";
 import { retrieveContent, type ContentOptions } from "./content";
 import { ReportBuilder, type VerificationReport, type VerifiedFacts } from "./report";

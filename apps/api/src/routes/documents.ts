@@ -39,8 +39,8 @@ import {
   toHex,
   validateTitle,
   validateVersionLabel,
-} from "@stele/protocol";
-import { decodeWireTransaction } from "@stele/verifier";
+} from "@stelehq/protocol";
+import { decodeWireTransaction } from "@stelehq/verifier";
 import type { Deps } from "../deps.js";
 import { badRequest, conflict, notFound } from "../errors.js";
 import { appendAudit } from "../lib/audit.js";

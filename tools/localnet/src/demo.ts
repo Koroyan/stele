@@ -43,7 +43,7 @@ import {
   NONCE_SHARD_ACCOUNT_SIZE,
   enableShardSponsorshipInstruction,
   systemTransferInstruction,
-} from "@stele/protocol";
+} from "@stelehq/protocol";
 import { PROGRAM, PUBLIC_NETWORKS, RPC_URL, airdrop, publishVersion, send } from "./chain.js";
 import { DATA_DIR, REPO_ROOT, ensureKeypair, signer } from "./keys.js";
 import { NORTHWIND_PRIVACY_V1, NORTHWIND_TERMS_V1 } from "./sample-content.js";

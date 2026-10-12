@@ -357,6 +357,25 @@ fn a_gated_acceptance_creates_the_holders_pass_and_the_user_pays_nothing() {
 }
 
 #[test]
+fn a_wallet_cannot_record_the_same_version_twice() {
+    let mut env = Env::new();
+    let fx = env.fixture();
+    let t = fx.target;
+    let user = env.funded();
+    let a = env.default_accept(40);
+    accept_gated(&mut env, &user, &t, &a).expect("first acceptance recorded");
+    env.advance(1);
+    let again = env.default_accept(41);
+    assert_stele_err(
+        &accept_gated(&mut env, &user, &t, &again),
+        SteleError::AccessPassAlreadyCurrent,
+    );
+    let p = pass(&env, &t.document, &user.pubkey());
+    assert_eq!((p.version_number, p.acceptance_count), (1, 1));
+    assert_eq!(env.shard(&t.shard).accepted_count, 1, "nothing recorded twice");
+}
+
+#[test]
 fn the_pass_belongs_to_the_signer_never_to_an_account_the_relayer_names() {
     let mut env = Env::new();
     let fx = env.fixture();

@@ -12,7 +12,7 @@
  */
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { groupedFingerprint } from "@stele/protocol";
+import { groupedFingerprint } from "@stelehq/protocol";
 import {
   IntegrityError,
   NativePasskeySigner,
@@ -30,7 +30,7 @@ import {
   type AcceptanceStatus,
   type MessageSigner,
   type VerifiedDocument,
-} from "@stele/sdk";
+} from "@stelehq/sdk";
 import {
   Alert,
   AlertIcon,
@@ -574,12 +574,12 @@ export function AcceptClient({
               {!result && (
                 <p className="mt-3 text-[12px] leading-relaxed text-fg-subtle">
                   Signing is free — you never pay a network fee — and records a public acceptance on{" "}
-                  {doc.config.networkLabel}. It contains no personal data. Stele never sees your
-                  private key
+                  {doc.config.networkLabel}. It contains no personal data.{" "}
                   {method === "passkey"
-                    ? " (it is encrypted under your passkey in this browser)"
-                    : ""}
-                  .
+                    ? passkey instanceof PasskeySigner
+                      ? "Stele never sees your private key (it is encrypted under your passkey in this browser)."
+                      : "Your passkey's key never leaves your device; Solana verifies its signature on-chain."
+                    : "Stele never sees your private key."}
                 </p>
               )}
             </div>

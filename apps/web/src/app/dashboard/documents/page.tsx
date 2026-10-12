@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { DOCUMENT_TYPE_LABELS, type DocumentType } from "@stele/protocol";
+import { DOCUMENT_TYPE_LABELS, type DocumentType } from "@stelehq/protocol";
 import { Badge, EmptyState, FileIcon, buttonClasses } from "@stele/ui";
 import { LoadingRows, PageHeader, Panel, Table, Td } from "@/components/dashboard/ui";
 import { useDashboard } from "@/lib/dashboard";

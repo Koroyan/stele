@@ -57,8 +57,8 @@ import {
   toBase58,
   toHex,
   verifyEd25519,
-} from "@stele/protocol";
-import { decodeWireTransaction } from "@stele/verifier";
+} from "@stelehq/protocol";
+import { decodeWireTransaction } from "@stelehq/verifier";
 import {
   accessPasses,
   acceptances,
@@ -78,6 +78,7 @@ import {
 } from "@stele/db";
 import { feeFacts, type FeeFacts } from "../services/sponsorship.js";
 import type { ChainService } from "./chain.js";
+import { appendAudit } from "./audit.js";
 import { enqueueWebhook } from "./webhooks.js";
 
 const seconds = (s: bigint) => new Date(Number(s) * 1000);
@@ -952,11 +953,26 @@ export async function syncPolicy(
     updatedBy: policy.updatedBy,
     updatedAt: new Date(),
   };
+  const [before] = await db
+    .select({ requiredVersion: gatePolicies.requiredVersion })
+    .from(gatePolicies)
+    .where(eq(gatePolicies.address, policyAddress));
   const [row] = await db
     .insert(gatePolicies)
     .values(values)
     .onConflictDoUpdate({ target: gatePolicies.address, set: values })
     .returning({ id: gatePolicies.id });
   await db.update(documents).set({ gated: true }).where(eq(documents.id, doc.id));
+  // Policies change on-chain, signed by the organization's wallet: the indexer records them here.
+  if (!before || before.requiredVersion !== policy.requiredVersion)
+    await appendAudit(db, {
+      organizationId: doc.organizationId,
+      actorType: "system",
+      actorId: policy.updatedBy,
+      action: before ? "gate.policy_requirement_changed" : "gate.policy_created",
+      targetType: "policy",
+      targetId: policyAddress,
+      metadata: { requiredVersion: policy.requiredVersion, document: policy.document },
+    });
   return { id: row!.id, documentId: doc.id, requiredVersion: policy.requiredVersion };
 }

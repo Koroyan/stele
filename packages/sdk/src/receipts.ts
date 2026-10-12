@@ -1,7 +1,7 @@
 /**
  * Receipt helpers for browsers: download a receipt file and build verification links. A receipt is
  * an unsigned convenience bundle; anyone can verify it against Solana (`/verify`, or the
- * `@stele/verifier` CLI) without trusting Stele.
+ * `@stelehq/verifier` CLI) without trusting Stele.
  */
 import type { SteleClient } from "./client";
 

@@ -15,7 +15,7 @@ import {
   verifiedDomainAt,
   verifyEd25519,
   type PasskeyAssertion,
-} from "@stele/protocol";
+} from "@stelehq/protocol";
 import type { FeeInfo, SignerType, SteleClient } from "./client";
 import { NativePasskeySigner } from "./native-passkey";
 import { IntegrityError, type VerifiedDocument } from "./verified-document";

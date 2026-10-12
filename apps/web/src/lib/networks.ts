@@ -6,22 +6,23 @@
  * across networks: each network's chain ID is committed into every fingerprint and acceptance. The
  * switcher links between deployments; it never points one deployment at another network's data.
  *
- *   STELE_NETWORKS=mainnet=https://app.stele.example,devnet=https://devnet.app.stele.example,testnet=
+ *   STELE_NETWORKS=mainnet=https://app.stele.example,devnet=https://devnet.app.stele.example
  *
- * Order is display order. An entry without a URL is listed as "not available". To stop offering a
- * network (for example testnet in production), remove its entry. The current network always comes
- * from the API this deployment talks to.
+ * Stele offers two networks: Devnet for testing and Mainnet for production. Order is display
+ * order; an entry without a URL is listed as "not available". Localnet is never offered: it exists
+ * only on a developer's machine (the API refuses it in production), where it is shown as the
+ * current network and nothing else. The current network always comes from the API this deployment
+ * talks to.
  */
 import { getNetworkInfo } from "./server";
 
-export const CLUSTERS = ["mainnet", "devnet", "testnet", "localnet"] as const;
+/** The networks a deployment can offer in the switcher. */
+export const CLUSTERS = ["mainnet", "devnet"] as const;
 export type Cluster = (typeof CLUSTERS)[number];
 
 const LABELS: Record<Cluster, string> = {
   mainnet: "Solana Mainnet",
   devnet: "Solana Devnet",
-  testnet: "Solana Testnet",
-  localnet: "Solana Localnet",
 };
 
 export interface NetworkChoice {

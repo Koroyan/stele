@@ -2,7 +2,7 @@
  * Minimal typed client for Stele's public REST API. Responses are treated as CLAIMS: the
  * acceptance flow re-verifies everything that matters against Solana before a user signs.
  */
-import type { PasskeyAssertion, Statement, WrappedKey } from "@stele/protocol";
+import type { PasskeyAssertion, Statement, WrappedKey } from "@stelehq/protocol";
 
 /**
  * "wallet" (self-custodied Ed25519), "passkey_p256" (native passkey, stele/2 — the passkey's own key
@@ -217,7 +217,7 @@ export class SteleApiError extends Error {
 }
 
 export interface SteleClientOptions {
-  /** Base URL of the Stele API, e.g. `https://api.stele.example` (no trailing slash). */
+  /** Base URL of the Stele API, e.g. `https://stele.site/api` (no trailing slash). */
   apiBaseUrl: string;
   fetch?: typeof fetch;
 }

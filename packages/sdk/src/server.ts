@@ -4,7 +4,7 @@
  * keys to browsers.
  */
 import { createHmac, timingSafeEqual } from "node:crypto";
-import type { ProofTypeName } from "@stele/protocol";
+import type { ProofTypeName } from "@stelehq/protocol";
 
 export interface WebhookEvent<T = Record<string, unknown>> {
   id: string;

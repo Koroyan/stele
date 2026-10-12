@@ -34,8 +34,8 @@ good-faith research that follows this policy.
 | Medium | Denial of service against the relayer or nonce capacity beyond the documented limits; information leaks of non-public metadata; webhook signature weaknesses |
 | Low | Hardening gaps without a demonstrated impact |
 
-In scope: the Solana program, the protocol specification and canonicalization, `@stele/protocol`,
-`@stele/verifier`, `@stele/sdk`, the API, workers and indexer, the web app, and the deployment
+In scope: the Solana program, the protocol specification and canonicalization, `@stelehq/protocol`,
+`@stelehq/verifier`, `@stelehq/sdk`, the API, workers and indexer, the web app, and the deployment
 configuration in this repository.
 
 Out of scope: attacks requiring a compromised user device or wallet software, social engineering,

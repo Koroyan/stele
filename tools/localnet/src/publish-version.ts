@@ -16,7 +16,7 @@ import {
   decodeDocument,
   fetchAccountData,
   findMemberPda,
-} from "@stele/protocol";
+} from "@stelehq/protocol";
 import { PROGRAM, RPC_URL, publishVersion } from "./chain.js";
 
 const MAINNET = "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp";

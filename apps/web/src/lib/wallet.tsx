@@ -17,7 +17,7 @@ import {
   type ClientWithWallet,
   type WalletState,
 } from "@solana/kit-plugin-wallet";
-import type { NetworkInfo } from "@stele/sdk";
+import type { NetworkInfo } from "@stelehq/sdk";
 
 type WalletClient = ClientWithWallet;
 

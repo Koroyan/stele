@@ -4,8 +4,11 @@
  * The live demo. Every action calls the Stele API's demo endpoints or the ordinary acceptance API
  * and produces real transactions on the deployment's cluster (a test network). Nothing is
  * simulated in this page: when the demo is unavailable it says so instead of pretending.
+ *
+ * The Gate demo is a guided story — one action per step, each result explained in plain words —
+ * with every control still available for free play.
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import {
   address,
@@ -24,7 +27,7 @@ import {
   findAccessPassPda,
   shortFingerprint,
   toHex,
-} from "@stele/protocol";
+} from "@stelehq/protocol";
 import {
   GateCancelledError,
   SteleClient,
@@ -32,21 +35,34 @@ import {
   createSteleGate,
   loadVerifiedDocument,
   type AccessCheck,
-} from "@stele/sdk";
+} from "@stelehq/sdk";
 import {
   ArrowRightIcon,
+  BuildingIcon,
   CheckIcon,
   CodeBlock,
   CopyButton,
   ExternalIcon,
+  FileIcon,
+  GateIcon,
   RefreshIcon,
+  ShieldIcon,
   Spinner,
   Tabs,
+  TicketIcon,
+  WalletIcon,
+  XIcon,
   buttonClasses,
   cn,
 } from "@stele/ui";
 import { Eyebrow } from "@/components/marketing";
-import { StatusBadge } from "@/components/story/story-ui";
+import {
+  Connector,
+  Flow,
+  FlowNode,
+  StatusBadge,
+  type NodeState,
+} from "@/components/story/story-ui";
 import { createDemoWallet, type DemoWallet } from "@/lib/demo-wallet";
 
 interface DemoStatus {
@@ -77,12 +93,13 @@ interface DepositResult {
   deposit: { termsVersionNumber: number; depositCount: number; totalDeposited: number } | null;
 }
 
+type Tone = "success" | "danger" | "accent" | "neutral" | "warning";
+
 interface LogEntry {
   id: number;
   label: string;
-  tone: "success" | "danger" | "accent" | "neutral" | "warning";
+  tone: Tone;
   outcome: string;
-  detail: string;
   signature?: string;
 }
 
@@ -91,12 +108,12 @@ const DEPOSIT = 5_000_000_000n; // 5,000 demo USDC (6 decimals)
 
 const REQUIRE_CURRENT = `// programs/gate-demo — the vault's whole Stele integration
 pub fn deposit(ctx: Context<Deposit>, amount: u64) -> Result<()> {
-    let granted = require_current(
+    require_current(
         &ctx.accounts.access_pass,
-        &ctx.accounts.policy,   // #[account(address = vault.policy)]
-        &ctx.accounts.investor, // Signer
+        &ctx.accounts.policy,   // pinned: #[account(address = vault.policy)]
+        &ctx.accounts.investor, // must sign
     )?;
-    // … record the deposit (granted.version_number is in the Deposited event)
+    // … record the deposit
     Ok(())
 }`;
 
@@ -137,7 +154,7 @@ function useDemoEnvironment() {
 
 function TxLink({ href, signature }: { href: string | null; signature: string }) {
   const short = `${signature.slice(0, 8)}…`;
-  if (!href) return <span className="font-mono text-[12px] text-fg-subtle">{short}</span>;
+  if (!href) return <span className="font-mono text-[12px] text-fg-subtle">tx {short}</span>;
   return (
     <a
       href={href}
@@ -145,12 +162,871 @@ function TxLink({ href, signature }: { href: string | null; signature: string })
       rel="noreferrer"
       className="inline-flex items-center gap-1 font-mono text-[12px] text-accent hover:underline"
     >
-      {short} <ExternalIcon className="h-3 w-3" />
+      tx {short} <ExternalIcon className="h-3 w-3" />
     </a>
   );
 }
 
-function Step({
+function ErrorNote({ error }: { error: string | null }) {
+  if (!error) return null;
+  return (
+    <p
+      role="alert"
+      className="rounded-xl border border-danger-line bg-danger-soft px-4 py-3 text-[13.5px] text-danger"
+    >
+      {error}
+    </p>
+  );
+}
+
+const usdc = (baseUnits: number) =>
+  `${(baseUnits / 1_000_000).toLocaleString("en-US", { maximumFractionDigits: 2 })} USDC`;
+
+// ---- Gate demo: what each result means, in plain words ---------------------------------------------------
+
+interface Outcome {
+  tone: "success" | "danger" | "neutral" | "warning";
+  headline: string;
+  body: string;
+  /** The exact on-chain fact behind the headline (error name, version), for the curious. */
+  technical?: string;
+  signature?: string;
+  flow: { label: string; sub?: string; icon: ReactNode; state: NodeState }[];
+}
+
+const FAILURES: Record<string, { headline: string; body: string }> = {
+  AccessPassMissing: {
+    headline: "Blocked on-chain — this wallet never accepted the terms",
+    body: "The vault program looked on Solana for this wallet's AccessPass and found none, so it refused the deposit. No website was involved: the check lives inside the program.",
+  },
+  AccessPassOutdated: {
+    headline: "Blocked on-chain — the acceptance is out of date",
+    body: "This wallet accepted an older version, but the vault now requires the newest one. The old acceptance is still on record; it just isn't enough any more.",
+  },
+  AccessPassMismatch: {
+    headline: "Blocked on-chain — that AccessPass belongs to someone else",
+    body: "A pass only works for the wallet that signed the terms. Presenting another wallet's pass is refused.",
+  },
+};
+
+function depositOutcome(r: DepositResult, who: "you" | "other", direct: boolean): Outcome {
+  const wallet = {
+    label: who === "you" ? "Your wallet" : "Another wallet",
+    sub: direct ? "sends deposit()" : undefined,
+    icon: <WalletIcon className="h-4 w-4" />,
+  };
+  const program = {
+    label: "Vault program",
+    sub: "require_current()",
+    icon: <BuildingIcon className="h-4 w-4" />,
+  };
+  if (r.ok) {
+    return {
+      tone: "success",
+      headline: "Deposit executed",
+      body: `The vault program found a current AccessPass (Offering Terms v${r.deposit?.termsVersionNumber}) and accepted 5,000 USDC.`,
+      technical: `Deposited event · terms v${r.deposit?.termsVersionNumber}`,
+      signature: r.signature,
+      flow: [
+        { ...wallet, state: "done" },
+        { ...program, state: "done" },
+        { label: "5,000 USDC in", icon: <CheckIcon className="h-4 w-4" />, state: "success" },
+      ],
+    };
+  }
+  const name = r.failure?.name ?? "Failed";
+  const known = FAILURES[name];
+  return {
+    tone: "danger",
+    headline: known?.headline ?? "Blocked on-chain",
+    body: known?.body ?? r.failure?.message ?? "The transaction failed on-chain.",
+    technical: `${name} — a real failed transaction on Solana`,
+    signature: r.signature,
+    flow: [
+      { ...wallet, state: "done" },
+      { ...program, state: "blocked" },
+      { label: "Refused", icon: <XIcon className="h-4 w-4" />, state: "blocked" },
+    ],
+  };
+}
+
+// ---- Gate demo: the guided story ----------------------------------------------------------------------------
+
+type Action = "direct" | "gate" | "publish" | "borrow";
+
+interface Chapter {
+  nav: string;
+  title: string;
+  intro: string;
+  action: Action;
+  button: string;
+  expect: string;
+}
+
+const CHAPTERS: Chapter[] = [
+  {
+    nav: "Skip the terms",
+    title: "Try to invest without accepting the terms",
+    intro:
+      "A script sends the deposit straight to the vault program — no website, no checkbox, no Stele modal. Will the money go in?",
+    action: "direct",
+    button: "Send the deposit directly",
+    expect: "Expected: refused on-chain",
+  },
+  {
+    nav: "Accept & invest",
+    title: "Invest the normal way",
+    intro:
+      "Now the app wraps the deposit with Stele. You'll see the Offering Terms, accept them — free, Stele pays the fee — and the deposit continues by itself.",
+    action: "gate",
+    button: "Deposit 5,000 USDC",
+    expect: "Expected: a short terms window, then success",
+  },
+  {
+    nav: "Terms change",
+    title: "Atlas updates its Offering Terms",
+    intro:
+      "Playing the issuer, publish version 2 and make it the required version. Nobody's history is edited: your v1 acceptance stays on record.",
+    action: "publish",
+    button: "Publish & require v2 (as Atlas)",
+    expect: "Expected: your AccessPass becomes outdated",
+  },
+  {
+    nav: "Old acceptance",
+    title: "Try to invest with the old acceptance",
+    intro: "Send another deposit straight to the program. Your AccessPass still says v1.",
+    action: "direct",
+    button: "Send the deposit directly",
+    expect: "Expected: refused — v2 is required now",
+  },
+  {
+    nav: "Accept v2",
+    title: "Accept the new version",
+    intro:
+      "Deposit through the app again. Stele shows that the terms changed and what changed; accept v2 and the deposit goes through.",
+    action: "gate",
+    button: "Deposit 5,000 USDC",
+    expect: "Expected: the window explains the update, then success",
+  },
+  {
+    nav: "Borrow access",
+    title: "Try to use someone else's acceptance",
+    intro:
+      "A different wallet sends a deposit and presents your AccessPass, hoping to ride on your acceptance.",
+    action: "borrow",
+    button: "Deposit from another wallet",
+    expect: "Expected: refused — a pass works only for its owner",
+  },
+];
+
+function OutcomeCard({
+  outcome,
+  explorer,
+}: {
+  outcome: Outcome;
+  explorer: (s: string) => string | null;
+}) {
+  const tones = {
+    success: "border-verified-line bg-verified-soft/40",
+    danger: "border-danger-line bg-danger-soft/40",
+    warning: "border-warning-line bg-warning-soft/40",
+    neutral: "border-line bg-surface-2",
+  } as const;
+  const icon = {
+    success: <CheckIcon className="h-5 w-5 text-verified" />,
+    danger: <XIcon className="h-5 w-5 text-danger" />,
+    warning: <RefreshIcon className="h-5 w-5 text-warning" />,
+    neutral: <span className="text-fg-subtle">•</span>,
+  }[outcome.tone];
+  return (
+    <div className={cn("story-pop mt-5 rounded-2xl border p-4 sm:p-5", tones[outcome.tone])}>
+      <div className="flex items-start gap-3">
+        <span
+          className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-line bg-bg/60"
+          aria-hidden="true"
+        >
+          {icon}
+        </span>
+        <div className="min-w-0">
+          <p className="text-[16px] font-semibold text-fg">{outcome.headline}</p>
+          <p className="mt-1 text-[14px] leading-relaxed text-fg-muted">{outcome.body}</p>
+        </div>
+      </div>
+      {outcome.flow.length > 0 && (
+        <div className="mt-4" aria-hidden="true">
+          <Flow nodes={outcome.flow.length}>
+            {outcome.flow.map((n, i) => (
+              <div key={n.label} className="contents">
+                {i > 0 && <Connector state={n.state === "blocked" ? "blocked" : "done"} />}
+                <FlowNode icon={n.icon} label={n.label} sub={n.sub} state={n.state} />
+              </div>
+            ))}
+          </Flow>
+        </div>
+      )}
+      {(outcome.technical || outcome.signature) && (
+        <p className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-fg-subtle">
+          {outcome.technical && <span className="font-mono">{outcome.technical}</span>}
+          {outcome.signature && (
+            <TxLink href={explorer(outcome.signature)} signature={outcome.signature} />
+          )}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function StateRow({
+  item,
+  icon,
+  label,
+  children,
+}: {
+  item: string;
+  icon: ReactNode;
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <div data-state-item={item} className="flex items-start gap-3 py-3">
+      <span
+        className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-line bg-bg/60 text-fg-subtle"
+        aria-hidden="true"
+      >
+        {icon}
+      </span>
+      <div className="min-w-0">
+        <p className="text-[11.5px] uppercase tracking-[0.08em] text-fg-subtle">{label}</p>
+        <div className="mt-1 text-[14px] text-fg">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+function GateDemo({
+  status,
+  wallet,
+  rpcUrl,
+  explorer,
+}: {
+  status: DemoStatus;
+  wallet: DemoWallet;
+  rpcUrl: string | null;
+  explorer: (s: string) => string | null;
+}) {
+  const [session, setSession] = useState<Session | null>(null);
+  const [access, setAccess] = useState<AccessCheck | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [startNote, setStartNote] = useState<string | null>(null);
+  const [log, setLog] = useState<LogEntry[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [chapter, setChapter] = useState(0);
+  const [outcomes, setOutcomes] = useState<Record<number, Outcome>>({});
+  const [freeOutcome, setFreeOutcome] = useState<Outcome | null>(null);
+  const [vault, setVault] = useState({ total: 0, count: 0, refused: 0 });
+  const nextId = useRef(1);
+  const heading = useRef<HTMLHeadingElement>(null);
+  const stranger = useMemo(() => createDemoWallet(), []);
+  const rpc = useMemo(() => (rpcUrl ? createRpc(rpcUrl) : null), [rpcUrl]);
+  const gate = useMemo(
+    () => createSteleGate({ client, wallet, ui: "modal", requestDomain: window.location.hostname }),
+    [wallet],
+  );
+
+  const push = (e: Omit<LogEntry, "id">) =>
+    setLog((l) => [{ id: nextId.current++, ...e }, ...l].slice(0, 30));
+
+  const refresh = useCallback(async () => {
+    if (!session?.policy) return;
+    setAccess(await gate.check(session.policy, wallet.address));
+  }, [gate, session, wallet]);
+
+  useEffect(() => {
+    void refresh().catch(() => undefined);
+  }, [refresh]);
+
+  /** Runs an action and records its outcome for the current step (or for free play). */
+  const run = async (
+    label: string,
+    fn: () => Promise<Outcome | null>,
+    where: "step" | "free" = "step",
+  ) => {
+    setBusy(label);
+    setError(null);
+    const record = (outcome: Outcome) =>
+      where === "free"
+        ? setFreeOutcome(outcome)
+        : setOutcomes((o) => ({ ...o, [chapter]: outcome }));
+    try {
+      const outcome = await fn();
+      if (outcome) record(outcome);
+    } catch (e) {
+      if (e instanceof GateCancelledError) {
+        record({
+          tone: "neutral",
+          headline: "You closed the terms — nothing happened",
+          body: "Nothing was signed and the deposit did not run. Try again whenever you like.",
+          flow: [],
+        });
+      } else setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(null);
+      void refresh().catch(() => undefined);
+      // Public RPC nodes can lag a few seconds behind a just-confirmed transaction: read again.
+      setTimeout(() => void refresh().catch(() => undefined), 3000);
+    }
+  };
+
+  async function sendDeposit(investor: DemoWallet, passOwner: string): Promise<DepositResult> {
+    const document = address(session!.document);
+    const [accessPass] = await findAccessPassPda(document, address(passOwner));
+    const ix = depositInstruction({
+      investor: address(investor.address),
+      vault: address(session!.vault!),
+      policy: address(session!.policy!),
+      accessPass,
+      amount: DEPOSIT,
+    });
+    const { value: blockhash } = await rpc!.getLatestBlockhash({ commitment: "confirmed" }).send();
+    const message = pipe(
+      createTransactionMessage({ version: 0 }),
+      (m) => setTransactionMessageFeePayer(address(status.relayer), m),
+      (m) => setTransactionMessageLifetimeUsingBlockhash(blockhash, m),
+      (m) => appendTransactionMessageInstructions([ix], m),
+    );
+    const tx = compileTransaction(message);
+    const signature = investor.signTransactionMessage(new Uint8Array(tx.messageBytes));
+    const signed = {
+      ...tx,
+      signatures: { ...tx.signatures, [investor.address as Address]: signature },
+    } as typeof tx;
+    const r = await api<DepositResult>("/v1/demo/sessions/deposit", {
+      token: session!.token,
+      transaction: getBase64EncodedWireTransaction(signed),
+    });
+    if (r.ok && r.deposit)
+      setVault((v) => ({ ...v, total: r.deposit!.totalDeposited, count: r.deposit!.depositCount }));
+    else if (!r.ok) setVault((v) => ({ ...v, refused: v.refused + 1 }));
+    return r;
+  }
+
+  const logDeposit = (label: string, r: DepositResult) =>
+    push({
+      label,
+      tone: r.ok ? "success" : "danger",
+      outcome: r.ok ? "Deposit executed" : `Rejected · ${r.failure?.name ?? "failed"}`,
+      signature: r.signature,
+    });
+
+  const START_NOTES = [
+    "Publishing Investor Offering Terms v1 on Solana…",
+    "Creating the Stele policy that requires them…",
+    "Opening the Atlas vault…",
+  ];
+  const start = () =>
+    run("start", async () => {
+      let i = 0;
+      setStartNote(START_NOTES[0]!);
+      const timer = setInterval(() => {
+        i = Math.min(i + 1, START_NOTES.length - 1);
+        setStartNote(START_NOTES[i]!);
+      }, 3000);
+      try {
+        const s = await api<Session>("/v1/demo/sessions", { kind: "gate" });
+        setSession(s);
+        setLog([]);
+        setOutcomes({});
+        setVault({ total: 0, count: 0, refused: 0 });
+        setChapter(0);
+        push({
+          label: "Offering Terms v1 published · policy and vault created",
+          tone: "accent",
+          outcome: "Ready",
+          signature: s.version.signature,
+        });
+      } finally {
+        clearInterval(timer);
+        setStartNote(null);
+      }
+      return null;
+    });
+
+  const depositThroughGate = async (): Promise<Outcome> => {
+    const before = await gate.check(session!.policy!, wallet.address);
+    const r = await gate.gate({
+      policy: session!.policy!,
+      action: () => sendDeposit(wallet, wallet.address),
+      acceptLabel: "Accept & Deposit",
+    });
+    const accepted = before.status !== "VALID" ? before.document.version.version : null;
+    if (accepted) {
+      push({
+        label: `Accepted Investor Offering Terms v${accepted}`,
+        tone: "success",
+        outcome: "AccessPass valid",
+      });
+    }
+    logDeposit("Deposit through the app (Stele SDK)", r);
+    const out = depositOutcome(r, "you", false);
+    if (r.ok && accepted) {
+      return {
+        ...out,
+        headline: `Accepted v${accepted} and invested`,
+        body: `Two things happened with one click: (1) your signature on Offering Terms v${accepted} was recorded on Solana — Stele paid the fee — and your AccessPass now says v${accepted}; (2) the deposit went through, because the vault program found that pass.`,
+        flow: [
+          {
+            label: "You accept",
+            sub: `v${accepted}`,
+            icon: <FileIcon className="h-4 w-4" />,
+            state: "done",
+          },
+          {
+            label: "AccessPass",
+            sub: `valid · v${accepted}`,
+            icon: <TicketIcon className="h-4 w-4" />,
+            state: "success",
+          },
+          {
+            label: "Vault program",
+            sub: "require_current()",
+            icon: <BuildingIcon className="h-4 w-4" />,
+            state: "done",
+          },
+          { label: "5,000 USDC in", icon: <CheckIcon className="h-4 w-4" />, state: "success" },
+        ],
+      };
+    }
+    return out;
+  };
+
+  const depositDirect = async (): Promise<Outcome> => {
+    const r = await sendDeposit(wallet, wallet.address);
+    logDeposit("Direct call to deposit(), no app, no SDK", r);
+    return depositOutcome(r, "you", true);
+  };
+
+  const publishNext = async (): Promise<Outcome> => {
+    const v = await api<{ number: number; signature: string }>("/v1/demo/sessions/publish", {
+      token: session!.token,
+    });
+    push({
+      label: `Atlas published and requires Offering Terms v${v.number}`,
+      tone: "warning",
+      outcome: "Older passes are outdated",
+      signature: v.signature,
+    });
+    return {
+      tone: "warning",
+      headline: `Version ${v.number} is now required`,
+      body: `Atlas signed one transaction: publish v${v.number} and require it. Every AccessPass for an older version — including yours — no longer satisfies the policy. Nothing was rewritten: earlier acceptances stay verifiable.`,
+      technical: `PolicyChanged · requires v${v.number}`,
+      signature: v.signature,
+      flow: [
+        {
+          label: "Atlas",
+          sub: "issuer wallet",
+          icon: <ShieldIcon className="h-4 w-4" />,
+          state: "done",
+        },
+        {
+          label: "Policy",
+          sub: `requires v${v.number}`,
+          icon: <GateIcon className="h-4 w-4" />,
+          state: "warning",
+        },
+        {
+          label: "Your AccessPass",
+          sub: "outdated",
+          icon: <TicketIcon className="h-4 w-4" />,
+          state: "warning",
+        },
+      ],
+    };
+  };
+
+  const borrow = async (): Promise<Outcome> => {
+    const r = await sendDeposit(stranger, wallet.address);
+    logDeposit("Another wallet presents your AccessPass", r);
+    return depositOutcome(r, "other", true);
+  };
+
+  const noPass = async (): Promise<Outcome> => {
+    const r = await sendDeposit(stranger, stranger.address);
+    logDeposit("A wallet with no AccessPass calls deposit()", r);
+    return depositOutcome(r, "other", true);
+  };
+
+  const actions: Record<Action, () => Promise<Outcome>> = {
+    direct: depositDirect,
+    gate: depositThroughGate,
+    publish: publishNext,
+    borrow,
+  };
+
+  const go = (n: number) => {
+    setChapter(n);
+    setError(null);
+    requestAnimationFrame(() => heading.current?.focus());
+  };
+
+  if (!session) {
+    return (
+      <div className="grid gap-6 rounded-2xl border border-line bg-surface p-6 sm:p-8 lg:grid-cols-[1.2fr_1fr]">
+        <div>
+          <p className="text-[12px] font-semibold uppercase tracking-[0.1em] text-accent">
+            The story · about 2 minutes
+          </p>
+          <h2 className="mt-2 text-[24px] font-semibold tracking-[-0.02em] text-fg">
+            Atlas Real Estate Vault
+          </h2>
+          <p className="mt-3 text-[15px] leading-relaxed text-fg-muted">
+            You are an investor. Atlas accepts deposits only from wallets that accepted its{" "}
+            <span className="text-fg">current</span> Offering Terms — and that rule is checked by
+            the vault&apos;s own Solana program, not by a website.
+          </p>
+          <p className="mt-3 text-[15px] leading-relaxed text-fg-muted">
+            You&apos;ll try to get around it, invest properly, watch the terms change, and see
+            Solana refuse every shortcut.
+          </p>
+          <button
+            type="button"
+            className={buttonClasses("primary", "lg", "mt-6")}
+            onClick={start}
+            disabled={!!busy}
+          >
+            {busy === "start" ? <Spinner /> : <ArrowRightIcon className="h-4 w-4" />} Start the demo
+          </button>
+          {startNote && (
+            <p className="mt-3 text-[13px] text-fg-muted" role="status">
+              {startNote}
+            </p>
+          )}
+          <div className="mt-4">
+            <ErrorNote error={error} />
+          </div>
+        </div>
+        <ul className="space-y-3 self-center text-[14px]">
+          {[
+            ["No wallet needed", "A temporary demo wallet lives in this tab only."],
+            ["Nothing to pay", "Stele pays every network fee."],
+            ["Nothing faked", `Each step is a real transaction on ${status.network.label}.`],
+            ["No real money", "The vault records demo USDC; no tokens move."],
+          ].map(([t, d]) => (
+            <li key={t} className="flex gap-3 rounded-xl border border-line bg-bg/40 px-4 py-3">
+              <CheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-verified" aria-hidden="true" />
+              <span>
+                <span className="font-medium text-fg">{t}.</span>{" "}
+                <span className="text-fg-muted">{d}</span>
+              </span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+  }
+
+  const receiptId = access?.pass ? toHex(access.pass.acceptanceId) : null;
+  const finale = chapter >= CHAPTERS.length;
+  const current = CHAPTERS[chapter];
+  const outcome = outcomes[chapter];
+  const nextVersion = (access?.requiredVersion ?? 1) + 1;
+
+  return (
+    <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
+      <div className="min-w-0 space-y-5">
+        <nav aria-label="Demo steps">
+          <ol className="flex flex-wrap gap-1.5">
+            {[...CHAPTERS.map((c) => c.nav), "Summary"].map((label, i) => {
+              const done = i < CHAPTERS.length && outcomes[i] !== undefined;
+              const active = i === chapter;
+              const reachable = i <= chapter || done || (i > 0 && outcomes[i - 1] !== undefined);
+              return (
+                <li key={label}>
+                  <button
+                    type="button"
+                    onClick={() => reachable && go(i)}
+                    disabled={!reachable || !!busy}
+                    aria-current={active ? "step" : undefined}
+                    className={cn(
+                      "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12.5px] font-medium transition-colors",
+                      active
+                        ? "border-accent-line bg-accent-soft text-fg"
+                        : done
+                          ? "border-verified-line text-verified hover:bg-verified-soft/40"
+                          : "border-line text-fg-subtle",
+                    )}
+                  >
+                    <span className="font-mono text-[11px]" aria-hidden="true">
+                      {done ? "✓" : i + 1}
+                    </span>
+                    {label}
+                  </button>
+                </li>
+              );
+            })}
+          </ol>
+        </nav>
+
+        {!finale && current ? (
+          <section className="rounded-2xl border border-line bg-surface p-5 sm:p-7">
+            <p className="text-[12px] font-semibold uppercase tracking-[0.1em] text-accent">
+              Step {chapter + 1} of {CHAPTERS.length}
+            </p>
+            <h2
+              ref={heading}
+              tabIndex={-1}
+              className="mt-2 text-[22px] font-semibold tracking-[-0.02em] text-fg outline-none sm:text-[26px]"
+            >
+              {current.title}
+            </h2>
+            <p className="mt-2 max-w-2xl text-[15px] leading-relaxed text-fg-muted">
+              {current.intro}
+            </p>
+            {/* A step is done once it has a real result; a closed modal can be tried again. */}
+            {(!outcome || outcome.tone === "neutral") && (
+              <div className="mt-5 flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  className={buttonClasses(
+                    current.action === "publish" ? "secondary" : "primary",
+                    "lg",
+                  )}
+                  onClick={() => void run(current.action, actions[current.action])}
+                  disabled={!!busy}
+                >
+                  {busy ? <Spinner /> : null}
+                  {current.action === "publish"
+                    ? `Publish & require v${nextVersion} (as Atlas)`
+                    : current.button}
+                </button>
+                <span className="text-[13px] text-fg-subtle">{current.expect}</span>
+              </div>
+            )}
+            <div className="mt-4">
+              <ErrorNote error={error} />
+            </div>
+            {outcome && <OutcomeCard outcome={outcome} explorer={explorer} />}
+            <div className="mt-6 flex flex-wrap justify-between gap-3 border-t border-line pt-5">
+              <button
+                type="button"
+                className={buttonClasses("ghost", "md")}
+                onClick={() => go(chapter - 1)}
+                disabled={chapter === 0 || !!busy}
+              >
+                Back
+              </button>
+              <button
+                type="button"
+                className={buttonClasses(outcome ? "primary" : "secondary", "md")}
+                onClick={() => go(chapter + 1)}
+                disabled={!outcome || !!busy}
+              >
+                {chapter === CHAPTERS.length - 1 ? "See the summary" : "Next step"}{" "}
+                <ArrowRightIcon className="h-4 w-4" />
+              </button>
+            </div>
+          </section>
+        ) : (
+          <section className="rounded-2xl border border-line bg-surface p-5 sm:p-7">
+            <p className="text-[12px] font-semibold uppercase tracking-[0.1em] text-verified">
+              Summary
+            </p>
+            <h2
+              ref={heading}
+              tabIndex={-1}
+              className="mt-2 text-[22px] font-semibold tracking-[-0.02em] text-fg outline-none sm:text-[26px]"
+            >
+              The frontend is optional. The program check is not.
+            </h2>
+            <ul className="mt-5 space-y-2">
+              {CHAPTERS.map((c, i) => {
+                const o = outcomes[i];
+                return (
+                  <li
+                    key={c.nav}
+                    className="flex items-start gap-3 rounded-xl border border-line bg-bg/40 px-4 py-3"
+                  >
+                    <span
+                      className={cn(
+                        "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[11px]",
+                        !o
+                          ? "border-line text-fg-subtle"
+                          : o.tone === "success"
+                            ? "border-verified-line bg-verified-soft text-verified"
+                            : o.tone === "danger"
+                              ? "border-danger-line bg-danger-soft text-danger"
+                              : "border-warning-line bg-warning-soft text-warning",
+                      )}
+                      aria-hidden="true"
+                    >
+                      {!o ? "–" : o.tone === "success" ? "✓" : o.tone === "danger" ? "✕" : "!"}
+                    </span>
+                    <span className="min-w-0 text-[14px]">
+                      <span className="font-medium text-fg">{c.title}</span>
+                      <span className="block text-fg-muted">
+                        {o ? o.headline : "Not tried in this run"}
+                      </span>
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+            <p className="mt-6 text-[15px] font-semibold text-fg">The whole integration</p>
+            <p className="mt-1 text-[14px] text-fg-muted">
+              One call in the vault&apos;s own program. Stele is not in the transaction — no proxy,
+              no router — the program reads two Solana accounts and decides.
+            </p>
+            <div className="mt-3">
+              <CodeBlock code={REQUIRE_CURRENT} language="rust" />
+            </div>
+            <p className="mt-6 text-[15px] font-semibold text-fg">Every acceptance is a Proof</p>
+            <p className="mt-1 text-[14px] text-fg-muted">
+              The acceptance behind your AccessPass is an ordinary Stele receipt: the exact text,
+              version, signature and time — anyone can verify it without Stele.
+            </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Link
+                href={receiptId ? `/receipt/${receiptId}` : "#"}
+                aria-disabled={!receiptId}
+                className={cn(
+                  buttonClasses("primary", "md"),
+                  !receiptId && "pointer-events-none opacity-50",
+                )}
+              >
+                Open the receipt of your latest acceptance
+              </Link>
+              <Link href="/docs/gate" className={buttonClasses("secondary", "md")}>
+                Add Gate to your program
+              </Link>
+              <button
+                type="button"
+                className={buttonClasses("ghost", "md")}
+                onClick={() => void start()}
+                disabled={!!busy}
+              >
+                <RefreshIcon className="h-4 w-4" /> Start over
+              </button>
+            </div>
+          </section>
+        )}
+
+        <details className="group rounded-2xl border border-line bg-surface">
+          <summary className="cursor-pointer list-none px-5 py-4 text-[14px] font-medium text-fg">
+            <span className="inline-flex items-center gap-2">
+              <ArrowRightIcon className="h-4 w-4 text-fg-subtle transition-transform group-open:rotate-90" />
+              Free play — every control, in any order
+            </span>
+          </summary>
+          <div className="grid gap-2 border-t border-line px-5 py-4 sm:grid-cols-2">
+            <button
+              type="button"
+              className={buttonClasses("primary", "md")}
+              onClick={() => void run("gate", depositThroughGate, "free")}
+              disabled={!!busy}
+            >
+              Deposit (through Stele)
+            </button>
+            <button
+              type="button"
+              className={buttonClasses("secondary", "md")}
+              onClick={() => void run("publish", publishNext, "free")}
+              disabled={!!busy}
+            >
+              Publish &amp; require the next version
+            </button>
+            <button
+              type="button"
+              className={buttonClasses("secondary", "md")}
+              onClick={() => void run("direct", depositDirect, "free")}
+              disabled={!!busy}
+            >
+              Direct call (no SDK)
+            </button>
+            <button
+              type="button"
+              className={buttonClasses("secondary", "md")}
+              onClick={() => void run("nopass", noPass, "free")}
+              disabled={!!busy}
+            >
+              Script: wallet without a pass
+            </button>
+            <button
+              type="button"
+              className={buttonClasses("secondary", "md")}
+              onClick={() => void run("borrow", borrow, "free")}
+              disabled={!!busy}
+            >
+              Script: reuse your pass from another wallet
+            </button>
+            {freeOutcome && (
+              <div className="sm:col-span-2">
+                <OutcomeCard outcome={freeOutcome} explorer={explorer} />
+              </div>
+            )}
+            <p className="self-center text-[12.5px] text-fg-subtle sm:col-span-2">
+              From a terminal, the same direct call:{" "}
+              <code className="break-all font-mono text-fg-muted">
+                pnpm --filter @stele/localnet vault-deposit -- --policy {session.policy}
+              </code>
+            </p>
+          </div>
+        </details>
+      </div>
+
+      <aside className="h-fit space-y-4 lg:sticky lg:top-24">
+        <div className="rounded-2xl border border-line bg-surface px-5 py-2">
+          <p className="pt-3 text-[13px] font-semibold text-fg">Live on Solana</p>
+          <div className="divide-y divide-line">
+            <StateRow item="policy" icon={<GateIcon className="h-4 w-4" />} label="Atlas requires">
+              Offering Terms v{access?.requiredVersion ?? session.version.number}
+            </StateRow>
+            <StateRow item="pass" icon={<TicketIcon className="h-4 w-4" />} label="Your AccessPass">
+              {!access ? (
+                <StatusBadge tone="neutral">Checking</StatusBadge>
+              ) : access.status === "VALID" ? (
+                <StatusBadge tone="success">Valid · v{access.pass?.versionNumber}</StatusBadge>
+              ) : access.status === "OUTDATED" ? (
+                <StatusBadge tone="warning">Outdated · v{access.pass?.versionNumber}</StatusBadge>
+              ) : (
+                <StatusBadge tone="neutral">Missing</StatusBadge>
+              )}
+            </StateRow>
+            <StateRow item="vault" icon={<BuildingIcon className="h-4 w-4" />} label="Vault">
+              {usdc(vault.total)} in · {vault.count} deposit{vault.count === 1 ? "" : "s"}
+              <span className="block text-[12.5px] text-fg-subtle">
+                {vault.refused} refused on-chain
+              </span>
+            </StateRow>
+          </div>
+          <p className="pb-3 text-[11.5px] text-fg-subtle">
+            Read from Solana, not from Stele&apos;s database.
+          </p>
+        </div>
+
+        <div className="rounded-2xl border border-line bg-surface">
+          <p className="border-b border-line px-5 py-3 text-[13px] font-semibold text-fg">
+            Transactions
+          </p>
+          <ul className="max-h-80 divide-y divide-line overflow-y-auto" aria-live="polite">
+            {log.map((e) => (
+              <li key={e.id} className="px-5 py-3">
+                <p className="text-[13px] text-fg">{e.label}</p>
+                <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                  <StatusBadge tone={e.tone}>{e.outcome}</StatusBadge>
+                  {e.signature && <TxLink href={explorer(e.signature)} signature={e.signature} />}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </aside>
+    </div>
+  );
+}
+
+// ---- Proof demo ---------------------------------------------------------------------------------------
+
+function ProofStep({
   n,
   title,
   done,
@@ -159,7 +1035,7 @@ function Step({
   n: number;
   title: string;
   done: boolean;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <li className="relative rounded-2xl border border-line bg-surface p-5">
@@ -180,26 +1056,12 @@ function Step({
             {title}
             {done && <span className="sr-only"> (done)</span>}
           </p>
-          <div className="mt-3 text-[14px] text-fg-muted">{children}</div>
+          <div className="mt-2 text-[14px] leading-relaxed text-fg-muted">{children}</div>
         </div>
       </div>
     </li>
   );
 }
-
-function ErrorNote({ error }: { error: string | null }) {
-  if (!error) return null;
-  return (
-    <p
-      role="alert"
-      className="rounded-xl border border-danger-line bg-danger-soft px-4 py-3 text-[13.5px] text-danger"
-    >
-      {error}
-    </p>
-  );
-}
-
-// ---- Proof demo ---------------------------------------------------------------------------------------
 
 function ProofDemo({
   status,
@@ -251,35 +1113,18 @@ function ProofDemo({
       setAcceptance({ id: r.acceptanceId, signature: r.transactionSignature });
     });
 
-  const download = () =>
-    run("download", async () => {
-      const r = await client.request<{ receipt: unknown }>(
-        `/v1/public/acceptances/${acceptance!.id}/receipt`,
-      );
-      const blob = new Blob([JSON.stringify(r.receipt, null, 2)], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `stele-receipt-${acceptance!.id.slice(0, 12)}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
-    });
-
   return (
-    <div className="space-y-4">
-      <p className="text-[14px] text-fg-muted">
-        A normal application&apos;s flow: publish an exact version, accept it, get a receipt, verify
-        it without asking anyone. Each step is a real transaction on {status.network.label}.
-      </p>
+    <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
       <ol className="space-y-3">
-        <Step n={1} title="Publish Terms of Service v1" done={!!session}>
+        <ProofStep n={1} title="A company publishes its Terms" done={!!session}>
+          <p>
+            The exact text gets a fingerprint (SHA-256) that is written to Solana. From now on,
+            nobody — not even the company — can change what version 1 said.
+          </p>
           {session ? (
-            <p>
-              Published version {session.version.number} · fingerprint{" "}
-              <span className="font-mono text-fg">
-                {shortFingerprint(session.version.fingerprint)}
-              </span>{" "}
-              ·{" "}
+            <p className="mt-3 text-fg">
+              Published v{session.version.number} · fingerprint{" "}
+              <span className="font-mono">{shortFingerprint(session.version.fingerprint)}</span> ·{" "}
               <TxLink
                 href={explorer(session.version.signature)}
                 signature={session.version.signature}
@@ -288,18 +1133,22 @@ function ProofDemo({
           ) : (
             <button
               type="button"
-              className={buttonClasses("primary", "md")}
+              className={buttonClasses("primary", "md", "mt-3")}
               onClick={publish}
               disabled={!!busy}
             >
               {busy === "publish" ? <Spinner /> : null} Publish Terms v1
             </button>
           )}
-        </Step>
-        <Step n={2} title="Accept it" done={!!acceptance}>
+        </ProofStep>
+        <ProofStep n={2} title="You accept them" done={!!acceptance}>
+          <p>
+            Your (demo) wallet signs a short message naming that exact version. Stele submits it and
+            pays the fee; Solana checks the signature.
+          </p>
           {acceptance ? (
-            <p>
-              Accepted by the demo wallet ·{" "}
+            <p className="mt-3 text-fg">
+              Accepted ·{" "}
               {acceptance.signature ? (
                 <TxLink href={explorer(acceptance.signature)} signature={acceptance.signature} />
               ) : (
@@ -307,7 +1156,7 @@ function ProofDemo({
               )}
             </p>
           ) : (
-            <div className="flex flex-wrap gap-2">
+            <div className="mt-3 flex flex-wrap gap-2">
               <button
                 type="button"
                 className={buttonClasses("primary", "md")}
@@ -323,14 +1172,28 @@ function ProofDemo({
                   rel="noreferrer"
                   className={buttonClasses("secondary", "md")}
                 >
-                  Or accept with a passkey <ExternalIcon className="h-3.5 w-3.5" />
+                  Or accept with Face ID / a passkey <ExternalIcon className="h-3.5 w-3.5" />
                 </a>
               )}
             </div>
           )}
-        </Step>
-        <Step n={3} title="Generate the receipt" done={false}>
-          <div className="flex flex-wrap gap-2">
+        </ProofStep>
+        <ProofStep n={3} title="Anyone can check it — without asking Stele" done={false}>
+          <p>
+            The receipt holds the exact text and the signature. The verifier runs in your browser
+            and compares everything with Solana.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Link
+              href={acceptance?.signature ? `/verify?tx=${acceptance.signature}` : "#"}
+              aria-disabled={!acceptance?.signature}
+              className={cn(
+                buttonClasses("primary", "md"),
+                !acceptance?.signature && "pointer-events-none opacity-50",
+              )}
+            >
+              Verify it <ArrowRightIcon className="h-4 w-4" />
+            </Link>
             <Link
               href={acceptance ? `/receipt/${acceptance.id}` : "#"}
               aria-disabled={!acceptance}
@@ -341,432 +1204,27 @@ function ProofDemo({
             >
               Open the receipt
             </Link>
-            <button
-              type="button"
-              className={buttonClasses("ghost", "md")}
-              onClick={download}
-              disabled={!acceptance || !!busy}
-            >
-              Download JSON
-            </button>
           </div>
-        </Step>
-        <Step n={4} title="Verify it independently" done={false}>
-          <p className="mb-3">
-            The verifier runs in your browser against Solana — it does not ask Stele whether the
-            receipt is valid.
-          </p>
-          <Link
-            href={acceptance?.signature ? `/verify?tx=${acceptance.signature}` : "#"}
-            aria-disabled={!acceptance?.signature}
-            className={cn(
-              buttonClasses("primary", "md"),
-              !acceptance?.signature && "pointer-events-none opacity-50",
-            )}
-          >
-            Verify <ArrowRightIcon className="h-4 w-4" />
-          </Link>
-        </Step>
+        </ProofStep>
+        <ErrorNote error={error} />
       </ol>
-      <ErrorNote error={error} />
-    </div>
-  );
-}
-
-// ---- Gate demo: Atlas Real Estate Vault ----------------------------------------------------------------
-
-const CHECKLIST = [
-  "Connect the (demo) wallet",
-  "Deposit → no AccessPass → the Stele modal opens",
-  "Accept & Deposit → acceptance recorded, deposit succeeds",
-  "The admin publishes and requires Offering Terms v2",
-  "Another deposit → the v1 pass is outdated (fails / modal)",
-  "Accept v2 → deposit succeeds",
-  "A direct call without a current pass fails on-chain",
-  "The integration code: require_current()",
-  "The Proof receipt of the acceptance",
-];
-
-function GateDemo({
-  status,
-  wallet,
-  rpcUrl,
-  explorer,
-}: {
-  status: DemoStatus;
-  wallet: DemoWallet;
-  rpcUrl: string | null;
-  explorer: (s: string) => string | null;
-}) {
-  const [session, setSession] = useState<Session | null>(null);
-  const [access, setAccess] = useState<AccessCheck | null>(null);
-  const [busy, setBusy] = useState<string | null>(null);
-  const [log, setLog] = useState<LogEntry[]>([]);
-  const [done, setDone] = useState<Set<number>>(new Set([0]));
-  const [error, setError] = useState<string | null>(null);
-  const nextId = useRef(1);
-  const stranger = useMemo(() => createDemoWallet(), []);
-  const rpc = useMemo(() => (rpcUrl ? createRpc(rpcUrl) : null), [rpcUrl]);
-  const gate = useMemo(
-    () => createSteleGate({ client, wallet, ui: "modal", requestDomain: window.location.hostname }),
-    [wallet],
-  );
-
-  const mark = (...steps: number[]) =>
-    setDone((d) => {
-      const n = new Set(d);
-      steps.forEach((s) => n.add(s));
-      return n;
-    });
-  const push = (e: Omit<LogEntry, "id">) =>
-    setLog((l) => [{ id: nextId.current++, ...e }, ...l].slice(0, 30));
-
-  const refresh = useCallback(async () => {
-    if (!session?.policy) return;
-    setAccess(await gate.check(session.policy, wallet.address));
-  }, [gate, session, wallet]);
-
-  useEffect(() => {
-    void refresh().catch(() => undefined);
-  }, [refresh]);
-
-  const run = async (label: string, fn: () => Promise<void>) => {
-    setBusy(label);
-    setError(null);
-    try {
-      await fn();
-    } catch (e) {
-      if (!(e instanceof GateCancelledError)) setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setBusy(null);
-      void refresh().catch(() => undefined);
-    }
-  };
-
-  async function sendDeposit(investor: DemoWallet, passOwner: string): Promise<DepositResult> {
-    const document = address(session!.document);
-    const [accessPass] = await findAccessPassPda(document, address(passOwner));
-    const ix = depositInstruction({
-      investor: address(investor.address),
-      vault: address(session!.vault!),
-      policy: address(session!.policy!),
-      accessPass,
-      amount: DEPOSIT,
-    });
-    const { value: blockhash } = await rpc!.getLatestBlockhash({ commitment: "confirmed" }).send();
-    const message = pipe(
-      createTransactionMessage({ version: 0 }),
-      (m) => setTransactionMessageFeePayer(address(status.relayer), m),
-      (m) => setTransactionMessageLifetimeUsingBlockhash(blockhash, m),
-      (m) => appendTransactionMessageInstructions([ix], m),
-    );
-    const tx = compileTransaction(message);
-    const signature = investor.signTransactionMessage(new Uint8Array(tx.messageBytes));
-    const signed = {
-      ...tx,
-      signatures: { ...tx.signatures, [investor.address as Address]: signature },
-    } as typeof tx;
-    return api<DepositResult>("/v1/demo/sessions/deposit", {
-      token: session!.token,
-      transaction: getBase64EncodedWireTransaction(signed),
-    });
-  }
-
-  const logDeposit = (label: string, r: DepositResult) =>
-    push({
-      label,
-      tone: r.ok ? "success" : "danger",
-      outcome: r.ok ? "Deposit executed" : `Rejected · ${r.failure?.name ?? "failed"}`,
-      detail: r.ok
-        ? `5,000 USDC deposited with an AccessPass for Offering Terms v${r.deposit?.termsVersionNumber}.`
-        : (r.failure?.message ?? "The transaction failed on-chain."),
-      signature: r.signature,
-    });
-
-  const start = () =>
-    run("start", async () => {
-      const s = await api<Session>("/v1/demo/sessions", { kind: "gate" });
-      setSession(s);
-      setLog([]);
-      setDone(new Set([0]));
-      push({
-        label: "Investor Offering Terms v1 published · policy and vault created",
-        tone: "accent",
-        outcome: "Ready",
-        detail: "Your own copy of the offering, under the demo organization.",
-        signature: s.version.signature,
-      });
-    });
-
-  const depositThroughGate = () =>
-    run("gate", async () => {
-      const before = await gate.check(session!.policy!, wallet.address);
-      if (before.status === "MISSING") mark(1);
-      if (before.status === "OUTDATED") mark(4);
-      const r = await gate.gate({
-        policy: session!.policy!,
-        action: () => sendDeposit(wallet, wallet.address),
-        acceptLabel: "Accept & Deposit",
-      });
-      if (before.status !== "VALID") {
-        push({
-          label: `Accepted Investor Offering Terms v${before.document.version.version}`,
-          tone: "success",
-          outcome: "AccessPass valid",
-          detail: "Recorded on-chain from the Stele modal; the pass now names this version.",
-        });
-      }
-      logDeposit("Deposit through Stele Gate", r);
-      if (r.ok) mark(before.status === "OUTDATED" ? 5 : 2);
-      if (before.status !== "VALID") mark(8);
-    });
-
-  const depositDirect = () =>
-    run("direct", async () => {
-      const r = await sendDeposit(wallet, wallet.address);
-      logDeposit("Direct call to deposit(), without the SDK", r);
-      if (!r.ok) {
-        if (r.failure?.name === "AccessPassOutdated") mark(4);
-        mark(6);
-      }
-    });
-
-  const publishNext = () =>
-    run("publish", async () => {
-      const v = await api<{ number: number; signature: string }>("/v1/demo/sessions/publish", {
-        token: session!.token,
-      });
-      push({
-        label: `Admin published and requires Offering Terms v${v.number}`,
-        tone: "warning",
-        outcome: "Older passes no longer satisfy the policy",
-        detail: "Nothing was rewritten: the earlier acceptances stay on record.",
-        signature: v.signature,
-      });
-      mark(3);
-    });
-
-  const bypass = () =>
-    run("bypass", async () => {
-      const r = await sendDeposit(stranger, wallet.address);
-      logDeposit("Script: another wallet reuses your AccessPass", r);
-      if (!r.ok) mark(6);
-    });
-
-  const noPass = () =>
-    run("nopass", async () => {
-      const r = await sendDeposit(stranger, stranger.address);
-      logDeposit("Script: a wallet with no AccessPass calls deposit()", r);
-      if (!r.ok) mark(6);
-    });
-
-  if (!session) {
-    return (
-      <div className="rounded-2xl border border-line bg-surface p-6">
-        <p className="text-[16px] font-semibold text-fg">Atlas Real Estate Vault</p>
-        <p className="mt-2 text-[15px] text-fg-muted">
-          You get your own Investor Offering Terms, a Stele policy that requires them, and a demo
-          vault whose deposit() calls require_current(). No tokens move: deposits are recorded as
-          demo USDC.
-        </p>
-        <button
-          type="button"
-          className={buttonClasses("primary", "lg", "mt-5")}
-          onClick={start}
-          disabled={!!busy}
-        >
-          {busy === "start" ? <Spinner /> : null} Start the vault demo
-        </button>
-        <div className="mt-4">
-          <ErrorNote error={error} />
-        </div>
-      </div>
-    );
-  }
-
-  const receiptId = access?.pass ? toHex(access.pass.acceptanceId) : null;
-
-  return (
-    <div className="grid gap-5 lg:grid-cols-[1fr_340px]">
-      <div className="space-y-5">
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="rounded-2xl border border-line bg-surface p-4">
-            <p className="text-[11.5px] uppercase tracking-[0.08em] text-fg-subtle">Policy</p>
-            <p className="mt-1 text-[15px] font-semibold text-fg">
-              Investor Offering Terms · requires v{access?.requiredVersion ?? 1}
-            </p>
-            <p className="mt-1 font-mono text-[11.5px] text-fg-subtle">
-              {session.policy!.slice(0, 8)}…{session.policy!.slice(-6)}
-            </p>
-          </div>
-          <div className="rounded-2xl border border-line bg-surface p-4">
-            <p className="text-[11.5px] uppercase tracking-[0.08em] text-fg-subtle">
-              Your AccessPass
-            </p>
-            <p className="mt-2">
-              {!access ? (
-                <StatusBadge tone="neutral">Checking</StatusBadge>
-              ) : access.status === "VALID" ? (
-                <StatusBadge tone="success">Valid · v{access.pass?.versionNumber}</StatusBadge>
-              ) : access.status === "OUTDATED" ? (
-                <StatusBadge tone="warning">Outdated · v{access.pass?.versionNumber}</StatusBadge>
-              ) : (
-                <StatusBadge tone="neutral">Missing</StatusBadge>
-              )}
-            </p>
-            <p className="mt-2 text-[12px] text-fg-subtle">
-              Read from Solana, not from Stele&apos;s database.
-            </p>
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-line bg-surface p-5">
-          <p className="text-[15px] font-semibold text-fg">Deposit 5,000 USDC</p>
-          <div className="mt-4 grid gap-2 sm:grid-cols-2">
-            <button
-              type="button"
-              className={buttonClasses("primary", "md")}
-              onClick={depositThroughGate}
-              disabled={!!busy}
-            >
-              {busy === "gate" ? <Spinner /> : null} Deposit (through Stele)
-            </button>
-            <button
-              type="button"
-              className={buttonClasses("secondary", "md")}
-              onClick={publishNext}
-              disabled={!!busy}
-            >
-              {busy === "publish" ? <Spinner /> : <RefreshIcon className="h-4 w-4" />} Admin:
-              publish &amp; require the next version
-            </button>
-            <button
-              type="button"
-              className={buttonClasses("secondary", "md")}
-              onClick={depositDirect}
-              disabled={!!busy}
-            >
-              {busy === "direct" ? <Spinner /> : null} Direct call (no SDK)
-            </button>
-            <button
-              type="button"
-              className={buttonClasses("danger", "md")}
-              onClick={noPass}
-              disabled={!!busy}
-            >
-              {busy === "nopass" ? <Spinner /> : null} Script: wallet without a pass
-            </button>
-            <button
-              type="button"
-              className={buttonClasses("danger", "md")}
-              onClick={bypass}
-              disabled={!!busy}
-            >
-              {busy === "bypass" ? <Spinner /> : null} Script: reuse your pass from another wallet
-            </button>
-          </div>
-          <div className="mt-4">
-            <ErrorNote error={error} />
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-line bg-surface">
-          <p className="border-b border-line px-5 py-3 text-[13px] font-medium text-fg-muted">
-            On-chain activity <span className="text-fg-subtle">(newest first)</span>
-          </p>
-          {log.length === 0 ? (
-            <p className="px-5 py-6 text-[13.5px] text-fg-subtle">Nothing yet.</p>
-          ) : (
-            <ul className="divide-y divide-line" aria-live="polite">
-              {log.map((e) => (
-                <li
-                  key={e.id}
-                  className="flex flex-col gap-1.5 px-5 py-3.5 sm:flex-row sm:items-start sm:justify-between sm:gap-4"
-                >
-                  <div className="min-w-0">
-                    <p className="text-[14px] font-medium text-fg">{e.label}</p>
-                    <p className="mt-0.5 text-[13px] text-fg-muted">{e.detail}</p>
-                  </div>
-                  <div className="flex shrink-0 flex-col items-start gap-1 sm:items-end">
-                    <StatusBadge tone={e.tone}>{e.outcome}</StatusBadge>
-                    {e.signature && <TxLink href={explorer(e.signature)} signature={e.signature} />}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-
-        <div
-          className="rounded-2xl border border-line bg-surface p-5"
-          onMouseEnter={() => mark(7)}
-          onFocus={() => mark(7)}
-        >
-          <p className="text-[15px] font-semibold text-fg">The integration: one call</p>
-          <div className="mt-3">
-            <CodeBlock code={REQUIRE_CURRENT} language="rust" />
-          </div>
-          <p className="mt-3 text-[13px] text-fg-muted">
-            From a terminal, the same direct call (no frontend, no SDK, no Stele API):{" "}
-            <code className="font-mono text-[12.5px] text-fg">
-              pnpm --filter @stele/localnet vault-deposit -- --policy {session.policy}
-            </code>
-          </p>
-        </div>
-
-        <div className="rounded-2xl border border-line bg-surface p-5">
-          <p className="text-[15px] font-semibold text-fg">The Proof behind the pass</p>
-          <p className="mt-1 text-[13.5px] text-fg-muted">
-            Every Gate acceptance is a Stele Proof record: the exact document, version, fingerprint,
-            signature and time — verifiable without Stele.
-          </p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <Link
-              href={receiptId ? `/receipt/${receiptId}` : "#"}
-              aria-disabled={!receiptId}
-              onClick={() => receiptId && mark(8)}
-              className={cn(
-                buttonClasses("secondary", "md"),
-                !receiptId && "pointer-events-none opacity-50",
-              )}
-            >
-              Open the receipt of your latest acceptance
-            </Link>
-          </div>
-        </div>
-      </div>
-
-      <aside className="h-fit rounded-2xl border border-line bg-surface p-5 lg:sticky lg:top-24">
-        <p className="text-[13px] font-semibold text-fg">The 3-minute story</p>
-        <ol className="mt-3 space-y-2">
-          {CHECKLIST.map((c, i) => (
-            <li
-              key={c}
-              className={cn(
-                "flex gap-2.5 text-[13.5px]",
-                done.has(i) ? "text-fg" : "text-fg-muted",
-              )}
-            >
-              <span
-                className={cn(
-                  "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border font-mono text-[10.5px]",
-                  done.has(i)
-                    ? "border-verified-line bg-verified-soft text-verified"
-                    : "border-line-strong",
-                )}
-                aria-hidden="true"
-              >
-                {done.has(i) ? "✓" : i + 1}
-              </span>
-              {c}
-              {done.has(i) && <span className="sr-only"> (done)</span>}
+      <aside className="h-fit rounded-2xl border border-line bg-surface p-5 text-[14px] leading-relaxed text-fg-muted lg:sticky lg:top-24">
+        <p className="text-[13px] font-semibold text-fg">What this proves</p>
+        <ul className="mt-3 space-y-2">
+          {[
+            "Which exact text was accepted — not just “version 1”.",
+            "That this key signed it, at a recorded Solana time.",
+            "That nobody edited it afterwards.",
+          ].map((t) => (
+            <li key={t} className="flex gap-2">
+              <CheckIcon className="mt-1 h-3.5 w-3.5 shrink-0 text-verified" aria-hidden="true" />
+              {t}
             </li>
           ))}
-        </ol>
-        <p className="mt-4 text-[12px] leading-relaxed text-fg-subtle">
-          “Deposit (through Stele)” uses the SDK: the modal appears only when needed. Every other
-          button calls the vault program directly — the program still checks the pass. Rejected
-          deposits are real failed transactions; acceptance and deposit are two transactions.
+        </ul>
+        <p className="mt-4 text-[12.5px] text-fg-subtle">
+          It does not prove who held the key — a signature is not KYC. Runs on{" "}
+          {status.network.label}.
         </p>
       </aside>
     </div>
@@ -794,9 +1252,9 @@ export function DemoClient() {
             Try Stele with real transactions.
           </h1>
           <p className="mt-4 max-w-2xl text-[16px] leading-relaxed text-fg-muted">
-            Every step below runs on {status ? status.network.label : "a Solana test network"} — no
-            mock-ups. A demo wallet is created in this browser tab; it holds nothing and disappears
-            when you leave. Stele pays the fees.
+            Two minutes, step by step. No wallet and no sign-up: a temporary demo wallet is created
+            in this tab, and Stele pays every fee. Everything runs on{" "}
+            {status ? status.network.label : "a Solana test network"} — nothing is a mock-up.
           </p>
           <div className="mt-6 flex flex-wrap items-center gap-3 text-[13px]">
             {status && (
@@ -851,10 +1309,15 @@ export function DemoClient() {
                 history.replaceState(null, "", `#${t}`);
               }}
               items={[
-                { value: "gate", label: "Gate · Atlas Real Estate Vault" },
-                { value: "proof", label: "Proof · any application" },
+                { value: "gate", label: "Stele Gate · an investment vault" },
+                { value: "proof", label: "Stele Proof · accepting terms" },
               ]}
             />
+            <p className="mt-4 text-[14px] text-fg-muted">
+              {tab === "gate"
+                ? "For Solana apps: an action is allowed only after the current terms were accepted — enforced by the program itself."
+                : "For any website or app: prove later exactly which terms someone accepted."}
+            </p>
             <div className="mt-6" id={tab}>
               {tab === "gate" ? (
                 <GateDemo status={status} wallet={wallet} rpcUrl={rpcUrl} explorer={explorer} />

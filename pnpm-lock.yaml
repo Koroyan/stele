@@ -229,10 +229,10 @@ importers:
       '@stele/db':
         specifier: workspace:*
         version: link:../../packages/db
-      '@stele/protocol':
+      '@stelehq/protocol':
         specifier: workspace:*
         version: link:../../packages/protocol
-      '@stele/verifier':
+      '@stelehq/verifier':
         specifier: workspace:*
         version: link:../../packages/verifier
       drizzle-orm:
@@ -281,16 +281,16 @@ importers:
       '@solana/kit-plugin-wallet':
         specifier: ^0.20.0
         version: 0.20.0(@solana/kit@8.4.0(typescript@6.0.3))(react@19.3.0)(typescript@6.0.3)
-      '@stele/protocol':
-        specifier: workspace:*
-        version: link:../../packages/protocol
-      '@stele/sdk':
-        specifier: workspace:*
-        version: link:../../packages/sdk
       '@stele/ui':
         specifier: workspace:*
         version: link:../../packages/ui
-      '@stele/verifier':
+      '@stelehq/protocol':
+        specifier: workspace:*
+        version: link:../../packages/protocol
+      '@stelehq/sdk':
+        specifier: workspace:*
+        version: link:../../packages/sdk
+      '@stelehq/verifier':
         specifier: workspace:*
         version: link:../../packages/verifier
       diff:
@@ -342,10 +342,10 @@ importers:
 
   examples/demo-shop:
     dependencies:
-      '@stele/sdk':
+      '@stelehq/sdk':
         specifier: workspace:*
         version: link:../../packages/sdk
-      '@stele/verifier':
+      '@stelehq/verifier':
         specifier: workspace:*
         version: link:../../packages/verifier
     devDependencies:
@@ -420,10 +420,10 @@ importers:
       '@solana/kit':
         specifier: ^8.4.0
         version: 8.4.0(typescript@6.0.3)
-      '@stele/protocol':
+      '@stelehq/protocol':
         specifier: workspace:*
         version: link:../protocol
-      '@stele/verifier':
+      '@stelehq/verifier':
         specifier: workspace:*
         version: link:../verifier
       '@wallet-standard/app':
@@ -473,7 +473,7 @@ importers:
       '@solana/kit':
         specifier: ^8.4.0
         version: 8.4.0(typescript@6.0.3)
-      '@stele/protocol':
+      '@stelehq/protocol':
         specifier: workspace:*
         version: link:../protocol
     devDependencies:
@@ -501,7 +501,7 @@ importers:
       '@playwright/test':
         specifier: ^1.63.0
         version: 1.63.0
-      '@stele/protocol':
+      '@stelehq/protocol':
         specifier: workspace:*
         version: link:../../packages/protocol
       '@types/node':
@@ -525,13 +525,13 @@ importers:
       '@stele/db':
         specifier: workspace:*
         version: link:../../packages/db
-      '@stele/protocol':
+      '@stelehq/protocol':
         specifier: workspace:*
         version: link:../../packages/protocol
-      '@stele/sdk':
+      '@stelehq/sdk':
         specifier: workspace:*
         version: link:../../packages/sdk
-      '@stele/verifier':
+      '@stelehq/verifier':
         specifier: workspace:*
         version: link:../../packages/verifier
       typescript:
@@ -549,7 +549,7 @@ importers:
       '@solana/kit':
         specifier: ^8.4.0
         version: 8.4.0(typescript@6.0.3)
-      '@stele/protocol':
+      '@stelehq/protocol':
         specifier: workspace:*
         version: link:../../packages/protocol
     devDependencies:
@@ -565,7 +565,7 @@ importers:
       '@solana/kit':
         specifier: ^8.4.0
         version: 8.4.0(typescript@6.0.3)
-      '@stele/protocol':
+      '@stelehq/protocol':
         specifier: workspace:*
         version: link:../../packages/protocol
     devDependencies:

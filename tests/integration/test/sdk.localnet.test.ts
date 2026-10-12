@@ -6,7 +6,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { ed25519 } from "@noble/curves/ed25519.js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { toBase58 } from "@stele/protocol";
+import { toBase58 } from "@stelehq/protocol";
 import {
   acceptDocument,
   confirmProof,
@@ -15,7 +15,7 @@ import {
   loadVerifiedDocument,
   SteleClient,
   type MessageSigner,
-} from "@stele/sdk";
+} from "@stelehq/sdk";
 import {
   login,
   makeApp,

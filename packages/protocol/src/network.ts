@@ -3,7 +3,8 @@
  * version fingerprint; `label` appears in every acceptance message. Together they make devnet
  * evidence unusable on mainnet and vice versa.
  */
-export type ClusterName = "mainnet" | "devnet" | "testnet" | "localnet";
+/** Devnet for testing, Mainnet for production; Localnet only on a developer's machine. */
+export type ClusterName = "mainnet" | "devnet" | "localnet";
 
 export interface NetworkPreset {
   cluster: ClusterName;
@@ -35,15 +36,6 @@ export const NETWORKS: Record<ClusterName, NetworkPreset> = {
     genesisHash: "EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG",
     defaultRpcUrl: "https://api.devnet.solana.com",
     explorerCluster: "devnet",
-  },
-  testnet: {
-    cluster: "testnet",
-    chainId: "solana:4uhcVJyU9pJkvQyS88uRDiswHXSCkY3z",
-    label: "Solana Testnet",
-    walletChain: "solana:testnet",
-    genesisHash: "4uhcVJyU9pJkvQyS88uRDiswHXSCkY3zQawwpjk2NsNY",
-    defaultRpcUrl: "https://api.testnet.solana.com",
-    explorerCluster: "testnet",
   },
   localnet: {
     cluster: "localnet",

@@ -27,7 +27,7 @@ import {
   findAccessPassPda,
   findVaultPda,
   readAccess,
-} from "@stele/protocol";
+} from "@stelehq/protocol";
 import {
   accessPasses,
   and,
@@ -491,8 +491,13 @@ export async function runProbes(deps: Deps, organizationId: string, programId: s
   const outdated = passes.find((x) => x.versionNumber < g.requiredVersion) ?? null;
   // A fresh random wallet: it has never accepted anything.
   const stranger = getAddressDecoder().decode(crypto.getRandomValues(new Uint8Array(32)));
-  const demo = p.programAddress === GATE_DEMO_PROGRAM_ADDRESS;
-  const [vault] = demo ? await findVaultPda(policy) : [null];
+  // The demo vault's deposit can be simulated only when a vault exists for this policy (the live
+  // demo creates one per session); otherwise the require_current rule is applied directly.
+  const [vault] =
+    p.programAddress === GATE_DEMO_PROGRAM_ADDRESS ? await findVaultPda(policy) : [null];
+  const demo =
+    vault !== null &&
+    (await deps.chain.rpc.getAccountInfo(vault, { encoding: "base64" }).send()).value !== null;
   const passOf = async (holder: Address) =>
     (await findAccessPassPda(address(d.address), holder, deps.chain.programAddress))[0];
 
@@ -542,6 +547,7 @@ export async function runProbes(deps: Deps, organizationId: string, programId: s
       id: "missing_pass",
       label: `No AccessPass → ${subject}`,
       expect: "reject" as const,
+      reason: "AccessPassMissing",
       run: async () => probe(stranger, await passOf(stranger)),
       skip: null,
     },
@@ -549,6 +555,7 @@ export async function runProbes(deps: Deps, organizationId: string, programId: s
       id: "current_pass",
       label: `Current AccessPass → ${subject}`,
       expect: "allow" as const,
+      reason: null,
       run: current ? async () => probe(address(current.holder), address(current.address)) : null,
       skip: "No wallet has accepted the required version yet",
     },
@@ -556,6 +563,7 @@ export async function runProbes(deps: Deps, organizationId: string, programId: s
       id: "outdated_pass",
       label: `AccessPass for an older version → ${subject}`,
       expect: "reject" as const,
+      reason: "AccessPassOutdated",
       run: outdated ? async () => probe(address(outdated.holder), address(outdated.address)) : null,
       skip: "No pass for an older version exists (require a newer version to create one)",
     },
@@ -563,6 +571,7 @@ export async function runProbes(deps: Deps, organizationId: string, programId: s
       id: "direct_bypass",
       label: `Direct call with someone else's AccessPass → ${subject}`,
       expect: "reject" as const,
+      reason: "AccessPassMismatch",
       run: passes[0] ? async () => probe(stranger, address(passes[0]!.address)) : null,
       skip: "No access pass exists yet",
     },
@@ -581,7 +590,9 @@ export async function runProbes(deps: Deps, organizationId: string, programId: s
       continue;
     }
     const sim = await s.run();
-    const asExpected = s.expect === "allow" ? sim.ok : !sim.ok;
+    // A rejection counts only when the AccessPass check refused it, not any other failure.
+    const otherReason = !sim.ok && s.reason !== null && sim.failure?.name !== s.reason;
+    const asExpected = s.expect === "allow" ? sim.ok : !sim.ok && !otherReason;
     results.push({
       id: s.id,
       label: s.label,
@@ -591,7 +602,9 @@ export async function runProbes(deps: Deps, organizationId: string, programId: s
         ? sim.unitsConsumed !== null
           ? `Executed (${sim.unitsConsumed} compute units)`
           : "Satisfies the policy"
-        : `${sim.failure?.name}: ${sim.failure?.message}`,
+        : otherReason
+          ? `Rejected for another reason, not by the AccessPass check (expected ${s.reason}): ${sim.failure?.name}: ${sim.failure?.message}`
+          : `${sim.failure?.name}: ${sim.failure?.message}`,
       failure: sim.failure,
     });
   }

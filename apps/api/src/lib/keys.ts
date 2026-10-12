@@ -6,7 +6,7 @@
  */
 import { readFileSync } from "node:fs";
 import { createKeyPairSignerFromBytes, type KeyPairSigner } from "@solana/kit";
-import { fromBase58 } from "@stele/protocol";
+import { fromBase58 } from "@stelehq/protocol";
 
 export function parseKeypairBytes(spec: string): Uint8Array {
   const trimmed = spec.trim();

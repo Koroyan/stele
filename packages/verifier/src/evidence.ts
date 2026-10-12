@@ -17,7 +17,7 @@ import {
   verifyKeyStatementSignature,
   verifyPasskeyAssertion,
   type SignerEvidence,
-} from "@stele/protocol";
+} from "@stelehq/protocol";
 import type { ReportBuilder, VerifiedFacts } from "./report";
 import type { TransactionSnapshot } from "./rpc";
 

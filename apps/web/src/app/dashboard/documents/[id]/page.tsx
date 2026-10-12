@@ -8,7 +8,7 @@ import {
   groupedFingerprint,
   type Content,
   type DocumentType,
-} from "@stele/protocol";
+} from "@stelehq/protocol";
 import {
   Alert,
   Badge,
@@ -309,7 +309,7 @@ function Share({ doc }: { doc: DocDetail }) {
       language: "tsx",
       code: `"use client";
 
-import { TermsAcceptance } from "@stele/sdk/react";
+import { TermsAcceptance } from "@stelehq/sdk/react";
 
 export function Terms() {
   return (
@@ -326,7 +326,7 @@ export function Terms() {
     server: {
       language: "ts",
       code: `// .env: STELE_API_URL=${origin}/api and STELE_API_KEY (API keys page)
-import { SteleServerClient } from "@stele/sdk/server";
+import { SteleServerClient } from "@stelehq/sdk/server";
 
 const stele = new SteleServerClient({
   apiBaseUrl: process.env.STELE_API_URL!,

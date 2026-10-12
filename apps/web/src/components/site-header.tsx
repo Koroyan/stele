@@ -41,7 +41,7 @@ export function SiteHeader() {
         <Link href="/" aria-label="Stele home" className="shrink-0">
           <SteleLogo />
         </Link>
-        <nav aria-label="Main" className="hidden items-center gap-1 md:flex">
+        <nav aria-label="Main" className="hidden items-center gap-1 lg:flex">
           {NAV.map((item) => {
             const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
             return (
@@ -50,7 +50,7 @@ export function SiteHeader() {
                 href={item.href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "rounded-md px-3 py-1.5 text-[13.5px] transition-colors",
+                  "whitespace-nowrap rounded-md px-3 py-1.5 text-[13.5px] transition-colors",
                   active ? "text-fg" : "text-fg-muted hover:text-fg",
                 )}
               >
@@ -59,7 +59,7 @@ export function SiteHeader() {
             );
           })}
         </nav>
-        <div className="ml-auto hidden items-center gap-2 md:flex">
+        <div className="ml-auto hidden items-center gap-2 lg:flex">
           <NetworkSwitcher variant="header" className="mr-1" />
           <Link href="/verify" className={buttonClasses("ghost", "sm")}>
             Verify agreement
@@ -70,7 +70,7 @@ export function SiteHeader() {
         </div>
         <button
           type="button"
-          className="ml-auto inline-flex h-9 w-9 items-center justify-center rounded-md text-fg-muted hover:bg-surface-2 hover:text-fg md:hidden"
+          className="ml-auto inline-flex h-9 w-9 items-center justify-center rounded-md text-fg-muted hover:bg-surface-2 hover:text-fg lg:hidden"
           aria-expanded={open}
           aria-controls="mobile-nav"
           aria-label={open ? "Close menu" : "Open menu"}
@@ -96,7 +96,7 @@ export function SiteHeader() {
         <nav
           id="mobile-nav"
           aria-label="Main"
-          className="border-t border-line px-4 pb-4 pt-2 md:hidden"
+          className="border-t border-line px-4 pb-4 pt-2 lg:hidden"
         >
           {NAV.map((item) => (
             <Link

@@ -25,7 +25,7 @@ export function widgetSamples(origin: string): Sample[] {
     {
       label: "React",
       language: "tsx",
-      code: `import { TermsAcceptance } from "@stele/sdk/react";
+      code: `import { TermsAcceptance } from "@stelehq/sdk/react";
 
 <TermsAcceptance
   apiBaseUrl="${origin}/api"
@@ -37,7 +37,7 @@ export function widgetSamples(origin: string): Sample[] {
     {
       label: "JavaScript",
       language: "js",
-      code: `import { mount } from "@stele/sdk";
+      code: `import { mount } from "@stelehq/sdk";
 
 mount(document.querySelector("#terms"), {
   apiBaseUrl: "${origin}/api",
@@ -103,7 +103,7 @@ curl "${base}/acceptances?externalUserRef=user_12345&version=$VERSION&limit=1" \
     {
       label: "Node.js",
       language: "ts",
-      code: `import { SteleServerClient } from "@stele/sdk/server";
+      code: `import { SteleServerClient } from "@stelehq/sdk/server";
 
 const stele = new SteleServerClient({
   apiBaseUrl: "${origin}/api",
@@ -233,7 +233,7 @@ var accepted = found.GetProperty("acceptances").GetArrayLength() > 0;`,
 export const WEBHOOK_SAMPLE: Sample = {
   label: "Node.js",
   language: "ts",
-  code: `import { verifyWebhook } from "@stele/sdk/server";
+  code: `import { verifyWebhook } from "@stelehq/sdk/server";
 
 app.post("/webhooks/stele", express.raw({ type: "application/json" }), (req, res) => {
   let event;

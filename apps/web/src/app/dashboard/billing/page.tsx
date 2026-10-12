@@ -6,7 +6,7 @@
  */
 import { useState } from "react";
 import { AccountRole, address } from "@solana/kit";
-import { formatSol, systemTransferInstruction } from "@stele/protocol";
+import { formatSol, systemTransferInstruction } from "@stelehq/protocol";
 import { Alert, Badge, Button, CopyButton, Fingerprint, cn } from "@stele/ui";
 import {
   LoadingRows,

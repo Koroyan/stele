@@ -85,6 +85,14 @@ export const DOCS: DocEntry[] = [
     summary: "What users sign, how it is checked, and what it does and does not prove.",
   },
   {
+    slug: "gate-guide",
+    file: "docs/gate-guide.md",
+    title: "Stele Gate: step by step",
+    group: "Developers",
+    summary:
+      "From zero to a protected Solana action: policy, program check, the user's AccessPass, Accept & Continue, tests.",
+  },
+  {
     slug: "api",
     file: "docs/api.md",
     title: "SDK & API",
@@ -154,6 +162,14 @@ export const DOCS: DocEntry[] = [
     title: "Measured costs",
     group: "Protocol",
     summary: "Fees, compute units, sizes and rent of real recordings, direct and batched.",
+  },
+  {
+    slug: "roadmap",
+    file: "docs/roadmap.md",
+    title: "Roadmap",
+    group: "Start here",
+    summary:
+      "What comes next: audit, multisig, verified legal entities, KYC attestations, a verifiable badge.",
   },
   {
     slug: "security-policy",

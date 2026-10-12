@@ -7,7 +7,7 @@
  * transaction being verified, so a `confirmed` transaction is never judged against older
  * `finalized` state.
  */
-import { fromBase64 } from "@stele/protocol";
+import { fromBase64 } from "@stelehq/protocol";
 
 export type ReadCommitment = "finalized" | "confirmed";
 

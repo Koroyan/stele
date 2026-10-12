@@ -18,12 +18,13 @@ const COLUMNS = [
   {
     title: "Developers",
     links: [
-      { href: "/docs/get-started", label: "Get started" },
-      { href: "/docs/gate", label: "Stele Gate guide" },
-      { href: "/developers", label: "SDK & API" },
-      { href: "/docs/api", label: "SDK & API reference" },
+      { href: "/developers", label: "Overview" },
+      { href: "/docs/get-started", label: "Proof guide" },
+      { href: "/docs/gate-guide", label: "Gate guide" },
+      { href: "/developers/sdk", label: "SDK reference" },
+      { href: "/developers/api", label: "API explorer" },
+      { href: "/developers/onchain", label: "On-chain reference" },
       { href: "/docs/spec", label: "Protocol specification" },
-      { href: "/docs/canonicalization", label: "Canonicalization" },
     ],
   },
   {
@@ -49,6 +50,18 @@ export function SiteFooter() {
               Cryptographic evidence of what was published and what was accepted — verifiable by
               anyone against Solana, without Stele&apos;s servers.
             </p>
+            <a
+              href="https://x.com/stelehq"
+              aria-label="Stele on X"
+              className="mt-5 inline-flex items-center gap-2 text-[13.5px] text-fg-muted transition-colors hover:text-fg"
+              rel="noreferrer noopener"
+              target="_blank"
+            >
+              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden="true">
+                <path d="M18.9 2H22l-6.8 7.8L23.2 22h-6.3l-4.9-6.4L6.4 22H3.3l7.3-8.3L2.9 2h6.4l4.4 5.9L18.9 2Zm-1.1 18h1.7L8.3 3.9H6.5L17.8 20Z" />
+              </svg>
+              @stelehq
+            </a>
           </div>
           {COLUMNS.map((col) => (
             <div key={col.title}>

@@ -3,8 +3,8 @@
  * API (network, documents, single acceptances, receipts) and the independent verifier. Every call to
  * Stele is recorded for the "API log" page.
  */
-import { SteleServerClient, type AcceptanceRecord } from "@stele/sdk/server";
-import { chainFromUrls, verifyAcceptance, type VerificationReport } from "@stele/verifier";
+import { SteleServerClient, type AcceptanceRecord } from "@stelehq/sdk/server";
+import { chainFromUrls, verifyAcceptance, type VerificationReport } from "@stelehq/verifier";
 
 function required(name: string): string {
   const value = process.env[name];

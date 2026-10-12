@@ -31,7 +31,7 @@ import {
   validateRequestDomain,
   validateVerifiedDomain,
   MAX_DOMAIN_ATTESTATION,
-} from "@stele/protocol";
+} from "@stelehq/protocol";
 import type { Deps } from "../deps.js";
 import { badRequest, conflict, forbidden, notFound } from "../errors.js";
 import { appendAudit } from "../lib/audit.js";

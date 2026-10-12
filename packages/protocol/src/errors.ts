@@ -130,6 +130,7 @@ export const PROGRAM_ERRORS = [
     "The required version must be a published version of the policy's document",
   ],
   ["PolicyMismatch", "The policy does not belong to this document"],
+  ["AccessPassAlreadyCurrent", "This wallet has already accepted this version"],
 ] as const;
 
 export type ProgramErrorName = (typeof PROGRAM_ERRORS)[number][0];

@@ -17,8 +17,8 @@ import {
   eq,
   organizations,
 } from "@stele/db";
-import { parseCanonicalContent, type PasskeyAssertion } from "@stele/protocol";
-import { receiptFromReport, receiptV2FromReport, verifyAcceptance } from "@stele/verifier";
+import { parseCanonicalContent, type PasskeyAssertion } from "@stelehq/protocol";
+import { receiptFromReport, receiptV2FromReport, verifyAcceptance } from "@stelehq/verifier";
 import { leafEvidence } from "../services/batches.js";
 import type { Deps } from "../deps.js";
 import { conflict, notFound } from "../errors.js";

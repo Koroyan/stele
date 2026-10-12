@@ -42,7 +42,7 @@ fn records_a_valid_acceptance() {
         meta.compute_units_consumed
     );
     // Measured ≈ 29k CU. The relayer requests a 60k CU limit (ACCEPTANCE_COMPUTE_UNIT_LIMIT in
-    // @stele/protocol); fail loudly if the program ever grows past that headroom.
+    // @stelehq/protocol); fail loudly if the program ever grows past that headroom.
     assert!(
         meta.compute_units_consumed < 50_000,
         "CU budget: {}",

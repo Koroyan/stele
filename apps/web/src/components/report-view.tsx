@@ -1,8 +1,8 @@
 "use client";
 /** Presents a verifier report exactly as computed — every check, its status and its detail. */
 import { useMemo, useState } from "react";
-import type { Check, VerificationReport } from "@stele/verifier";
-import { describeStatement, formatSol, parseCanonicalContent, utf8 } from "@stele/protocol";
+import type { Check, VerificationReport } from "@stelehq/verifier";
+import { describeStatement, formatSol, parseCanonicalContent, utf8 } from "@stelehq/protocol";
 import {
   AlertIcon,
   Badge,

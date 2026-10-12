@@ -13,7 +13,7 @@
  * on-chain commitment, the message is rebuilt from chain data before anything is signed, and all
  * text is inserted as text nodes (never as HTML).
  */
-import { groupedFingerprint, verifiedDomainAt } from "@stele/protocol";
+import { groupedFingerprint, verifiedDomainAt } from "@stelehq/protocol";
 import { acceptDocument, type AcceptanceResult, type MessageSigner } from "./accept";
 import { SteleClient, type SignerType, type SigningPolicy } from "./client";
 import { NativePasskeySigner, identifyPasskeySigner, nativePasskeySupport } from "./native-passkey";
@@ -35,9 +35,9 @@ import { loadVerifiedDocument, type VerifiedDocument } from "./verified-document
 import { connectWallet, isUserRejection, watchWallets, type AvailableWallet } from "./wallets";
 
 interface CommonOptions {
-  /** Stele API base URL, e.g. `https://stele.example/api`. The script build fills this in. */
+  /** Stele API base URL, e.g. `https://stele.site/api`. The script build fills this in. */
   apiBaseUrl?: string;
-  /** Where receipts open, e.g. `https://stele.example`. The script build fills this in. */
+  /** Where receipts open, e.g. `https://stele.site`. The script build fills this in. */
   appUrl?: string;
   /** Bring your own signer (wallet, `NativePasskeySigner` or `PasskeySigner`) instead of the built-in picker. */
   signer?: MessageSigner | null;

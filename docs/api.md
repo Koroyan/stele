@@ -9,24 +9,24 @@ C#**: pick a language on any sample and every sample switches to it. New to Stel
 
 | Where | Use | For |
 |---|---|---|
-| Your pages | [`stele.js`](#browser-script-stelejs) (script tag), or [`@stele/sdk` / `@stele/sdk/react`](#bundled-javascript-and-react) in bundled apps | Showing your Terms and collecting signed acceptances |
-| Your server | The [REST API](#rest-api) from any language; on Node.js, [`@stele/sdk/server`](#server-sdk-nodejs) | Linking acceptances to your users, checking them, proofs |
+| Your pages | [`stele.js`](#browser-script-stelejs) (script tag), or [`@stelehq/sdk` / `@stelehq/sdk/react`](#bundled-javascript-and-react) in bundled apps | Showing your Terms and collecting signed acceptances |
+| Your server | The [REST API](#rest-api) from any language; on Node.js, [`@stelehq/sdk/server`](#server-sdk-nodejs) | Linking acceptances to your users, checking them, proofs |
 | Your server | [Webhooks](#webhooks) | Being notified when something is recorded |
-| Anyone | [`@stele/verifier`](#verifier), `stele-verify`, the **Verify** page | Checking evidence against Solana, without Stele |
+| Anyone | [`@stelehq/verifier`](#verifier), `stele-verify`, the **Verify** page | Checking evidence against Solana, without Stele |
 
 Most integrations combine the widget with two or three server calls.
 
 | Package | Use it for |
 |---|---|
 | `stele.js` (script tag) | The embeddable widget, with no installation |
-| `@stele/sdk` | The widget for bundled apps (`mount`), plus lower-level building blocks |
-| `@stele/sdk/react` | The widget as a React component |
-| `@stele/sdk/server` | Node.js server client: sessions, acceptances, proofs, signers, webhook verification |
-| `@stele/verifier` | Independent verification of acceptances and documents, as a library or a command |
+| `@stelehq/sdk` | The widget for bundled apps (`mount`), plus lower-level building blocks |
+| `@stelehq/sdk/react` | The widget as a React component |
+| `@stelehq/sdk/server` | Node.js server client: sessions, acceptances, proofs, signers, webhook verification |
+| `@stelehq/verifier` | Independent verification of acceptances and documents, as a library or a command |
 
 ```bash
-npm install @stele/sdk          # widget, React component and Node.js server client
-npm install @stele/verifier     # only if you verify evidence yourself
+npm install @stelehq/sdk          # widget, React component and Node.js server client
+npm install @stelehq/verifier     # only if you verify evidence yourself
 ```
 
 ## Browser script (stele.js)
@@ -80,7 +80,7 @@ window.addEventListener("DOMContentLoaded", () => {
 });
 ```
 
-**Options** (`Stele.mount`, `mount` from `@stele/sdk` and the React props):
+**Options** (`Stele.mount`, `mount` from `@stelehq/sdk` and the React props):
 
 | Option | Type | |
 |---|---|---|
@@ -128,7 +128,7 @@ The same widget for apps that bundle their own JavaScript. Bundling pins the wid
 version you reviewed.
 
 ```js tab=JavaScript
-import { mount } from "@stele/sdk";
+import { mount } from "@stelehq/sdk";
 
 const widget = mount(document.querySelector("#terms"), {
   apiBaseUrl: "https://app.stele.example/api",
@@ -142,7 +142,7 @@ const widget = mount(document.querySelector("#terms"), {
 ```tsx tab=React
 "use client"; // Next.js App Router only
 
-import { TermsAcceptance } from "@stele/sdk/react";
+import { TermsAcceptance } from "@stelehq/sdk/react";
 
 export function Terms({ sessionToken }: { sessionToken?: string }) {
   return (
@@ -232,8 +232,8 @@ export STELE_API_KEY="stl_live_…"
 ```
 
 ```ts tab=Node.js
-// npm install @stele/sdk
-import { SteleServerClient } from "@stele/sdk/server";
+// npm install @stelehq/sdk
+import { SteleServerClient } from "@stelehq/sdk/server";
 
 export const stele = new SteleServerClient({
   apiBaseUrl: "https://app.stele.example/api",
@@ -1067,7 +1067,7 @@ and returns `400 invalid_passkey_assertion` (with the reason) before anything is
 In the browser, with the bundled SDK:
 
 ```ts
-import { NativePasskeySigner, SteleClient, acceptDocument } from "@stele/sdk";
+import { NativePasskeySigner, SteleClient, acceptDocument } from "@stelehq/sdk";
 
 const client = new SteleClient({ apiBaseUrl: "https://app.stele.example/api" });
 const signer =
@@ -1114,7 +1114,7 @@ additions:
 In the browser, with the bundled SDK:
 
 ```ts
-import { PasskeySigner, SteleClient, acceptDocument } from "@stele/sdk";
+import { PasskeySigner, SteleClient, acceptDocument } from "@stelehq/sdk";
 
 const client = new SteleClient({ apiBaseUrl: "https://app.stele.example/api" });
 const signer =
@@ -1376,7 +1376,7 @@ var requestId = request.GetProperty("requestId").GetString();
 ```
 
 Amounts are decimal strings; totals must add up (`400 invalid_totals` otherwise). Put personal data
-only as commitments (`{ "commitment": "sha256:…" }`, see `commit()` in `@stele/protocol`). The
+only as commitments (`{ "commitment": "sha256:…" }`, see `commit()` in `@stelehq/protocol`). The
 `clientToken` lets one browser see and confirm this statement: give it only to that customer.
 
 **2. The customer confirms.** Send them to `confirmUrl`, or embed the confirmation on your page:
@@ -1612,7 +1612,7 @@ test, disable or re-enable it, and rotate its secret.
 
 > [!IMPORTANT]
 > A webhook is a notification, not the cryptographic evidence itself. The evidence is the Solana
-> transaction it names: verify it (for example with `@stele/verifier`) before relying on it in a
+> transaction it names: verify it (for example with `@stelehq/verifier`) before relying on it in a
 > dispute.
 
 ## Errors
@@ -1722,10 +1722,10 @@ completeness; integrations normally use the endpoints above.
 
 ## Verifier
 
-`@stele/verifier` checks evidence directly against Solana, with no Stele server involved:
+`@stelehq/verifier` checks evidence directly against Solana, with no Stele server involved:
 
 ```ts
-import { chainFromUrls, verifyAcceptance } from "@stele/verifier";
+import { chainFromUrls, verifyAcceptance } from "@stelehq/verifier";
 
 const report = await verifyAcceptance(
   { transactionSignature: "4Gv4TkZK…" },

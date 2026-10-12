@@ -7,7 +7,7 @@ import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { expect, test } from "@playwright/test";
 import { ed25519 } from "@noble/curves/ed25519.js";
-import { toBase58, toBase64, utf8 } from "@stele/protocol";
+import { toBase58, toBase64, utf8 } from "@stelehq/protocol";
 import { seedState } from "../fixtures/localnet";
 import { connectThroughDialog, installTestWallet } from "../fixtures/wallet";
 

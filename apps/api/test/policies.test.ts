@@ -13,7 +13,7 @@ import {
   sessions,
   sql,
 } from "@stele/db";
-import { toBase58 } from "@stele/protocol";
+import { toBase58 } from "@stelehq/protocol";
 import { APP_ORIGIN, keypairBytes, login, makeApp, type Session, type TestApp } from "./helpers.js";
 
 const randomAddress = () => toBase58(new Uint8Array(randomBytes(32)));

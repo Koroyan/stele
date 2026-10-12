@@ -2,7 +2,7 @@
  * Minimal, strict decoder for Solana wire transactions (legacy and v0). Written out by hand so the
  * verifier's trusted surface is small and independent of client-library internals.
  */
-import { toBase58 } from "@stele/protocol";
+import { toBase58 } from "@stelehq/protocol";
 
 export interface DecodedInstruction {
   index: number;

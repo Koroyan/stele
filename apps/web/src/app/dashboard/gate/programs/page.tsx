@@ -1,5 +1,8 @@
 "use client";
-/** Program integration: a guided setup from program ID to a tested require_current() check. */
+/**
+ * Program integration, in the order a developer works: choose the policy, add the check to the
+ * program, add "Accept & Continue" to the app, deploy and register the program, test it.
+ */
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { isAddress } from "@solana/kit";
@@ -20,18 +23,10 @@ import { useApi } from "@/lib/use-api";
 import { useNetwork, useWallet } from "@/lib/wallet";
 import { ProbeResults } from "../testing/probe-results";
 
-const STEPS = [
-  "Register program",
-  "Choose policy",
-  "Required version",
-  "Frontend",
-  "On-chain",
-  "Test",
-  "Ready",
-];
+const STEPS = ["Policy", "Program code", "Frontend", "Register", "Test", "Ready"];
 
 function frontendCode(policy: string, action: string) {
-  return `import { createSteleGate } from "@stele/sdk";
+  return `import { createSteleGate } from "@stelehq/sdk";
 
 const stele = createSteleGate({ apiBaseUrl: "${typeof window === "undefined" ? "" : window.location.origin}/api", wallet });
 
@@ -42,9 +37,12 @@ await stele.gate({
 });`;
 }
 
+const CARGO = `[dependencies]
+anchor-lang = "1.2"
+stele-gate = "1"   # crates.io/crates/stele-gate`;
+
 function onchainCode(policy: string, action: string) {
-  return `// Cargo.toml: stele-gate = { path = "crates/stele-gate" }
-use anchor_lang::prelude::*;
+  return `use anchor_lang::prelude::*;
 
 /// The Stele policy this program requires.
 pub const POLICY: Pubkey = pubkey!("${policy}");
@@ -107,8 +105,13 @@ export default function GateProgramsPage() {
 
   if (!detail) return null;
   const canAdmin = detail.role === "owner" || detail.role === "admin";
-  const addressError =
-    programAddress && !isAddress(programAddress.trim()) ? "Not a valid Solana address." : null;
+  const addressError = !programAddress
+    ? null
+    : !isAddress(programAddress.trim())
+      ? "Not a valid Solana address."
+      : programAddress.trim() === network.programId
+        ? "This is the Stele program itself. Enter the address of your own program — the one that runs the protected action — or use the demo vault below."
+        : null;
 
   async function register() {
     setBusy(true);
@@ -127,7 +130,7 @@ export default function GateProgramsPage() {
       );
       setProgramId(program.id);
       overview.reload();
-      setStep(2);
+      setStep(4);
     } catch (e) {
       setError(errorMessage(e));
     } finally {
@@ -193,14 +196,168 @@ export default function GateProgramsPage() {
           )}
 
           {step === 0 && (
-            <Panel className="mt-5" title="1. Register your Solana program">
-              <div className="grid gap-4 md:grid-cols-3">
+            <Panel
+              className="mt-5"
+              title="1. Choose the policy your program will require"
+              description="A policy names one document and the version a protected action needs. Your program is pinned to its address."
+            >
+              {policies.length === 0 ? (
+                <Alert tone="warning">
+                  No policy yet. Create one for the document your program requires —{" "}
+                  <Link href="/dashboard/gate/policies" className="text-accent">
+                    Policies
+                  </Link>
+                  .
+                </Alert>
+              ) : (
+                <>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <Field label="Policy" htmlFor="policy">
+                      <Select
+                        id="policy"
+                        value={documentId}
+                        onChange={(e) => setDocumentId(e.target.value)}
+                      >
+                        {policies.map((d) => (
+                          <option key={d.id} value={d.id}>
+                            {documentTitle(d)} — requires v{d.policy!.requiredVersion}
+                          </option>
+                        ))}
+                      </Select>
+                    </Field>
+                    <Field
+                      label="Protected instruction"
+                      htmlFor="action"
+                      hint="The function in your program that needs the terms, e.g. deposit."
+                    >
+                      <Input
+                        id="action"
+                        value={action}
+                        onChange={(e) => setAction(e.target.value)}
+                        className="font-mono text-[13px]"
+                      />
+                    </Field>
+                  </div>
+                  {doc?.policy && (
+                    <p className="mt-4 text-[14px] text-fg-muted">
+                      <span className="font-semibold text-fg">{documentTitle(doc)}</span>: the
+                      policy requires <Badge tone="verified">v{doc.policy.requiredVersion}</Badge> ·
+                      latest published v{doc.versionCount} · policy{" "}
+                      <span className="font-mono text-[12.5px] text-fg">
+                        {shortAddress(doc.policy.address, 6, 6)}
+                      </span>
+                    </p>
+                  )}
+                  {doc?.policy && doc.versionCount > doc.policy.requiredVersion && (
+                    <div className="mt-4 space-y-3">
+                      <Alert tone="warning">
+                        v{doc.versionCount} is published but not required. Requiring it makes older
+                        passes insufficient.
+                      </Alert>
+                      <SigningAs />
+                      <Button
+                        variant="secondary"
+                        loading={tx.pending}
+                        disabled={!authority?.canCreateDocument}
+                        onClick={() =>
+                          void savePolicy(tx, {
+                            programId: network.programId,
+                            organizationId: detail.organization.id,
+                            organization: detail.organization.address,
+                            document: doc.address,
+                            versionNumber: doc.versionCount,
+                            exists: true,
+                            authority: authority!,
+                          }).then((ok) => ok && overview.reload())
+                        }
+                      >
+                        Require v{doc.versionCount}
+                      </Button>
+                      <TxStatus tx={tx} />
+                    </div>
+                  )}
+                  <Button
+                    className="mt-4"
+                    disabled={!doc?.policy || !action.trim()}
+                    onClick={() => setStep(1)}
+                  >
+                    Continue
+                  </Button>
+                </>
+              )}
+            </Panel>
+          )}
+
+          {step === 1 && doc?.policy && (
+            <Panel
+              className="mt-5"
+              title="2. Add the check to your program"
+              description="This is what enforces the terms: a direct call without a current AccessPass fails on-chain, whatever client sent it."
+            >
+              <p className="text-[13.5px] font-medium text-fg">Cargo.toml</p>
+              <div className="mt-2">
+                <CodeBlock code={CARGO} language="toml" />
+              </div>
+              <p className="mt-5 text-[13.5px] font-medium text-fg">
+                Your program — already filled in with your policy
+              </p>
+              <div className="mt-2">
+                <CodeBlock code={onchainCode(doc.policy.address, action)} language="rust" />
+              </div>
+              <ul className="mt-4 space-y-1.5 text-[13px] leading-relaxed text-fg-muted">
+                <li>
+                  · The policy is pinned with{" "}
+                  <code className="font-mono text-fg">address = POLICY</code>: a caller cannot pass
+                  a policy of their own.
+                </li>
+                <li>
+                  · Several documents? Use{" "}
+                  <code className="font-mono text-fg">stele_gate::require_policies</code> —{" "}
+                  <Link href="/docs/gate-guide" className="text-accent">
+                    the guide
+                  </Link>{" "}
+                  shows it, and a Solana Playground version.
+                </li>
+                <li>
+                  · Then build and deploy your program to {network.label} as usual (anchor deploy,
+                  or Deploy in Solana Playground) and copy its program ID for step 4.
+                </li>
+              </ul>
+              <Button className="mt-4" onClick={() => setStep(2)}>
+                Continue
+              </Button>
+            </Panel>
+          )}
+
+          {step === 2 && doc?.policy && (
+            <Panel
+              className="mt-5"
+              title="3. Add Accept & Continue to your app"
+              description="Wrap the transaction you already send. The Stele window appears only when the wallet's pass is missing or outdated; otherwise your action runs right away."
+            >
+              <CodeBlock code={"npm install @stelehq/sdk"} language="bash" />
+              <div className="mt-3">
+                <CodeBlock code={frontendCode(doc.policy.address, action)} language="ts" />
+              </div>
+              <Button className="mt-4" onClick={() => setStep(3)}>
+                Continue
+              </Button>
+            </Panel>
+          )}
+
+          {step === 3 && (
+            <Panel
+              className="mt-5"
+              title="4. Register your deployed program"
+              description="So this dashboard can test it and show its allowed and refused transactions."
+            >
+              <div className="grid gap-4 md:grid-cols-2">
                 <Field label="Program ID" htmlFor="program" error={addressError}>
                   <Input
                     id="program"
                     value={programAddress}
                     onChange={(e) => setProgramAddress(e.target.value)}
-                    placeholder="Your program's address"
+                    placeholder="Your deployed program's address"
                     className="font-mono text-[13px]"
                     spellCheck={false}
                   />
@@ -213,18 +370,10 @@ export default function GateProgramsPage() {
                     placeholder="Atlas Real Estate Vault"
                   />
                 </Field>
-                <Field label="Protected instruction" htmlFor="action">
-                  <Input
-                    id="action"
-                    value={action}
-                    onChange={(e) => setAction(e.target.value)}
-                    className="font-mono text-[13px]"
-                  />
-                </Field>
               </div>
               {overview.data && (
                 <p className="mt-3 text-[12.5px] text-fg-subtle">
-                  Trying it out? The Stele demo vault is{" "}
+                  No program yet? Try it with the Stele demo vault:{" "}
                   <button
                     type="button"
                     className="font-mono text-accent"
@@ -239,130 +388,26 @@ export default function GateProgramsPage() {
                   .
                 </p>
               )}
+              {!canAdmin && (
+                <Alert tone="warning" className="mt-3">
+                  Only the owner or an admin can register a program.
+                </Alert>
+              )}
               <Button
                 className="mt-4"
-                disabled={!programAddress.trim() || !!addressError || !action.trim()}
-                onClick={() => setStep(1)}
+                onClick={() => void register()}
+                loading={busy}
+                disabled={!canAdmin || !documentId || !programAddress.trim() || !!addressError}
               >
-                Continue
+                Register program
               </Button>
             </Panel>
           )}
 
-          {step === 1 && (
-            <Panel className="mt-5" title="2. Choose the Stele policy it requires">
-              {policies.length === 0 ? (
-                <Alert tone="warning">
-                  No policy yet. Create one for the document your program requires —{" "}
-                  <Link href="/dashboard/gate/policies" className="text-accent">
-                    Policies
-                  </Link>
-                  .
-                </Alert>
-              ) : (
-                <>
-                  <Field label="Policy" htmlFor="policy">
-                    <Select
-                      id="policy"
-                      value={documentId}
-                      onChange={(e) => setDocumentId(e.target.value)}
-                    >
-                      {policies.map((d) => (
-                        <option key={d.id} value={d.id}>
-                          {documentTitle(d)} — requires v{d.policy!.requiredVersion}
-                        </option>
-                      ))}
-                    </Select>
-                  </Field>
-                  {!canAdmin && (
-                    <Alert tone="warning" className="mt-3">
-                      Only the owner or an admin can register a program.
-                    </Alert>
-                  )}
-                  <Button
-                    className="mt-4"
-                    onClick={() => void register()}
-                    loading={busy}
-                    disabled={!canAdmin || !documentId}
-                  >
-                    Register program
-                  </Button>
-                </>
-              )}
-            </Panel>
-          )}
-
-          {step === 2 && doc?.policy && (
-            <Panel className="mt-5" title="3. The current required version">
-              <p className="text-[14px] text-fg-muted">
-                <span className="font-semibold text-fg">{documentTitle(doc)}</span>: the policy
-                requires <Badge tone="verified">v{doc.policy.requiredVersion}</Badge> · latest
-                published v{doc.versionCount}.
-              </p>
-              {doc.versionCount > doc.policy.requiredVersion && (
-                <div className="mt-4 space-y-3">
-                  <Alert tone="warning">
-                    v{doc.versionCount} is published but not required. Requiring it makes older
-                    passes insufficient.
-                  </Alert>
-                  <SigningAs />
-                  <Button
-                    variant="secondary"
-                    loading={tx.pending}
-                    disabled={!authority?.canCreateDocument}
-                    onClick={() =>
-                      void savePolicy(tx, {
-                        programId: network.programId,
-                        organizationId: detail.organization.id,
-                        organization: detail.organization.address,
-                        document: doc.address,
-                        versionNumber: doc.versionCount,
-                        exists: true,
-                        authority: authority!,
-                      }).then((ok) => ok && overview.reload())
-                    }
-                  >
-                    Require v{doc.versionCount}
-                  </Button>
-                  <TxStatus tx={tx} />
-                </div>
-              )}
-              <Button className="mt-4" onClick={() => setStep(3)}>
-                Continue
-              </Button>
-            </Panel>
-          )}
-
-          {step === 3 && doc?.policy && (
+          {step === 4 && (
             <Panel
               className="mt-5"
-              title="4. Frontend integration (user experience)"
-              description="Wrap the transaction you already send. The modal appears only when the wallet's pass is missing or outdated."
-            >
-              <CodeBlock code={frontendCode(doc.policy.address, action)} language="ts" />
-              <Button className="mt-4" onClick={() => setStep(4)}>
-                Continue
-              </Button>
-            </Panel>
-          )}
-
-          {step === 4 && doc?.policy && (
-            <Panel
-              className="mt-5"
-              title="5. On-chain integration (enforcement)"
-              description="Add the policy and the AccessPass to your instruction and call require_current(). This is what rejects direct calls."
-            >
-              <CodeBlock code={onchainCode(doc.policy.address, action)} language="rust" />
-              <Button className="mt-4" onClick={() => setStep(5)}>
-                Continue
-              </Button>
-            </Panel>
-          )}
-
-          {step === 5 && (
-            <Panel
-              className="mt-5"
-              title="6. Test"
+              title="5. Test"
               description="Missing pass → reject · current pass → success · old pass → reject · direct call with someone else's pass → reject."
             >
               <Button onClick={() => void runTest()} loading={busy} disabled={!programId}>
@@ -373,17 +418,17 @@ export default function GateProgramsPage() {
                   <ProbeResults report={report} />
                 </div>
               )}
-              <Button className="mt-5" variant="secondary" onClick={() => setStep(6)}>
+              <Button className="mt-5" variant="secondary" onClick={() => setStep(5)}>
                 Continue
               </Button>
             </Panel>
           )}
 
-          {step === 6 && (
-            <Panel className="mt-5" title="7. Integration ready">
+          {step === 5 && (
+            <Panel className="mt-5" title="6. Integration ready">
               <p className="text-[14px] leading-relaxed text-fg-muted">
-                Your program is registered against the policy. Deploy the on-chain check, keep the
-                tests in your suite, and watch allowed and rejected calls on the{" "}
+                Your program is registered against the policy. Keep the four checks in your own test
+                suite, and watch allowed and rejected calls on the{" "}
                 <Link href="/dashboard/gate" className="text-accent">
                   Gate overview
                 </Link>

@@ -1,5 +1,5 @@
 /** Verification report model. */
-import type { SignerEvidence, Statement } from "@stele/protocol";
+import type { SignerEvidence, Statement } from "@stelehq/protocol";
 
 export type CheckStatus = "pass" | "fail" | "warn" | "skip" | "error";
 

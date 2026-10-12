@@ -21,9 +21,9 @@ import {
   toBase64Url,
   utf8,
   webauthnChallenge,
-} from "@stele/protocol";
-import { SoftPasskey } from "@stele/protocol/testing";
-import { chainFromUrls, decodeWireTransaction, verifyAcceptance } from "@stele/verifier";
+} from "@stelehq/protocol";
+import { SoftPasskey } from "@stelehq/protocol/testing";
+import { chainFromUrls, decodeWireTransaction, verifyAcceptance } from "@stelehq/verifier";
 import { FilesystemContentStore } from "../src/lib/storage.js";
 import { syncDocument, syncShard } from "../src/lib/sync.js";
 import { anchorPendingBatches } from "../src/services/batches.js";

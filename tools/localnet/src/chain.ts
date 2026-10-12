@@ -24,7 +24,7 @@ import {
   signSendAndConfirm,
   toHex,
   type SteleRpc,
-} from "@stele/protocol";
+} from "@stelehq/protocol";
 import { STORAGE_DIR } from "./keys.js";
 
 export const RPC_URL = process.env.STELE_RPC_URL ?? "http://127.0.0.1:8899";

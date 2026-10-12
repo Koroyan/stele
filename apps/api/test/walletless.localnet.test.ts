@@ -50,9 +50,9 @@ import {
   utf8,
   wrapSigningSeed,
   type WrappedKey,
-} from "@stele/protocol";
-import { SoftPasskey } from "@stele/protocol/testing";
-import { verifyAcceptance, verifyProof } from "@stele/verifier";
+} from "@stelehq/protocol";
+import { SoftPasskey } from "@stelehq/protocol/testing";
+import { verifyAcceptance, verifyProof } from "@stelehq/verifier";
 import { assertSponsoredRecordingShape } from "../src/lib/tx-policy.js";
 import { FilesystemContentStore } from "../src/lib/storage.js";
 import { syncDocument, syncShard } from "../src/lib/sync.js";
@@ -711,6 +711,16 @@ describe.skipIf(!available)("walletless signing, sponsorship and proofs (real va
     const fee = res.json().fee;
     expect(fee.sponsor).toBe("organization");
     expect(fee.reimbursedLamports).toBe(fee.lamports);
+    // Accepting the same version again is refused before anyone signs, with the earlier receipt.
+    const again = await inject("POST", "/v1/acceptance/challenges", {
+      organization: org(),
+      document: doc(),
+      signer: s.publicKey,
+      signerType: "passkey",
+    });
+    expect(again.statusCode).toBe(409);
+    expect(again.json().error.code).toBe("already_accepted");
+    expect(again.json().error.details.acceptanceId).toBe(res.json().acceptanceId);
     const [booked] = await t.deps.db
       .select()
       .from(sponsoredTransactions)
@@ -752,7 +762,8 @@ describe.skipIf(!available)("walletless signing, sponsorship and proofs (real va
     expect(refused.json().error.code).toBe("sponsorship_unavailable");
     // With fallback, Stele pays (still never the user).
     await setSettings({ sponsorFallbackToStele: true });
-    const fallback = await acceptWithPasskey(s);
+    // Another user: `s` already accepted this version, and an account accepts a version once.
+    const fallback = await acceptWithPasskey(await register());
     expect(fallback.statusCode, fallback.body).toBe(200);
     expect(fallback.json().fee.sponsor).toBe("stele");
     await setSettings({ feeSponsor: "stele", sponsorFallbackToStele: false });

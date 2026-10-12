@@ -56,7 +56,7 @@ version exists on-chain, recomputes its fingerprint and checks its text.
 
 ### From the command line
 
-The `stele-verify` command (in the `@stele/verifier` package) needs no Stele server:
+The `stele-verify` command (in the `@stelehq/verifier` package) needs no Stele server:
 
 ```shell
 stele-verify --rpc https://api.mainnet-beta.solana.com --tx <transaction signature>
@@ -79,7 +79,7 @@ Exit codes: `0` valid, `1` valid with warnings, `2` invalid, `3` inconclusive.
 ### In code
 
 ```ts
-import { chainFromUrls, verifyAcceptance } from "@stele/verifier";
+import { chainFromUrls, verifyAcceptance } from "@stelehq/verifier";
 
 const report = await verifyAcceptance(
   { transactionSignature: "5h3K…" }, // or { receipt } or { acceptanceId }
@@ -122,7 +122,7 @@ They contain the full statement — which is not on-chain — so keep them as pr
 Upload one on **Verify → Receipt file**, or:
 
 ```ts
-import { chainFromUrls, verifyProof } from "@stele/verifier";
+import { chainFromUrls, verifyProof } from "@stelehq/verifier";
 const report = await verifyProof({ receipt }, { chain: chainFromUrls([rpcA, rpcB]) });
 ```
 

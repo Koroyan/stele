@@ -15,7 +15,7 @@
 7. [ლოკალური გაშვება](#7-ლოკალური-გაშვება)
 8. [ხელით ტესტირება](#8-ხელით-ტესტირება)
 9. [ავტომატური ტესტები და შემოწმებები](#9-ავტომატური-ტესტები-და-შემოწმებები)
-10. [ქსელები: Localnet, Devnet, Testnet, Mainnet](#10-ქსელები-localnet-devnet-testnet-mainnet)
+10. [ქსელები: Devnet და Mainnet](#10-ქსელები-devnet-და-mainnet)
 11. [დოკუმენტაცია](#11-დოკუმენტაცია)
 12. [Production-მდე დარჩენილი ნაბიჯები](#12-production-მდე-დარჩენილი-ნაბიჯები)
 13. [შეზღუდვები და გასათვალისწინებელი](#13-შეზღუდვები-და-გასათვალისწინებელი)
@@ -75,9 +75,9 @@
 |---|---|---|
 | **Solana პროგრამა** | `programs/stele` (Anchor) | ორგანიზაციები, როლები, multisig, recovery, freeze, დომენები, შეუცვლელი ვერსიები, თანხმობების on-chain შემოწმება |
 | **Rust ბიბლიოთეკები** | `crates/stele-core`, `crates/stele-canonical` | საერთო ლოგიკა: შეტყობინებები, fingerprint-ები, canonicalization |
-| **`@stele/protocol`** | `packages/protocol` | იგივე ლოგიკა TypeScript-ზე (codecs, ინსტრუქციები, ანგარიშები) |
-| **`@stele/verifier`** | `packages/verifier` | დამოუკიდებელი ვერიფიკატორი: ბიბლიოთეკა და `stele-verify` CLI |
-| **`@stele/sdk`** | `packages/sdk` | ჩასაშენებელი ვიჯეტი (`stele.js`), `mount()`, React კომპონენტი, სერვერის client, webhook-ის შემოწმება |
+| **`@stelehq/protocol`** | `packages/protocol` | იგივე ლოგიკა TypeScript-ზე (codecs, ინსტრუქციები, ანგარიშები) |
+| **`@stelehq/verifier`** | `packages/verifier` | დამოუკიდებელი ვერიფიკატორი: ბიბლიოთეკა და `stele-verify` CLI |
+| **`@stelehq/sdk`** | `packages/sdk` | ჩასაშენებელი ვიჯეტი (`stele.js`), `mount()`, React კომპონენტი, სერვერის client, webhook-ის შემოწმება |
 | **API** | `apps/api` (Fastify) | საფულით შესვლა, ორგანიზაციები, დოკუმენტები, relayer, DNS-ით დომენის დადასტურება, API key-ები, webhook-ები, audit log, ინდექსერი |
 | **ვებ-აპლიკაცია** | `apps/web` (Next.js) | მარკეტინგული საიტი, დოკუმენტაცია, Dashboard, თანხმობის hosted გვერდი, ქვითრები, ვერიფიკატორი, ქსელის გადამრთველი, ანიმაციური ახსნა |
 | **დიზაინ-სისტემა** | `packages/ui` | ფერები, კომპონენტები, ლოგო |
@@ -118,9 +118,9 @@
 ```
 programs/stele/         Solana პროგრამა (Anchor) და მისი ტესტები (LiteSVM)
 crates/                 stele-core, stele-canonical (Rust)
-packages/protocol       @stele/protocol
-packages/verifier       @stele/verifier + stele-verify CLI
-packages/sdk            @stele/sdk (ვიჯეტი, React, server)
+packages/protocol       @stelehq/protocol
+packages/verifier       @stelehq/verifier + stele-verify CLI
+packages/sdk            @stelehq/sdk (ვიჯეტი, React, server)
 packages/db             ბაზის სქემა და migration-ები
 packages/ui             დიზაინ-სისტემა
 apps/api                REST API, relayer, workers, ინდექსერი
@@ -203,7 +203,7 @@ pnpm dev:web        # http://localhost:3000
 pnpm build
 pnpm --filter @stele/api start
 PORT=3000 HOSTNAME=localhost PUBLIC_RPC_URLS=http://127.0.0.1:8899 \
-  STELE_NETWORKS="localnet=http://localhost:3000,devnet=,testnet=,mainnet=" \
+  STELE_NETWORKS="devnet=,mainnet=" \
   pnpm --filter @stele/web start
 
 # 7. Demo მაღაზია (Northwind Shop); --member-ით შენი საფულე Dashboard-შიც დაინახავს მას
@@ -263,16 +263,20 @@ sponsored the network fee". შემდეგ Dashboard-ში Northwind Shop-�
 CI (`.github/workflows/ci.yml`) ყველაფერს ავტომატურად უშვებს, მათ შორის Rust-ს (`--locked`),
 localnet-ს, E2E-ს production build-ებზე, `pnpm audit`-ს, `cargo audit`-სა და secret scan-ს.
 
-## 10. ქსელები: Localnet, Devnet, Testnet, Mainnet
+## 10. ქსელები: Devnet და Mainnet
 
+- **Stele-ს ორი ქსელი აქვს:** **Devnet** ტესტირებისთვის და **Mainnet** ნამდვილი გამოყენებისთვის.
+  Testnet ამოღებულია კოდიდან, კონფიგურაციიდან და დოკუმენტაციიდან.
+- **Localnet მხოლოდ დეველოპერის კომპიუტერზეა** (ტესტებისთვის). საიტის ქსელის გადამრთველი მას არასდროს
+  სთავაზობს, ხოლო production-ში API მას საერთოდ არ უშვებს (`localnet is not allowed in production`).
 - **ყოველი ქსელი ცალკე deployment-ია:** თავისი API, ბაზა, relayer-ისა და attestor-ის გასაღებები და
   მისამართი (მაგალითად `app.stele.com` და `devnet.app.stele.com`). ქსელები ერთმანეთში არ ირევა.
-- საიტზე **ქსელის გადამრთველია** (header და Dashboard-ის sidebar), სატესტო ქსელზე კი ყველა გვერდზე
-  ჩანს გამაფრთხილებელი ზოლი.
+- საიტზე **ქსელის გადამრთველია** (header და Dashboard-ის sidebar), Devnet-ზე კი ყველა გვერდზე ჩანს
+  გამაფრთხილებელი ზოლი.
 - სია ერთი ცვლადით იმართება:
-  `STELE_NETWORKS=mainnet=https://app.stele.com,devnet=https://devnet.app.stele.com,testnet=https://testnet.app.stele.com`
-- **Testnet-ის მოშორება production-ში:** წაშალე `testnet=…` ამ ცვლადიდან. კოდის ცვლილება არ არის საჭირო.
-- **ახლა მხოლოდ Localnet მუშაობს.** Devnet და Mainnet ჯერ გაშვებული არ არის.
+  `STELE_NETWORKS=mainnet=https://app.stele.com,devnet=https://devnet.app.stele.com`
+- **ახლა:** პროგრამები Devnet-ზეა გაშვებული; საიტი და API ჯერ მხოლოდ ლოკალურად მუშაობს (hosting
+  ჯერ არ არის).
 
 ## 11. დოკუმენტაცია
 
@@ -304,8 +308,8 @@ Python, Java, Go, PHP, Ruby და C#-ზე, ტაბებით. ერთ�
 1. **Git commit:** კოდი ჯერ დაკომიტებული არ არის.
 2. **Devnet deployment:** პროგრამის Devnet-ზე განთავსება, ცალკე API, ბაზა და გასაღებები, დომენი
    (მაგალითად `devnet.app.stele.com`) და `STELE_NETWORKS`-ის განახლება.
-3. **npm publish:** `@stele/protocol`, `@stele/verifier` და `@stele/sdk` (შენი npm ორგანიზაციით).
-   მანამდე დოკუმენტაციაში მოცემული `npm install @stele/sdk` არ იმუშავებს; script tag-ი კი მუშაობს.
+3. **npm publish:** `@stelehq/protocol`, `@stelehq/verifier` და `@stelehq/sdk` (შენი npm ორგანიზაციით).
+   მანამდე დოკუმენტაციაში მოცემული `npm install @stelehq/sdk` არ იმუშავებს; script tag-ი კი მუშაობს.
 4. **დამოუკიდებელი security audit:** პროგრამისა და პროტოკოლის.
 5. **Mainnet:** რეპროდუცირებადი build (`solana-verify`), upgrade authority და protocol admin
    multisig-ზე (Squads), relayer-ისა და attestor-ის გასაღებები secret manager-ში, ორი დამოუკიდებელი

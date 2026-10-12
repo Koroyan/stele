@@ -5,7 +5,7 @@ import {
   fromHex,
   parseCanonicalContent,
   type Content,
-} from "@stele/protocol";
+} from "@stelehq/protocol";
 
 const cache = new Map<string, Promise<Content>>();
 

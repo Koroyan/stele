@@ -1,10 +1,10 @@
 /**
- * @stele/verifier — independent verification of Stele evidence.
+ * @stelehq/verifier — independent verification of Stele evidence.
  *
  * Talks only to Solana RPC endpoints you choose and to content storage; never to a Stele server.
  *
  * ```ts
- * import { JsonRpcSource, ConsensusSource, verifyAcceptance } from "@stele/verifier";
+ * import { JsonRpcSource, ConsensusSource, verifyAcceptance } from "@stelehq/verifier";
  * const chain = new ConsensusSource([new JsonRpcSource(rpcA), new JsonRpcSource(rpcB)]);
  * const report = await verifyAcceptance({ transactionSignature }, { chain });
  * console.log(report.verdict); // "VALID" | "VALID_WITH_WARNINGS" | "INVALID" | "INCONCLUSIVE"

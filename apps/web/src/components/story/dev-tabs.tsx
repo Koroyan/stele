@@ -1,8 +1,8 @@
 "use client";
 
 /**
- * Integration code for Stele Gate. Every sample is the real API: @stele/sdk (createSteleGate),
- * @stele/protocol (findAccessPassPda, findPolicyPda) and the stele-gate crate (require_current), as
+ * Integration code for Stele Gate. Every sample is the real API: @stelehq/sdk (createSteleGate),
+ * @stelehq/protocol (findAccessPassPda, findPolicyPda) and the stele-gate crate (require_current), as
  * used by the Atlas vault demo in programs/gate-demo and its tests in programs/stele/tests/gate.rs.
  */
 import { useState } from "react";
@@ -12,10 +12,10 @@ import { useSequence } from "./use-sequence";
 
 type Tab = "frontend" | "onchain" | "flow" | "testing";
 
-const FRONTEND = `import { createSteleGate } from "@stele/sdk";
+const FRONTEND = `import { createSteleGate } from "@stelehq/sdk";
 
 const stele = createSteleGate({
-  apiBaseUrl: "https://stele.example/api",
+  apiBaseUrl: "https://stele.site/api",
   // Any Wallet Standard wallet: the key that signs the deposit.
   wallet: {
     address: wallet.publicKey.toBase58(),
@@ -31,7 +31,7 @@ const signature = await stele.gate({
   acceptLabel: "Accept & Deposit",
 });`;
 
-const ONCHAIN = `// Cargo.toml: stele-gate = { path = "crates/stele-gate" }
+const ONCHAIN = `// Cargo.toml: stele-gate = "1"   (crates.io/crates/stele-gate)
 use stele_gate::require_current;
 
 #[derive(Accounts)]
@@ -56,7 +56,7 @@ pub fn deposit(ctx: Context<Deposit>, amount: u64) -> Result<()> {
     Ok(())
 }`;
 
-const FLOW = `import { depositInstruction, findAccessPassPda, findPolicyPda } from "@stele/protocol";
+const FLOW = `import { depositInstruction, findAccessPassPda, findPolicyPda } from "@stelehq/protocol";
 
 // The policy of your offering terms, and the investor's AccessPass.
 const [policy] = await findPolicyPda(offeringTermsDocument);

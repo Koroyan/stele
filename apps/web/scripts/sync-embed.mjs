@@ -14,7 +14,7 @@ const SOURCE = path.resolve(WEB, "../../packages/sdk/dist/embed");
 const TARGET = path.join(WEB, "public", "sdk", "v1");
 
 if (!existsSync(path.join(SOURCE, "stele.js"))) {
-  execSync("pnpm --filter @stele/sdk run build:embed", { stdio: "inherit", cwd: WEB });
+  execSync("pnpm --filter @stelehq/sdk run build:embed", { stdio: "inherit", cwd: WEB });
 }
 mkdirSync(TARGET, { recursive: true });
 for (const file of ["stele.js", "stele.js.map"]) {

@@ -195,4 +195,6 @@ pub enum SteleError {
     InvalidPolicyRequirement,
     #[msg("The policy does not belong to this document")]
     PolicyMismatch,
+    #[msg("This wallet has already accepted this version")]
+    AccessPassAlreadyCurrent,
 }

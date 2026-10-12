@@ -27,7 +27,7 @@ import {
   parseSecp256r1Instruction,
   SECP256R1_PROGRAM_ADDRESS,
   type InstructionName,
-} from "@stele/protocol";
+} from "@stelehq/protocol";
 
 /** Stele instructions the relayer may sign, by the precompile that must precede them. */
 const ALLOWED: Record<string, readonly InstructionName[]> = {

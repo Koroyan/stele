@@ -29,22 +29,6 @@ export function ProductCards() {
   return (
     <div className="grid gap-5 md:grid-cols-2">
       <ProductCard
-        href="/proof"
-        name="Stele Proof"
-        tag="For organizations and websites"
-        statement="Know exactly what your user agreed to."
-        flow={["Publish", "Accept", "Receipt", "Verify"]}
-        steps={[
-          "Publish an exact version of your agreement.",
-          "Let the user accept it — passkey or wallet.",
-          "Stele creates tamper-resistant evidence anyone can verify later.",
-        ]}
-        audience={PROOF_FOR}
-        cta="Explore Proof"
-        icon={<FileIcon className="h-5 w-5" />}
-        visual={<ProofVisual />}
-      />
-      <ProductCard
         href="/gate"
         name="Stele Gate"
         tag="For Solana applications"
@@ -60,6 +44,22 @@ export function ProductCards() {
         icon={<GateIcon className="h-5 w-5" />}
         visual={<GateVisual />}
         accent
+      />
+      <ProductCard
+        href="/proof"
+        name="Stele Proof"
+        tag="For organizations and websites"
+        statement="Know exactly what your user agreed to."
+        flow={["Publish", "Accept", "Receipt", "Verify"]}
+        steps={[
+          "Publish an exact version of your agreement.",
+          "Let the user accept it — passkey or wallet.",
+          "Stele creates tamper-resistant evidence anyone can verify later.",
+        ]}
+        audience={PROOF_FOR}
+        cta="Explore Proof"
+        icon={<FileIcon className="h-5 w-5" />}
+        visual={<ProofVisual />}
       />
     </div>
   );

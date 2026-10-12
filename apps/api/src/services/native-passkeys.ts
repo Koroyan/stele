@@ -57,7 +57,7 @@ import {
   webauthnChallenge,
   type PasskeyAssertion,
   type PasskeyRegistrationResponse,
-} from "@stele/protocol";
+} from "@stelehq/protocol";
 import {
   and,
   eq,

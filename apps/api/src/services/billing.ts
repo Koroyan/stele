@@ -10,8 +10,8 @@
  */
 import { randomBytes } from "node:crypto";
 import { address } from "@solana/kit";
-import { SYSTEM_PROGRAM_ADDRESS, fromBase64, toBase58 } from "@stele/protocol";
-import { decodeWireTransaction, type DecodedTransaction } from "@stele/verifier";
+import { SYSTEM_PROGRAM_ADDRESS, fromBase64, toBase58 } from "@stelehq/protocol";
+import { decodeWireTransaction, type DecodedTransaction } from "@stelehq/verifier";
 import {
   and,
   billingInvoices,

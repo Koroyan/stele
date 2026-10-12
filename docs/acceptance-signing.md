@@ -29,7 +29,7 @@ Requested by: acme.example
 | Document, Version | What is being accepted, in human terms |
 | Fingerprint | Binds the signature to one exact, immutable version (title, label, effective date, text, predecessor, network, program) |
 | Account | The signing key, so a signature cannot be presented as someone else's |
-| Network | A devnet or testnet signature can never be recorded or presented as mainnet evidence |
+| Network | A Devnet signature can never be recorded or presented as Mainnet evidence |
 | Issued, Expires | A short validity window (10 minutes by default, 60 at most), checked against Solana cluster time |
 | Nonce | A single-use slot: shard, bit index and a random tag |
 | Requested by | The site that asked for the signature — a phishing tell users can check |
@@ -92,10 +92,10 @@ The worst-case transaction (all names, titles and domains at maximum length) fit
 
 Anyone can verify an acceptance with its transaction signature (or a receipt) and access to a Solana
 RPC that serves historical transactions (an archival RPC; many public endpoints keep only recent
-history) — in the browser at `/verify`, with the `stele-verify` CLI, or with `@stele/verifier` in code.
+history) — in the browser at `/verify`, with the `stele-verify` CLI, or with `@stelehq/verifier` in code.
 
 ```shell
-npx @stele/verifier --rpc https://rpc-one.example --rpc https://rpc-two.example --tx <signature>
+npx @stelehq/verifier --rpc https://rpc-one.example --rpc https://rpc-two.example --tx <signature>
 ```
 
 The verifier:
@@ -181,7 +181,7 @@ makes it unalterable afterwards, but no browser attested it. Verifiers report th
 Solana; every verifier shows it as an **organization recovery**, never as the user's own act. Past
 acceptances keep their original key and stay valid.
 
-## Signing without a wallet: passkey-protected keys (earlier signers)
+## Legacy: passkey-protected keys (signers registered before native passkeys)
 
 Signers registered before native passkeys use this scheme, which keeps working. The browser created an ordinary Ed25519
 signing key and encrypts it under a secret only the passkey can release (the WebAuthn PRF extension,

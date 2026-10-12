@@ -9,7 +9,7 @@ import {
   type ProofReceipt,
   type Receipt,
   type ReceiptV2,
-} from "@stele/protocol";
+} from "@stelehq/protocol";
 import type { VerificationReport } from "./report";
 
 export class ReceiptError extends Error {}

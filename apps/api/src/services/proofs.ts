@@ -42,7 +42,7 @@ import {
   type PasskeyAssertion,
   type ProofTypeName,
   type Statement,
-} from "@stele/protocol";
+} from "@stelehq/protocol";
 import { and, desc, eq, nonceShards, organizations, proofRequests, proofs } from "@stele/db";
 import type { Deps } from "../deps.js";
 import { ApiError, badRequest, conflict, forbidden, notFound } from "../errors.js";

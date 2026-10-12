@@ -3,7 +3,7 @@
 //! Rust reference implementation of `stele-canonical-v1` (PROTOCOL_SPEC.md §4): text
 //! normalization, the `stele-content-v1` model, RFC 8785 serialization and the content hash.
 //!
-//! It mirrors `@stele/protocol` (TypeScript) exactly; both are tested against the shared vectors in
+//! It mirrors `@stelehq/protocol` (TypeScript) exactly; both are tested against the shared vectors in
 //! `spec/test-vectors/`. Canonicalization happens **once**, at authoring time. Verification hashes
 //! the stored canonical bytes and checks that they are canonical — it never re-normalizes text a
 //! user saw.

@@ -1,7 +1,7 @@
 /**
  * Stele Gate SDK orchestration: when the modal appears, when the action runs, and that a
  * cancellation never runs it. Chain reads are replaced by fixed AccessChecks (the requirement rule
- * itself is tested in @stele/protocol and on-chain in programs/stele/tests/gate.rs).
+ * itself is tested in @stelehq/protocol and on-chain in programs/stele/tests/gate.rs).
  */
 import { describe, expect, it, vi } from "vitest";
 import {

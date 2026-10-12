@@ -17,6 +17,6 @@ export async function siteOrigin(): Promise<string> {
   }
   const h = await headers();
   const host = h.get("host") ?? "";
-  if (!/^(localhost|127\.0\.0\.1)(:\d{1,5})?$/.test(host)) return "https://app.stele.example";
+  if (!/^(localhost|127\.0\.0\.1)(:\d{1,5})?$/.test(host)) return "https://stele.site";
   return `http://${host}`;
 }

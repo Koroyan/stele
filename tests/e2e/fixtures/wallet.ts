@@ -7,7 +7,7 @@
  */
 import type { Page } from "@playwright/test";
 import { ed25519 } from "@noble/curves/ed25519.js";
-import { toBase58 } from "@stele/protocol";
+import { toBase58 } from "@stelehq/protocol";
 
 export interface TestWallet {
   address: string;
@@ -94,7 +94,7 @@ export async function installTestWallet(
   await page.addInitScript(
     ({ address, publicKey: pk, walletName }) => {
       type Listener = (properties: { accounts?: unknown[] }) => void;
-      const chains = ["solana:mainnet", "solana:devnet", "solana:testnet", "solana:localnet"];
+      const chains = ["solana:mainnet", "solana:devnet", "solana:localnet"];
       const account = Object.freeze({
         address,
         publicKey: new Uint8Array(pk),

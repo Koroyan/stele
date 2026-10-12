@@ -26,8 +26,8 @@ import {
   signSendAndConfirm,
   type NetworkPreset,
   type SteleRpc,
-} from "@stele/protocol";
-import { chainFromUrls, type ChainSource } from "@stele/verifier";
+} from "@stelehq/protocol";
+import { chainFromUrls, type ChainSource } from "@stelehq/verifier";
 import type { Config } from "../config.js";
 import { loadSigner } from "./keys.js";
 import { assertSponsoredRecordingShape } from "./tx-policy.js";

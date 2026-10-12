@@ -4,7 +4,7 @@
  */
 import { isAddress } from "@solana/kit";
 import { z } from "zod";
-import { NETWORKS, type ClusterName } from "@stele/protocol";
+import { NETWORKS, type ClusterName } from "@stelehq/protocol";
 
 const csv = z.string().transform((s) =>
   s
@@ -30,7 +30,7 @@ const schema = z.object({
   /** Host shown in acceptance messages for Stele's hosted acceptance pages. */
   HOSTED_ACCEPT_DOMAIN: z.string().default("localhost"),
 
-  SOLANA_CLUSTER: z.enum(["mainnet", "devnet", "testnet", "localnet"]).default("localnet"),
+  SOLANA_CLUSTER: z.enum(["mainnet", "devnet", "localnet"]).default("localnet"),
   SOLANA_RPC_URLS: csv.default(["http://127.0.0.1:8899"]),
   /** RPC URLs advertised to browsers for client-side verification (never secret-bearing URLs). */
   PUBLIC_RPC_URLS: csv.optional(),
@@ -146,7 +146,8 @@ export type Config = z.infer<typeof schema> & {
 };
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
-  const parsed = schema.safeParse(env);
+  // Compose passes unset variables as "": treat them as absent.
+  const parsed = schema.safeParse(Object.fromEntries(Object.entries(env).filter(([, v]) => v !== "")));
   if (!parsed.success) {
     const issues = parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
     throw new Error(`invalid configuration: ${issues}`);

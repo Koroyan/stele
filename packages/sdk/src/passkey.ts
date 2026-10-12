@@ -36,7 +36,7 @@ import {
   wrapSigningSeed,
   type PasskeyAssertion,
   type WrappedKey,
-} from "@stele/protocol";
+} from "@stelehq/protocol";
 import type { SteleClient } from "./client";
 
 export class PasskeyUnsupportedError extends Error {

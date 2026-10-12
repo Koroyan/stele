@@ -9,7 +9,7 @@ read how each piece is integrated.
 | `/privacy` | Accepting the Privacy Policy | **`Stele.mount()`** JavaScript API, `sessionToken` as a function, `onAccepted` / `onError` callbacks |
 | `/checkout` | An order the server allows only after the current Terms were accepted | `stele:accepted` browser event for the button; **`hasAcceptedLatest()`** on the server for the decision |
 | `/account` | The user's status per document and all their acceptances | `latestVersion()`, `hasAcceptedLatest()`, `listAcceptances()`, public document API, receipts |
-| `/verify/<id>` | Checking an acceptance without trusting Stele | `GET /v1/acceptances/{id}` and **`@stele/verifier`** reading Solana directly |
+| `/verify/<id>` | Checking an acceptance without trusting Stele | `GET /v1/acceptances/{id}` and **`@stelehq/verifier`** reading Solana directly |
 | `/webhooks` | Notifications from Stele | **`verifyWebhook()`** over the raw body, de-duplication by event ID |
 | `/api-log` | Every request the shop made to Stele | |
 

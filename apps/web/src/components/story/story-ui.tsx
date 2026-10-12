@@ -4,7 +4,7 @@
  * Building blocks of the explanatory animations. Every state is also written out as text (the
  * caption, announced politely to screen readers) — color and motion never carry information alone.
  */
-import type { ReactNode } from "react";
+import { createContext, useContext, type ReactNode } from "react";
 import { cn } from "@stele/ui";
 import type { Sequence } from "./use-sequence";
 
@@ -28,6 +28,48 @@ const ICON_STYLES: Record<NodeState, string> = {
   warning: "text-warning",
 };
 
+/**
+ * A flow is a row only when its own box fits every node (about 100px each plus connectors);
+ * otherwise it is a vertical list. The width comes from the container, not the screen, so a flow
+ * in a narrow column never squeezes its labels. Class names are spelled out for Tailwind.
+ */
+const ROW_LAYOUT = {
+  2: {
+    flow: "@min-[220px]:flex-row @min-[220px]:items-center",
+    node: "@min-[220px]:flex-col @min-[220px]:gap-2 @min-[220px]:px-2.5 @min-[220px]:py-4 @min-[220px]:text-center",
+    connector:
+      "@min-[220px]:mx-0 @min-[220px]:h-px @min-[220px]:w-auto @min-[220px]:min-w-4 @min-[220px]:flex-1 @min-[220px]:self-center",
+  },
+  3: {
+    flow: "@min-[340px]:flex-row @min-[340px]:items-center",
+    node: "@min-[340px]:flex-col @min-[340px]:gap-2 @min-[340px]:px-2.5 @min-[340px]:py-4 @min-[340px]:text-center",
+    connector:
+      "@min-[340px]:mx-0 @min-[340px]:h-px @min-[340px]:w-auto @min-[340px]:min-w-4 @min-[340px]:flex-1 @min-[340px]:self-center",
+  },
+  4: {
+    flow: "@min-[460px]:flex-row @min-[460px]:items-center",
+    node: "@min-[460px]:flex-col @min-[460px]:gap-2 @min-[460px]:px-2.5 @min-[460px]:py-4 @min-[460px]:text-center",
+    connector:
+      "@min-[460px]:mx-0 @min-[460px]:h-px @min-[460px]:w-auto @min-[460px]:min-w-4 @min-[460px]:flex-1 @min-[460px]:self-center",
+  },
+  5: {
+    flow: "@min-[570px]:flex-row @min-[570px]:items-center",
+    node: "@min-[570px]:flex-col @min-[570px]:gap-2 @min-[570px]:px-2.5 @min-[570px]:py-4 @min-[570px]:text-center",
+    connector:
+      "@min-[570px]:mx-0 @min-[570px]:h-px @min-[570px]:w-auto @min-[570px]:min-w-4 @min-[570px]:flex-1 @min-[570px]:self-center",
+  },
+  6: {
+    flow: "@min-[690px]:flex-row @min-[690px]:items-center",
+    node: "@min-[690px]:flex-col @min-[690px]:gap-2 @min-[690px]:px-2.5 @min-[690px]:py-4 @min-[690px]:text-center",
+    connector:
+      "@min-[690px]:mx-0 @min-[690px]:h-px @min-[690px]:w-auto @min-[690px]:min-w-4 @min-[690px]:flex-1 @min-[690px]:self-center",
+  },
+} as const;
+type FlowSize = keyof typeof ROW_LAYOUT;
+
+const FlowSizeContext = createContext<FlowSize>(4);
+const useRowLayout = () => ROW_LAYOUT[useContext(FlowSizeContext)];
+
 export function FlowNode({
   icon,
   label,
@@ -41,11 +83,13 @@ export function FlowNode({
   state: NodeState;
   className?: string;
 }) {
+  const row = useRowLayout();
   return (
     <div
       data-state={state}
       className={cn(
-        "relative flex min-w-0 items-center gap-3 rounded-xl border px-3.5 py-3 transition-all duration-500 sm:flex-col sm:gap-2 sm:px-3 sm:py-4 sm:text-center",
+        "relative flex min-w-0 items-center gap-3 rounded-xl border px-3.5 py-3 transition-all duration-500",
+        row.node,
         NODE_STYLES[state],
         className,
       )}
@@ -59,7 +103,7 @@ export function FlowNode({
       >
         {icon}
       </span>
-      <span className="min-w-0">
+      <span className="min-w-0 [overflow-wrap:anywhere]">
         <span className="block text-[13.5px] font-medium leading-snug">{label}</span>
         {sub && (
           <span className="mt-0.5 block font-mono text-[11px] leading-snug text-fg-subtle">
@@ -71,7 +115,7 @@ export function FlowNode({
   );
 }
 
-/** A connector between nodes: vertical on phones, horizontal from `sm` up. Animated while `active`. */
+/** A connector between nodes: vertical in a list, horizontal in a row. Animated while `active`. */
 export function Connector({
   state,
   className,
@@ -79,11 +123,13 @@ export function Connector({
   state: "idle" | "active" | "done" | "blocked";
   className?: string;
 }) {
+  const row = useRowLayout();
   return (
     <div
       aria-hidden="true"
       className={cn(
-        "relative mx-auto h-6 w-px shrink-0 overflow-hidden sm:mx-0 sm:h-px sm:w-auto sm:min-w-6 sm:flex-1 sm:self-center",
+        "relative mx-auto h-6 w-px shrink-0 overflow-hidden",
+        row.connector,
         state === "blocked" ? "bg-danger/60" : state === "idle" ? "bg-line-strong" : "bg-accent/50",
         className,
       )}
@@ -93,12 +139,26 @@ export function Connector({
   );
 }
 
-/** A horizontal (desktop) / vertical (phone) chain of nodes and connectors. */
-export function Flow({ children, className }: { children: ReactNode; className?: string }) {
+/** A chain of `nodes` nodes and their connectors: a row when it fits its box, else a list. */
+export function Flow({
+  children,
+  className,
+  nodes,
+}: {
+  children: ReactNode;
+  className?: string;
+  /** How many FlowNodes the chain holds (2–6); it decides when the row fits. */
+  nodes: number;
+}) {
+  const size = Math.min(6, Math.max(2, nodes)) as FlowSize;
   return (
-    <div className={cn("flex flex-col items-stretch gap-0 sm:flex-row sm:items-center", className)}>
-      {children}
-    </div>
+    <FlowSizeContext.Provider value={size}>
+      <div className={cn("@container", className)}>
+        <div className={cn("flex flex-col items-stretch gap-0", ROW_LAYOUT[size].flow)}>
+          {children}
+        </div>
+      </div>
+    </FlowSizeContext.Provider>
   );
 }
 
@@ -153,7 +213,8 @@ export function StoryFrame({
     <figure
       ref={seq.ref}
       className={cn(
-        "rounded-2xl border border-line bg-surface/70 p-4 shadow-[var(--shadow-card)] backdrop-blur-sm sm:p-6",
+        // A size container: the content inside lays out by the frame's width, not the screen's.
+        "@container rounded-2xl border border-line bg-surface/70 p-4 shadow-[var(--shadow-card)] backdrop-blur-sm sm:p-6",
         className,
       )}
       aria-label={title}

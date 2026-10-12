@@ -1,5 +1,5 @@
 /**
- * A software WebAuthn authenticator for tests (`@stele/protocol/testing`). It produces real
+ * A software WebAuthn authenticator for tests (`@stelehq/protocol/testing`). It produces real
  * assertions (ES256, EdDSA or RS256 signatures over authenticatorData || SHA-256(clientDataJSON))
  * and a PRF output derived like CTAP2 `hmac-secret`. Never use it outside tests: its keys live in
  * memory and it performs no user verification of its own.

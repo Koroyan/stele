@@ -145,9 +145,9 @@ provide legal advice.
 |---|---|
 | **Solana program** (`programs/stele`, Anchor) | Organizations with owners, roles, multisig support, time-locked recovery, freezing and key-compromise reports; verified domains; immutable, hash-chained document versions; on-chain-verified, replay-protected acceptances (Ed25519 and native P-256 passkeys via secp256r1 introspection); on-chain passkey enrollments with rotation and organization recovery; Merkle batch anchors; fee sponsorship; proofs; Gate policies and AccessPasses |
 | **Gate check** (`crates/stele-gate`) and **demo vault** (`programs/gate-demo`) | `require_current` for any Solana program (read-only, no CPI); the Atlas Real Estate Vault that uses it |
-| **Protocol libraries** (`crates/*`, `@stele/protocol`) | Canonicalization, fingerprints, acceptance messages, account and instruction codecs — Rust and TypeScript, checked against shared test vectors |
-| **Verifier** (`@stele/verifier`) | Library and `stele-verify` CLI; works with Stele switched off; multi-RPC consensus; receipts v1 and v2, direct and batched evidence; verdicts `VALID`, `VALID_WITH_WARNINGS`, `INVALID`, `INCONCLUSIVE` |
-| **SDK** (`@stele/sdk`) | Verified document loading, acceptance flow (wallets, native passkeys, PRF passkeys), embeddable widget with a published SRI hash, `<TermsAcceptance/>` React component, Gate client and Accept & Continue modal (`createSteleGate`), server client and webhook verification |
+| **Protocol libraries** (`crates/*`, `@stelehq/protocol`) | Canonicalization, fingerprints, acceptance messages, account and instruction codecs — Rust and TypeScript, checked against shared test vectors |
+| **Verifier** (`@stelehq/verifier`) | Library and `stele-verify` CLI; works with Stele switched off; multi-RPC consensus; receipts v1 and v2, direct and batched evidence; verdicts `VALID`, `VALID_WITH_WARNINGS`, `INVALID`, `INCONCLUSIVE` |
+| **SDK** (`@stelehq/sdk`) | Verified document loading, acceptance flow (wallets, native passkeys, PRF passkeys), embeddable widget with a published SRI hash, `<TermsAcceptance/>` React component, Gate client and Accept & Continue modal (`createSteleGate`), server client and webhook verification |
 | **API** (`apps/api`, Fastify) | Wallet sign-in, organizations and documents, drafts and publication preparation, acceptance relayer, DNS domain verification, API keys, signed webhooks, hash-chained audit log, chain indexer |
 | **Web app** (`apps/web`, Next.js) | Marketing site and docs, dashboard, hosted acceptance pages, receipts, in-browser verifier |
 | **Design system** (`@stele/ui`) | Tokens, brand mark and accessible primitives |
@@ -160,9 +160,9 @@ programs/stele/        Solana program (Anchor) and LiteSVM tests (incl. tests/ga
 programs/gate-demo/    Atlas Real Estate Vault — demo program protected by Stele Gate
 crates/                stele-core (shared Rust used by the program), stele-canonical,
                        stele-gate (require_current for protected programs)
-packages/protocol      @stele/protocol — TypeScript protocol implementation
-packages/verifier      @stele/verifier — independent verifier and CLI
-packages/sdk           @stele/sdk — browser, React and server SDK
+packages/protocol      @stelehq/protocol — TypeScript protocol implementation
+packages/verifier      @stelehq/verifier — independent verifier and CLI
+packages/sdk           @stelehq/sdk — browser, React and server SDK
 packages/db            @stele/db — database schema and migrations
 packages/ui            @stele/ui — design system
 apps/api               REST API, relayer, attestor, workers, indexer
@@ -255,7 +255,8 @@ modal and the dashboard) is implemented and tested on a local validator, and bot
 Devnet (Stele upgraded and the demo vault `A6DBoANAavtbG2ARK6PihqzMjhtbcZUbLnTMAWn339uR` deployed on
 2026-10-07, byte-identical to the tested build). Before mainnet use: an independent security audit of the program and protocol,
 the upgrade authority moved to a multisig, a reproducible-build release, and the
-[mainnet checklist](docs/deployment.md#mainnet-checklist).
+[mainnet checklist](docs/deployment.md#mainnet-checklist). What comes after that is in the
+[roadmap](docs/roadmap.md).
 
 ## License
 

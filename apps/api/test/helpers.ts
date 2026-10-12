@@ -5,7 +5,7 @@ import { randomBytes } from "node:crypto";
 import { ed25519 } from "@noble/curves/ed25519.js";
 import { createKeyPairSignerFromBytes, address } from "@solana/kit";
 import { pino } from "pino";
-import { toBase58, toBase64, utf8 } from "@stele/protocol";
+import { toBase58, toBase64, utf8 } from "@stelehq/protocol";
 import { createTestDb } from "@stele/db/testing";
 import { buildApp, type App } from "../src/app.js";
 import { loadConfig, type Config } from "../src/config.js";

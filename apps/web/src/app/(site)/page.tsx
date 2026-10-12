@@ -22,7 +22,7 @@ import { RwaExample } from "@/components/story/rwa-example";
 
 const PROOF_SNIPPET = `<!-- Stele Proof: where your terms should appear -->
 <div data-stele-organization="acme.com" data-stele-document="terms-of-service"></div>
-<script src="https://app.stele.example/sdk/v1/stele.js" defer></script>`;
+<script src="https://stele.site/sdk/v1/stele.js" defer></script>`;
 
 export default function HomePage() {
   return (
@@ -80,28 +80,8 @@ export default function HomePage() {
         </div>
       </Section>
 
-      {/* 4. Proof */}
-      <Section id="proof" className="border-t border-line">
-        <div className="grid items-start gap-10 lg:grid-cols-[0.8fr_1.2fr]">
-          <div className="lg:sticky lg:top-24">
-            <Eyebrow>Stele Proof</Eyebrow>
-            <h2 className="mt-3 text-balance text-[30px] font-semibold leading-[1.15] tracking-[-0.025em] text-fg sm:text-[38px]">
-              Prove which exact version a user accepted.
-            </h2>
-            <p className="mt-4 text-[16px] leading-relaxed text-fg-muted">
-              A company publishes exact terms. A user accepts them. Stele preserves evidence of
-              exactly what was accepted — and anyone can verify it later.
-            </p>
-            <Link href="/proof" className={buttonClasses("secondary", "md", "mt-6")}>
-              Explore Proof <ArrowRightIcon className="h-4 w-4" />
-            </Link>
-          </div>
-          <ProofFlow />
-        </div>
-      </Section>
-
-      {/* 5. Gate */}
-      <Section id="gate" className="border-t border-line bg-bg-raised">
+      {/* 4. Gate */}
+      <Section id="gate" className="border-t border-line">
         <div className="grid items-start gap-10 lg:grid-cols-[0.8fr_1.2fr]">
           <div className="lg:sticky lg:top-24">
             <Eyebrow>Stele Gate</Eyebrow>
@@ -117,6 +97,26 @@ export default function HomePage() {
             </Link>
           </div>
           <GateFlow />
+        </div>
+      </Section>
+
+      {/* 5. Proof */}
+      <Section id="proof" className="border-t border-line bg-bg-raised">
+        <div className="grid items-start gap-10 lg:grid-cols-[0.8fr_1.2fr]">
+          <div className="lg:sticky lg:top-24">
+            <Eyebrow>Stele Proof</Eyebrow>
+            <h2 className="mt-3 text-balance text-[30px] font-semibold leading-[1.15] tracking-[-0.025em] text-fg sm:text-[38px]">
+              Prove which exact version a user accepted.
+            </h2>
+            <p className="mt-4 text-[16px] leading-relaxed text-fg-muted">
+              A company publishes exact terms. A user accepts them. Stele preserves evidence of
+              exactly what was accepted — and anyone can verify it later.
+            </p>
+            <Link href="/proof" className={buttonClasses("secondary", "md", "mt-6")}>
+              Explore Proof <ArrowRightIcon className="h-4 w-4" />
+            </Link>
+          </div>
+          <ProofFlow />
         </div>
       </Section>
 

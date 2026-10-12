@@ -2,7 +2,7 @@
 /** Line-level comparison of two document versions (rendered as text; markers are never color-only). */
 import { useMemo, useState } from "react";
 import { diffLines } from "diff";
-import { contentToPlainLines, type Content } from "@stele/protocol";
+import { contentToPlainLines, type Content } from "@stelehq/protocol";
 import { cn } from "@stele/ui";
 
 interface Row {

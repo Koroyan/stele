@@ -7,7 +7,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { ed25519 } from "@noble/curves/ed25519.js";
 import { createKeyPairSignerFromBytes, type KeyPairSigner } from "@solana/kit";
-import { toBase58 } from "@stele/protocol";
+import { toBase58 } from "@stelehq/protocol";
 
 export const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 export const DATA_DIR = resolve(REPO_ROOT, ".data/localnet");

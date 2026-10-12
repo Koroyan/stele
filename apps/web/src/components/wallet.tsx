@@ -8,17 +8,16 @@ import { shortAddress } from "@/lib/format";
 import { useNetwork, useWallet } from "@/lib/wallet";
 
 /**
- * Wallets report their own internal failures (a suspended extension worker, a locked vault) with
- * generic messages such as "Unexpected error"; say what usually fixes them.
+ * Wallets report their own internal failures with generic messages such as "Unexpected error".
+ * The usual cause is an extension whose background worker was asleep or whose vault is locked:
+ * the first request wakes it and fails, the next one works.
  */
-function walletFailureMessage(walletName: string, e: unknown): string {
-  const message = errorMessage(e);
+function isWalletInternalError(e: unknown): boolean {
   const code = (e as { code?: unknown } | null)?.code;
-  if (code === -32603 || /^(unexpected|internal) error\.?$/i.test(message.trim())) {
-    return `${walletName} reported an internal error ("${message}"). Open the ${walletName} extension and unlock it, then reload this page and try again.`;
-  }
-  return message;
+  return code === -32603 || /^(unexpected|internal) error\.?$/i.test(errorMessage(e).trim());
 }
+
+const pause = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /** Lists Wallet Standard wallets that support this network and connects the chosen one. */
 export function WalletDialog({
@@ -30,24 +29,40 @@ export function WalletDialog({
   onClose: () => void;
   onConnected?: (address: string) => void;
 }) {
-  const { state, connect } = useWallet();
+  // While the page silently reconnects a remembered wallet, a second request to the same
+  // extension can fail with "Unexpected error": wait for that first.
+  const { state, connect, ready } = useWallet();
   const network = useNetwork();
   const [connecting, setConnecting] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<
+    | { kind: "declined" }
+    | { kind: "internal"; wallet: string }
+    | { kind: "other"; message: string }
+    | null
+  >(null);
 
   async function choose(wallet: (typeof state.wallets)[number]) {
     setError(null);
     setConnecting(wallet.name);
     try {
-      await connect(wallet);
+      try {
+        await connect(wallet);
+      } catch (e) {
+        if (!isWalletInternalError(e)) throw e;
+        // The first request often only wakes the extension up: ask once more.
+        await pause(800);
+        await connect(wallet);
+      }
       const address = wallet.accounts[0]?.address;
       onClose();
       if (address) onConnected?.(address);
     } catch (e) {
       setError(
         isUserRejection(e)
-          ? "The connection request was declined in your wallet."
-          : walletFailureMessage(wallet.name, e),
+          ? { kind: "declined" }
+          : isWalletInternalError(e)
+            ? { kind: "internal", wallet: wallet.name }
+            : { kind: "other", message: errorMessage(e) },
       );
     } finally {
       setConnecting(null);
@@ -76,23 +91,51 @@ export function WalletDialog({
             <li key={w.name}>
               <button
                 type="button"
-                disabled={connecting !== null}
+                disabled={connecting !== null || !ready}
                 onClick={() => void choose(w)}
                 className="flex w-full items-center gap-3 rounded-xl border border-line-strong bg-surface-2 px-4 py-3 text-left transition-colors hover:border-accent-line hover:bg-surface-3 disabled:opacity-60"
               >
                 {/* Wallet Standard icons are data: URIs supplied by the extension. */}
                 <img src={w.icon} alt="" width={28} height={28} className="h-7 w-7 rounded-md" />
                 <span className="flex-1 text-[14px] font-medium text-fg">{w.name}</span>
-                {connecting === w.name ? <Spinner className="h-4 w-4 text-accent" /> : null}
+                {connecting === w.name || !ready ? (
+                  <Spinner className="h-4 w-4 text-accent" />
+                ) : null}
               </button>
             </li>
           ))}
         </ul>
       )}
-      {error && (
-        <Alert tone="danger" className="mt-4">
-          {error}
+      {error?.kind === "declined" && (
+        <Alert tone="info" className="mt-4">
+          The connection request was declined in your wallet. Choose the wallet again when ready.
         </Alert>
+      )}
+      {error?.kind === "other" && (
+        <Alert tone="danger" className="mt-4">
+          {error.message}
+        </Alert>
+      )}
+      {error?.kind === "internal" && (
+        <div
+          role="alert"
+          className="mt-4 rounded-xl border border-warning-line bg-warning-soft/40 px-4 py-3 text-[13.5px] leading-relaxed text-fg"
+        >
+          <p className="font-medium">{error.wallet} didn&apos;t answer the request.</p>
+          <ol className="mt-2 list-decimal space-y-1 pl-5 text-fg-muted">
+            <li>
+              Click the {error.wallet} icon in your browser toolbar and unlock it with your
+              password.
+            </li>
+            <li>Come back here and choose {error.wallet} again.</li>
+          </ol>
+          {network.cluster === "localnet" && (
+            <p className="mt-2 text-[12.5px] text-fg-subtle">
+              For transactions on {network.label}: in {error.wallet}, open Settings → Developer
+              settings → Testnet mode and select Solana Localnet.
+            </p>
+          )}
+        </div>
       )}
       <p className="mt-5 text-[12.5px] leading-relaxed text-fg-subtle">
         Connecting shares only your public address. Stele never asks for a seed phrase or private

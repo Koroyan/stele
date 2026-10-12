@@ -128,7 +128,7 @@ export default function IntegrationsPage() {
   }
 
   const server = `import express from "express";
-import { verifyWebhook } from "@stele/sdk/server";
+import { verifyWebhook } from "@stelehq/sdk/server";
 
 const app = express();
 app.post("/webhooks/stele", express.raw({ type: "application/json" }), (req, res) => {
@@ -140,12 +140,12 @@ app.post("/webhooks/stele", express.raw({ type: "application/json" }), (req, res
   }
   // Deliveries can repeat: de-duplicate on event.id.
   if (event.type === "agreement.accepted") {
-    // event.data.acceptanceId / transactionSignature → verify with @stele/verifier
+    // event.data.acceptanceId / transactionSignature → verify with @stelehq/verifier
   }
   res.sendStatus(204);
 });`;
 
-  const sessions = `import { SteleServerClient } from "@stele/sdk/server";
+  const sessions = `import { SteleServerClient } from "@stelehq/sdk/server";
 
 const stele = new SteleServerClient({ apiBaseUrl: "${origin}/api", apiKey: process.env.STELE_API_KEY! });
 

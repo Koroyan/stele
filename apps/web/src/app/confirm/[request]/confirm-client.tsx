@@ -4,7 +4,7 @@
  * browser, and the customer signs with a passkey or a wallet. The customer never pays the fee.
  */
 import { useEffect, useRef, useState } from "react";
-import { mountProof } from "@stele/sdk";
+import { mountProof } from "@stelehq/sdk";
 import { Alert } from "@stele/ui";
 
 export function ConfirmClient({ requestId }: { requestId: string }) {

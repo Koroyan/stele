@@ -32,8 +32,8 @@ import {
   explorerTxUrl,
   signSendAndConfirm,
   type SteleRpc,
-} from "@stele/protocol";
-import type { NetworkInfo } from "@stele/sdk";
+} from "@stelehq/protocol";
+import type { NetworkInfo } from "@stelehq/sdk";
 import { PINNED_RPC_URLS } from "./env";
 
 export function rpcUrls(network: NetworkInfo): string[] {

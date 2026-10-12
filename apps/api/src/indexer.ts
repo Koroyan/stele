@@ -15,8 +15,8 @@ import {
   isNull,
   organizations,
 } from "@stele/db";
-import { fromBase64, identifyInstruction, type InstructionName } from "@stele/protocol";
-import { decodeWireTransaction } from "@stele/verifier";
+import { fromBase64, identifyInstruction, type InstructionName } from "@stelehq/protocol";
+import { decodeWireTransaction } from "@stelehq/verifier";
 import type { Deps } from "./deps.js";
 import {
   indexAcceptanceTransaction,

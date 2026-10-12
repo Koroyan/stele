@@ -3,7 +3,7 @@
  * compared with the on-chain commitment. A source returning different bytes is reported — never
  * silently trusted, never silently skipped.
  */
-import { bytesEqual, contentHash, toHex } from "@stele/protocol";
+import { bytesEqual, contentHash, toHex } from "@stelehq/protocol";
 
 export interface ContentAttempt {
   source: string;

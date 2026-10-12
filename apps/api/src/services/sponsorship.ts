@@ -20,7 +20,7 @@ import {
   recordingFee,
   toHex,
   ACCEPTANCE_COMPUTE_UNIT_LIMIT,
-} from "@stele/protocol";
+} from "@stelehq/protocol";
 import {
   and,
   desc,

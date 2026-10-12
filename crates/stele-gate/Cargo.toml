@@ -5,10 +5,15 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
-publish.workspace = true
+publish = true
+readme = "README.md"
+documentation = "https://docs.rs/stele-gate"
+keywords = ["solana", "anchor", "terms", "compliance", "rwa"]
+categories = ["cryptography::cryptocurrencies"]
 
 [dependencies]
-anchor-lang = { workspace = true }
+# A range, not the workspace pin: integrators bring their own anchor-lang 1.x.
+anchor-lang = ">=1.2, <2"
 
 [dev-dependencies]
 stele = { path = "../../programs/stele", features = ["no-entrypoint"] }

@@ -14,7 +14,7 @@ import {
   validateSlug,
   validationError,
   type DocumentType,
-} from "@stele/protocol";
+} from "@stelehq/protocol";
 import { Button, Field, Input, Select } from "@stele/ui";
 import {
   PageHeader,
@@ -64,15 +64,21 @@ export default function NewDocumentPage() {
         address(network.programId),
       );
       const existing = await fetchAccountData(rpcFor(network), p).catch(() => null);
-      if (!cancelled) {
-        setPda(p);
-        setTaken(existing !== null);
+      if (cancelled) return;
+      // A suggested slug that is already used moves on to the next free one (-2, -3, …)
+      // instead of greeting the user with an error.
+      if (existing !== null && !slugTouched) {
+        const m = /^(.*)-(\d+)$/.exec(slug);
+        setSlug(m ? `${m[1]}-${Number(m[2]) + 1}` : `${slug}-2`);
+        return;
       }
+      setPda(p);
+      setTaken(existing !== null);
     })();
     return () => {
       cancelled = true;
     };
-  }, [detail, slug, slugError, network]);
+  }, [detail, slug, slugError, slugTouched, network]);
 
   if (!detail) return null;
   const canCreate = Boolean(authority?.canCreateDocument);

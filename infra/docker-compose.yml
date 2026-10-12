@@ -115,6 +115,7 @@ services:
       api:
         condition: service_healthy
     environment:
+      API_INTERNAL_URL: http://api:4000
       PUBLIC_RPC_URLS: ${PUBLIC_RPC_URLS:-}
       APP_ORIGIN: ${APP_ORIGIN}
       STELE_NETWORKS: ${STELE_NETWORKS:-}

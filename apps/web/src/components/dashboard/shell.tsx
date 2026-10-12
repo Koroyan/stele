@@ -40,6 +40,8 @@ interface NavItem {
   label: string;
   icon: (props: { className?: string }) => ReactNode;
   exact?: boolean;
+  /** A short tag after the label, e.g. "Off" for a product that is not enabled. */
+  tag?: string;
 }
 
 const PROOF_NAV: NavItem[] = [
@@ -49,7 +51,7 @@ const PROOF_NAV: NavItem[] = [
 ];
 
 const GATE_NAV: NavItem[] = [
-  { href: "/dashboard/gate", label: "Gate", icon: GateIcon, exact: true },
+  { href: "/dashboard/gate", label: "Gate overview", icon: GateIcon, exact: true },
   { href: "/dashboard/gate/policies", label: "Policies", icon: LayersIcon },
   { href: "/dashboard/gate/passes", label: "AccessPasses", icon: TicketIcon },
   { href: "/dashboard/gate/programs", label: "Program integration", icon: CodeIcon },
@@ -72,9 +74,10 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const router = useRouter();
   const { orgs, org, selectOrg, user, detail } = useDashboard();
   const gate = detail?.organization.settings.products?.gate === true;
+  // Gate is always listed so it can be found; until enabled it is one entry that explains it.
   const groups: { label: string; items: NavItem[] }[] = [
     { label: "Stele Proof", items: PROOF_NAV },
-    ...(gate ? [{ label: "Stele Gate", items: GATE_NAV }] : []),
+    { label: "Stele Gate", items: gate ? GATE_NAV : [{ ...GATE_NAV[0]!, tag: "Off" }] },
     { label: "Organization", items: ORG_NAV },
   ];
 
@@ -135,6 +138,17 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
                 >
                   <Icon className={cn("h-4 w-4", active ? "text-accent" : "text-fg-subtle")} />
                   {item.label}
+                  {item.tag && (
+                    <>
+                      <span
+                        aria-hidden="true"
+                        className="ml-auto rounded-full border border-line-strong px-1.5 py-px text-[10.5px] font-medium text-fg-subtle"
+                      >
+                        {item.tag}
+                      </span>
+                      <span className="sr-only"> (not enabled)</span>
+                    </>
+                  )}
                 </Link>
               );
             })}
@@ -145,7 +159,7 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         <NetworkSwitcher variant="sidebar" />
         <div className="flex items-center justify-between gap-2">
           <span className="truncate font-mono text-[12px] text-fg-muted" title={user.walletAddress}>
-            {shortAddress(user.walletAddress, 5, 5)}
+            {shortAddress(user.walletAddress)}
           </span>
           <button
             type="button"

@@ -13,8 +13,8 @@
  */
 import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod";
 import { z } from "zod";
-import { PROOF_TYPES, type ProofTypeName } from "@stele/protocol";
-import { proofReceiptFromReport, verifyProof } from "@stele/verifier";
+import { PROOF_TYPES, type ProofTypeName } from "@stelehq/protocol";
+import { proofReceiptFromReport, verifyProof } from "@stelehq/verifier";
 import type { Deps } from "../deps.js";
 import { ApiError, badRequest } from "../errors.js";
 import { cursorParam } from "../lib/pagination.js";

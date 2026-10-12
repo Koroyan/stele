@@ -16,7 +16,7 @@ import {
   validateRequestDomain,
   validationError,
   type OrganizationAccount,
-} from "@stele/protocol";
+} from "@stelehq/protocol";
 import {
   Alert,
   Badge,

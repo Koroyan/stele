@@ -7,7 +7,7 @@
 import { mkdir, readFile, writeFile, access } from "node:fs/promises";
 import { resolve } from "node:path";
 import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
-import { contentCid, fromHex, sha256, toHex } from "@stele/protocol";
+import { contentCid, fromHex, sha256, toHex } from "@stelehq/protocol";
 
 export interface StoredLocation {
   provider: string;

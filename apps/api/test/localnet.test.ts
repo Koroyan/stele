@@ -28,7 +28,7 @@ import {
   toHex,
   utf8,
   versionHash,
-} from "@stele/protocol";
+} from "@stelehq/protocol";
 import { pino } from "pino";
 import type { Deps } from "../src/deps.js";
 import { indexOnce } from "../src/indexer.js";

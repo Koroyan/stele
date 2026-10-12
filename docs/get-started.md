@@ -100,7 +100,7 @@ Note the two values you need for the next step:
 ## 3. Add Stele to your website
 
 Put the widget where the Terms should appear. With a plain page, the script tag is all you need;
-apps that bundle their JavaScript install `@stele/sdk` (`npm install @stele/sdk`).
+apps that bundle their JavaScript install `@stelehq/sdk` (`npm install @stelehq/sdk`).
 
 ```html tab=HTML
 <div
@@ -114,7 +114,7 @@ apps that bundle their JavaScript install `@stele/sdk` (`npm install @stele/sdk`
 ```tsx tab=React
 "use client"; // Next.js App Router only
 
-import { TermsAcceptance } from "@stele/sdk/react";
+import { TermsAcceptance } from "@stelehq/sdk/react";
 
 export function Terms() {
   return (
@@ -129,7 +129,7 @@ export function Terms() {
 ```
 
 ```js tab=JavaScript
-import { mount } from "@stele/sdk";
+import { mount } from "@stelehq/sdk";
 
 mount(document.querySelector("#terms"), {
   apiBaseUrl: "https://app.stele.example/api",
@@ -293,8 +293,8 @@ export STELE_API_KEY="stl_live_…"
 ```
 
 ```ts tab=Node.js
-// npm install @stele/sdk
-import { SteleServerClient } from "@stele/sdk/server";
+// npm install @stelehq/sdk
+import { SteleServerClient } from "@stelehq/sdk/server";
 
 export const stele = new SteleServerClient({
   apiBaseUrl: "https://app.stele.example/api",
@@ -800,7 +800,7 @@ not match), rejects deliveries older than 5 minutes, and replies `204` within 10
 
 ```ts tab=Node.js
 import express from "express";
-import { verifyWebhook } from "@stele/sdk/server";
+import { verifyWebhook } from "@stelehq/sdk/server";
 
 const app = express();
 
@@ -1166,9 +1166,9 @@ additionally carry the passkey's evidence, which every verifier checks.
 | **Your account + passkey** | The passkey signer must belong to a user of yours: every request needs an acceptance session for that user (step 8), and each account has one signer |
 
 > [!IMPORTANT]
-> Passkey signing needs the WebAuthn **PRF** extension (current Chrome, Edge, Safari and most
-> password managers). Where it is missing, the widget offers a wallet instead — Stele never falls back
-> to a key it would hold itself.
+> Passkey signing uses the passkey's own key (secp256r1), verified on-chain by Solana — any current
+> browser, phone or password manager with passkeys works. Where passkeys are unavailable, the widget
+> offers a wallet instead — Stele never falls back to a key it would hold itself.
 
 > [!DETAILS] A user lost every device and the recovery kit
 > Nobody can recover that key — by design. After verifying the user yourself, retire their signer
@@ -1214,7 +1214,7 @@ Before going live:
       verifier](verification.md#from-the-command-line).
 - [ ] If your site sends a Content Security Policy, it allows the widget (see
       [SDK & API reference](api.md#content-security-policy)).
-- [ ] For the strongest guarantees: bundle `@stele/sdk` instead of loading the script, and pin
+- [ ] For the strongest guarantees: bundle `@stelehq/sdk` instead of loading the script, and pin
       `expected` (program ID and chain ID) and `rpcUrls`.
 - [ ] If you allow passkeys: you chose the signing policy deliberately, and your support process for
       lost devices verifies users before retiring a signer.
@@ -1235,7 +1235,7 @@ Before going live:
 | Nothing appears | Check the browser console. Common causes: a `file://` page, a Content Security Policy, or a placeholder element other than a `<div>` |
 | `401 unauthorized` from the API | The key is missing, revoked or expired, or belongs to another network's Stele app |
 | `403 forbidden` from the API | The key lacks the scope the endpoint needs ([scopes](api.md#authentication)) |
-| "This passkey cannot protect a signing key" | The browser or passkey provider lacks the PRF extension: use a wallet, or another browser |
+| "Passkeys are not available here" | The browser or device has no passkey support: use a wallet, or another browser |
 | "This organization accepts passkey signing only" / "wallet signing only" | Change the signing policy in **Signing & fees**, or use the other method |
 | `402 credits_exhausted` | This month's free recordings and your credits are used up: buy credits under **Billing** |
 | `402 sponsorship_unavailable` | Your sponsorship is paused, empty or at its daily limit: top it up, raise the limit, or enable **Fall back to Stele** |
@@ -1257,7 +1257,7 @@ Flask-Login's `login_required` and `current_user`, stand for your existing login
 
 ```ts tab=Node.js
 import express from "express";
-import { SteleServerClient } from "@stele/sdk/server";
+import { SteleServerClient } from "@stelehq/sdk/server";
 
 const stele = new SteleServerClient({
   apiBaseUrl: "https://app.stele.example/api",
@@ -1414,7 +1414,7 @@ confirmed the acceptance with Stele.
 
 > [!DETAILS] Script tag or bundled package
 > Loading `stele.js` from your Stele app means trusting that server to deliver the widget's code.
-> Installing `@stele/sdk` and bundling it with your app pins the code to the version you reviewed.
+> Installing `@stelehq/sdk` and bundling it with your app pins the code to the version you reviewed.
 
 > [!DETAILS] What a signature proves
 > Stele proves that a specific key (a wallet, or a passkey-protected signer) signed acceptance of a

@@ -41,10 +41,10 @@ endpoint and the content bytes MUST be able to verify every claim using only thi
 
 Every deployment has an immutable network identity stored in `ProtocolConfig`:
 
-| Field | Format | Mainnet | Devnet | Testnet |
+| Field | Format | Mainnet | Devnet |
 |---|---|---|---|---|
 | `chain_id` | CAIP-2: `solana:` + first 32 base58 chars of the genesis hash; regex `^solana:[A-Za-z0-9]{1,32}$` | `solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp` | `solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1` | `solana:4uhcVJyU9pJkvQyS88uRDiswHXSCkY3z` |
-| `network_label` | 1–16 bytes, `^[A-Za-z0-9 ]+$`, no leading/trailing/double spaces | `Solana Mainnet` | `Solana Devnet` | `Solana Testnet` |
+| `network_label` | 1–16 bytes, `^[A-Za-z0-9 ]+$`, no leading/trailing/double spaces | `Solana Mainnet` | `Solana Devnet` |
 
 Local clusters SHOULD use `chain_id` derived from their genesis hash (or `solana:localnet`) and the
 label `Solana Localnet`. Verifiers MUST compare `chain_id` with the RPC endpoint's
@@ -1586,7 +1586,7 @@ The protected program MUST pin the policy (store its address or compile it in) a
 `require_current` in every protected instruction. A program that accepts any policy accepts a
 policy its caller created.
 
-Off-chain readers apply the same rules (`evaluateAccess` in `@stele/protocol`), reporting `VALID`,
+Off-chain readers apply the same rules (`evaluateAccess` in `@stelehq/protocol`), reporting `VALID`,
 `OUTDATED` (rules 6–7) or `MISSING`.
 
 ### 18.5 Demo: Atlas Real Estate Vault

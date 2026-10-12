@@ -36,7 +36,7 @@ import {
   fetchAccountData,
   findAccessPassPda,
   findVaultPda,
-} from "@stele/protocol";
+} from "@stelehq/protocol";
 import { RPC_URL, airdrop } from "./chain.js";
 
 const MAINNET = "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp";

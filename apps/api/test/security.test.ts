@@ -5,7 +5,7 @@
 import { ed25519 } from "@noble/curves/ed25519.js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { apiKeys, organizations, organizationMembers } from "@stele/db";
-import { toBase58, toBase64, utf8 } from "@stele/protocol";
+import { toBase58, toBase64, utf8 } from "@stelehq/protocol";
 import { sha256Hex } from "../src/lib/crypto.js";
 import { APP_ORIGIN, keypairBytes, login, makeApp, type TestApp } from "./helpers.js";
 

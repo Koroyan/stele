@@ -17,7 +17,7 @@ import {
   preparePublication,
   publishVersionInstruction,
   toHex,
-} from "@stele/protocol";
+} from "@stelehq/protocol";
 import { Alert, Button, CheckIcon, Dialog, KeyValue, Spinner, Steps } from "@stele/ui";
 import { SigningAs, TxLink, useTransaction } from "@/components/dashboard/ui";
 import { api, errorMessage } from "@/lib/api";

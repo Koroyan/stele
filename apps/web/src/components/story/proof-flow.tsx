@@ -34,10 +34,10 @@ export function ProofFlow() {
   const s = seq.step;
   return (
     <StoryFrame seq={seq} title="Stele Proof — how evidence is made" captions={CAPTIONS}>
-      <Flow>
+      <Flow nodes={5}>
         <FlowNode
           icon={<BuildingIcon className="h-[18px] w-[18px]" />}
-          label="Organization"
+          label="Company"
           sub="publishes v3"
           state={nodeState(s, 0)}
         />
@@ -71,7 +71,7 @@ export function ProofFlow() {
         />
       </Flow>
 
-      <div className="mt-6 grid gap-4 md:grid-cols-[1fr_1fr]">
+      <div className="mt-6 grid gap-4 @min-[560px]:grid-cols-2">
         {/* The document as published */}
         <div className="rounded-xl border border-line bg-bg-raised p-4">
           <div className="flex items-center justify-between gap-2">

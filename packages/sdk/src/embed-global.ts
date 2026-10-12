@@ -3,7 +3,7 @@
  * `/sdk/v1/stele.js`). It needs no configuration: the API and receipt URLs default to the origin the
  * script was loaded from.
  *
- *   <script src="https://stele.example/sdk/v1/stele.js" defer></script>
+ *   <script src="https://stele.site/sdk/v1/stele.js" defer></script>
  *   <div data-stele-organization="acme.com" data-stele-document="terms-of-service"></div>
  *   <div data-stele-proof-request="<request id>" data-stele-proof-token="<client token>"></div>
  *

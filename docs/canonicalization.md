@@ -148,12 +148,12 @@ publisher who hashed non-canonical bytes with a non-compliant tool.
 `spec/test-vectors/` contains language-neutral JSON vectors for text normalization, content
 canonicalization (including rejection cases), version fingerprints, RFC 3339 formatting, acceptance
 messages and acceptance IDs, and field validation. The Rust implementation (`crates/stele-canonical`,
-`crates/stele-core`) and the TypeScript implementation (`@stele/protocol`) are both tested against
+`crates/stele-core`) and the TypeScript implementation (`@stelehq/protocol`) are both tested against
 them. CI regenerates the vectors from the TypeScript implementation and fails if they differ from the
 committed files, so any behavioural drift is caught in review.
 
 To add a vector, edit `packages/protocol/scripts/generate-vectors.ts`, run `pnpm vectors`, and make sure
-both `cargo test --workspace` and `pnpm --filter @stele/protocol test` pass.
+both `cargo test --workspace` and `pnpm --filter @stelehq/protocol test` pass.
 
 ## Pitfalls this design avoids
 

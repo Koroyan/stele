@@ -47,7 +47,7 @@ export function BypassDemo() {
     s === lane ? ok : s > lane ? "done" : "idle";
   return (
     <StoryFrame seq={seq} title="Can the requirement be skipped?" captions={CAPTIONS}>
-      <div className="grid gap-5 lg:grid-cols-2">
+      <div className="grid gap-5 @min-[880px]:grid-cols-2">
         <div className="space-y-3">
           <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-fg-subtle">
             Without a program-level gate
@@ -57,7 +57,7 @@ export function BypassDemo() {
             active={s === 0}
             outcome={s >= 0 && <StatusBadge tone="neutral">Allowed</StatusBadge>}
           >
-            <Flow>
+            <Flow nodes={3}>
               <FlowNode
                 icon={<UsersIcon className="h-4 w-4" />}
                 label="User"
@@ -83,7 +83,7 @@ export function BypassDemo() {
             active={s === 1}
             outcome={s >= 1 && <StatusBadge tone="danger">Frontend bypassed</StatusBadge>}
           >
-            <Flow>
+            <Flow nodes={3}>
               <FlowNode
                 icon={<CodeIcon className="h-4 w-4" />}
                 label="Script / CLI"
@@ -118,7 +118,7 @@ export function BypassDemo() {
             active={s === 2}
             outcome={s >= 2 && <StatusBadge tone="success">Rejected on-chain</StatusBadge>}
           >
-            <Flow>
+            <Flow nodes={3}>
               <FlowNode
                 icon={<CodeIcon className="h-4 w-4" />}
                 label="Script / CLI"
@@ -144,7 +144,7 @@ export function BypassDemo() {
             active={s === 3}
             outcome={s >= 3 && <StatusBadge tone="success">Success</StatusBadge>}
           >
-            <Flow>
+            <Flow nodes={3}>
               <FlowNode
                 icon={<UsersIcon className="h-4 w-4" />}
                 label="User"

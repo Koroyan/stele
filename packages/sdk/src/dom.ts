@@ -2,7 +2,7 @@
  * DOM helpers shared by the SDK's framework-free components (the acceptance widget and the Gate
  * modal). Strings always become text nodes — content is never parsed as HTML.
  */
-import { SUSPICIOUS_FINDINGS, describeFinding, type Block } from "@stele/protocol";
+import { SUSPICIOUS_FINDINGS, describeFinding, type Block } from "@stelehq/protocol";
 import type { VerifiedDocument } from "./verified-document";
 
 export type Child = Node | string | null | undefined | false;

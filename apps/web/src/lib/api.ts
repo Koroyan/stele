@@ -81,7 +81,7 @@ const WALLET_NETWORK_MISMATCH =
 export function errorMessage(e: unknown): string {
   const message = e instanceof Error ? e.message : String(e);
   if (WALLET_NETWORK_MISMATCH.test(message)) {
-    return `${message} Your wallet is set to a different Solana network than this site. Switch it to the network shown on this page (wallets list test networks under their developer or testnet settings), then try again.`;
+    return `${message} Your wallet is set to a different Solana network than this site. Switch it to the network shown on this page (wallets list Devnet under their developer settings), then try again.`;
   }
   return message;
 }

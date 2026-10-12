@@ -5,7 +5,7 @@
  */
 import { randomBytes } from "node:crypto";
 import { ed25519 } from "@noble/curves/ed25519.js";
-import { fromBase58 } from "@stele/protocol";
+import { fromBase58 } from "@stelehq/protocol";
 
 export const SIWS_STATEMENT =
   "Sign in to Stele. This proves control of this account only. It does not accept any agreement and does not authorize any transaction.";

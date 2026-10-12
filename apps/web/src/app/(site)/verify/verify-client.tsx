@@ -6,7 +6,7 @@ import {
   verifyDocumentVersion,
   verifyProof,
   type VerificationReport,
-} from "@stele/verifier";
+} from "@stelehq/verifier";
 import { Alert, Button, Card, CodeBlock, Field, Input, Spinner, Tabs, Textarea } from "@stele/ui";
 import { ReportView } from "@/components/report-view";
 import { api, errorMessage } from "@/lib/api";

@@ -1,21 +1,28 @@
 # Product overview
 
-**Stele records the exact version of an agreement, and every acceptance of it, as evidence anyone
-can verify.** Terms of service, privacy policies, data-processing agreements and contracts are
-published as fingerprinted versions on Solana that cannot be edited. People accept them by signing
-the exact text with a passkey (Face ID, Touch ID, Windows Hello) or a wallet, with no fees. Years
-later, anyone can check what was agreed against Solana, without Stele's servers or the company's
-database.
+**Stele keeps a record of what people agreed to that nobody can quietly change — and, for Solana
+applications, makes your program require it.**
 
-> Prove what was agreed. Enforce what must be agreed.
+> [!TIP] Two minutes, no wallet
+> The [live demo](/demo) shows both products with real transactions.
 
-Stele comes in two modes:
+## In plain words
 
-- **Stele Proof** — for websites, SaaS, apps, onboarding and consent: evidence of which exact version
-  a user accepted.
-- **Stele Gate** — for Solana programs such as RWA vaults, token offerings and permissioned credit:
-  Proof plus enforcement. Your program calls `require_current()` and refuses a protected action until
-  the signing wallet has accepted the version your policy requires. See [Stele Gate](gate.md).
+1. **A company publishes its terms.** Stele writes a fingerprint of the exact text to Solana. From
+   then on nobody — not even the company — can change what that version said.
+2. **People accept them** by signing with Face ID, a passkey or a wallet. It is free for them: no
+   crypto, no fees.
+3. **Anyone can check later** what was accepted, against Solana, without Stele's servers or the
+   company's database.
+
+## Two products
+
+| | Stele Proof | Stele Gate |
+|---|---|---|
+| For | Websites, SaaS, apps, onboarding, consent | Solana programs: real-world-asset vaults, token offerings, permissioned credit |
+| What it does | Proves which exact version of the terms a user accepted | Proof, plus your program refuses a protected action until the wallet accepted the current version |
+| How you add it | A widget on your site and a check from your server | One call, `require_current()`, in your program |
+| Start | [Get started](get-started.md) | [Stele Gate](gate.md) |
 
 What the evidence does and does not depend on is spelled out in the [trust model](trust-model.md).
 
@@ -80,3 +87,8 @@ company can tell.
 - [Get started](get-started.md)
 - [What a signature proves](acceptance-signing.md)
 - [Security architecture](security.md) and [threat model](threat-model.md)
+
+## Contact
+
+News and questions: [@stelehq on X](https://x.com/stelehq). Security issues: see the
+[security policy](../SECURITY.md).

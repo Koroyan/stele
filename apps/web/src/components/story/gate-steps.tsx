@@ -88,7 +88,7 @@ export function GateSteps() {
           </li>
         ))}
       </ol>
-      <div key={seq.step} className="mt-5 grid animate-fade-up gap-4 md:grid-cols-2">
+      <div key={seq.step} className="mt-5 grid animate-fade-up gap-4 @min-[640px]:grid-cols-2">
         <div>
           <h3 className="text-[18px] font-semibold tracking-[-0.015em] text-fg">{current.title}</h3>
           <p className="mt-2 text-[14px] leading-relaxed text-fg-muted">{current.body}</p>

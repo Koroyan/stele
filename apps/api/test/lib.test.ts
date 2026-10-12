@@ -21,7 +21,7 @@ import {
   secp256r1Instruction,
   toBase58,
   utf8,
-} from "@stele/protocol";
+} from "@stelehq/protocol";
 import { parseCreditPacks } from "../src/config.js";
 import { appendAudit, verifyAuditChain } from "../src/lib/audit.js";
 import { matchPayment } from "../src/services/billing.js";

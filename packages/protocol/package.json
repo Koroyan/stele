@@ -1,5 +1,5 @@
 {
-  "name": "@stele/protocol",
+  "name": "@stelehq/protocol",
   "version": "1.0.0",
   "description": "Stele Protocol v1 — canonicalization, fingerprints, acceptance messages, PDAs and program codecs",
   "license": "Apache-2.0",
@@ -27,6 +27,7 @@
   ],
   "scripts": {
     "build": "tsup --tsconfig tsconfig.build.json src/index.ts src/testing.ts --format esm --dts --clean --sourcemap",
+    "prepublishOnly": "pnpm run build",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src test",
     "test": "vitest run",

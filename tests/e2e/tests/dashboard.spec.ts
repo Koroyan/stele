@@ -80,8 +80,8 @@ test("Stele Gate can be switched on, and its pages open from the sidebar", async
   await expect(hide).toBeVisible({ timeout: 30_000 });
 
   // Gate adds its own group to the sidebar; every page opens with its tabs.
-  await sidebar.getByRole("link", { name: "Gate", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Stele Gate" })).toBeVisible();
+  await sidebar.getByRole("link", { name: "Gate overview", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Stele Gate", exact: true })).toBeVisible();
   for (const [link, heading] of [
     ["Policies", "Policies"],
     ["AccessPasses", "AccessPasses"],
@@ -102,5 +102,11 @@ test("Stele Gate can be switched on, and its pages open from the sidebar", async
     await hide.click();
     await expect(enable).toBeVisible({ timeout: 30_000 });
     await expect(sidebar.getByRole("link", { name: "Policies" })).toHaveCount(0);
+    // Switched off, Gate stays findable: one sidebar entry whose page explains and enables it.
+    await sidebar.getByRole("link", { name: "Gate overview (not enabled)" }).click();
+    await expect(
+      page.getByText("Make your Solana program require your current terms"),
+    ).toBeVisible();
+    await expect(enable).toBeVisible();
   }
 });

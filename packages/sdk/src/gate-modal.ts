@@ -6,7 +6,7 @@
  * restored afterwards, Escape cancels (except while recording), progress is announced, and all
  * motion stops under `prefers-reduced-motion`.
  */
-import { groupedFingerprint, type Block } from "@stele/protocol";
+import { groupedFingerprint, type Block } from "@stelehq/protocol";
 import { isUserRejection } from "./wallets";
 import { applyStyles, displayNotice, h, renderBlocks } from "./dom";
 import { StaleTermsError, type GateStatus, type GateUi } from "./gate";

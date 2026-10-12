@@ -1,7 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowRightIcon, Card, cn } from "@stele/ui";
+import type { ReactNode } from "react";
+import {
+  ArrowRightIcon,
+  Card,
+  FileIcon,
+  GateIcon,
+  PlayIcon,
+  SearchIcon,
+  ShieldIcon,
+  buttonClasses,
+  cn,
+} from "@stele/ui";
 import { Markdown, type DocContext } from "@/components/markdown";
 import { DOC_GROUPS, DOCS, loadDoc, outline } from "@/lib/docs";
 import { getNetworkMenu } from "@/lib/networks";
@@ -37,6 +48,38 @@ async function docContext(): Promise<DocContext> {
     })),
   };
 }
+
+/** The four questions most readers arrive with, each answered by one guide. */
+const START: { href: string; icon: ReactNode; title: string; body: string; meta: string }[] = [
+  {
+    href: "/docs/overview",
+    icon: <ShieldIcon className="h-5 w-5" />,
+    title: "What is Stele?",
+    body: "The two products in plain words: prove what was agreed, and enforce what must be agreed.",
+    meta: "3-minute read",
+  },
+  {
+    href: "/docs/get-started",
+    icon: <FileIcon className="h-5 w-5" />,
+    title: "Add Stele Proof to your website",
+    body: "Publish your terms, add the acceptance widget, confirm each acceptance from your server.",
+    meta: "Copy-paste guide · any language",
+  },
+  {
+    href: "/docs/gate-guide",
+    icon: <GateIcon className="h-5 w-5" />,
+    title: "Add Stele Gate to your Solana program",
+    body: "One call in your program, an “Accept & Continue” window in your app.",
+    meta: "Step by step · about 15 minutes",
+  },
+  {
+    href: "/docs/verification",
+    icon: <SearchIcon className="h-5 w-5" />,
+    title: "Check an agreement",
+    body: "Verify a receipt or a transaction yourself, against Solana — without asking Stele.",
+    meta: "No account needed",
+  },
+];
 
 function Sidebar({ active }: { active: string | null }) {
   return (
@@ -94,34 +137,74 @@ export default async function DocsPage({ params }: { params: Promise<Params> }) 
             Documentation
           </p>
           <h1 className="mt-3 text-[34px] font-semibold tracking-[-0.03em] text-fg">
-            Stele documentation
+            Where do you want to start?
           </h1>
           <p className="mt-3 max-w-2xl text-[15.5px] leading-relaxed text-fg-muted">
-            How Stele works, how to add verifiable acceptance to your site, how anyone can check the
-            evidence, and the open protocol and security design behind it.
+            Pick the question you have. Every guide starts in plain words; the technical detail
+            comes after.
           </p>
-          {DOC_GROUPS.map((g) => (
-            <section key={g} className="mt-10">
-              <h2 className="text-[13px] font-medium uppercase tracking-[0.1em] text-fg-subtle">
-                {g}
-              </h2>
-              <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                {DOCS.filter((d) => d.group === g).map((d) => (
-                  <Link key={d.slug} href={`/docs/${d.slug}`} className="group">
-                    <Card className="h-full p-5 transition-colors group-hover:border-accent-line">
-                      <p className="flex items-center justify-between text-[15px] font-semibold text-fg">
-                        {d.title}
-                        <ArrowRightIcon className="h-4 w-4 text-fg-subtle transition-colors group-hover:text-accent" />
-                      </p>
-                      <p className="mt-1.5 text-[13.5px] leading-relaxed text-fg-muted">
-                        {d.summary}
-                      </p>
-                    </Card>
-                  </Link>
-                ))}
-              </div>
-            </section>
-          ))}
+
+          <div className="mt-8 grid gap-4 sm:grid-cols-2">
+            {START.map((s) => (
+              <Link key={s.href} href={s.href} className="group">
+                <Card className="flex h-full flex-col p-5 transition-colors group-hover:border-accent-line sm:p-6">
+                  <span
+                    className="flex h-10 w-10 items-center justify-center rounded-xl border border-accent-line bg-accent-soft text-accent"
+                    aria-hidden="true"
+                  >
+                    {s.icon}
+                  </span>
+                  <p className="mt-4 flex items-start justify-between gap-3 text-[17px] font-semibold text-fg">
+                    {s.title}
+                    <ArrowRightIcon className="mt-1 h-4 w-4 shrink-0 text-fg-subtle transition-colors group-hover:text-accent" />
+                  </p>
+                  <p className="mt-1.5 flex-1 text-[14px] leading-relaxed text-fg-muted">
+                    {s.body}
+                  </p>
+                  <p className="mt-4 text-[12.5px] font-medium text-fg-subtle">{s.meta}</p>
+                </Card>
+              </Link>
+            ))}
+          </div>
+
+          <div className="mt-6 flex flex-col gap-4 rounded-2xl border border-line bg-surface p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+            <div>
+              <p className="text-[15px] font-semibold text-fg">Prefer to see it first?</p>
+              <p className="mt-1 text-[14px] text-fg-muted">
+                The live demo takes two minutes — no wallet, no sign-up, no fees.
+              </p>
+            </div>
+            <Link href="/demo" className={buttonClasses("primary", "md", "shrink-0")}>
+              <PlayIcon className="h-4 w-4" /> Try the live demo
+            </Link>
+          </div>
+
+          <h2 className="mt-14 text-[20px] font-semibold tracking-[-0.02em] text-fg">
+            All documentation
+          </h2>
+          <div className="mt-6 grid gap-x-10 gap-y-8 sm:grid-cols-2">
+            {DOC_GROUPS.map((g) => (
+              <section key={g}>
+                <h3 className="text-[12px] font-medium uppercase tracking-[0.1em] text-fg-subtle">
+                  {g}
+                </h3>
+                <ul className="mt-3 space-y-3">
+                  {DOCS.filter((d) => d.group === g).map((d) => (
+                    <li key={d.slug}>
+                      <Link href={`/docs/${d.slug}`} className="group block">
+                        <span className="text-[14.5px] font-medium text-fg group-hover:text-accent">
+                          {d.title}
+                        </span>
+                        <span className="mt-0.5 block text-[13px] leading-relaxed text-fg-muted">
+                          {d.summary}
+                        </span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ))}
+          </div>
         </div>
       </div>
     );

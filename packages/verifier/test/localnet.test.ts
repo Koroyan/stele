@@ -16,7 +16,7 @@ import {
   type VerificationReport,
   type VerifierOptions,
 } from "../src/index";
-import { decodeDocumentVersion, BorshWriter, ACCOUNT_DISCRIMINATORS } from "@stele/protocol";
+import { decodeDocumentVersion, BorshWriter, ACCOUNT_DISCRIMINATORS } from "@stelehq/protocol";
 
 const ROOT = resolve(import.meta.dirname, "../../..");
 const STATE = resolve(ROOT, ".data/localnet/state.json");

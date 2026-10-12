@@ -13,9 +13,21 @@ import {
   findPolicyPda,
   findVersionPda,
   setPolicyRequirementInstruction,
-} from "@stele/protocol";
+} from "@stelehq/protocol";
 import { useState } from "react";
-import { Alert, Button, Card, EmptyState, GateIcon, cn } from "@stele/ui";
+import {
+  Alert,
+  Button,
+  Card,
+  CheckIcon,
+  CodeIcon,
+  FileIcon,
+  GateIcon,
+  PlayIcon,
+  TicketIcon,
+  buttonClasses,
+  cn,
+} from "@stele/ui";
 import { api, errorMessage } from "@/lib/api";
 import { useDashboard, type WalletAuthority } from "@/lib/dashboard";
 import type { useTransaction } from "./ui";
@@ -117,7 +129,7 @@ const TABS = [
 export function GateTabs() {
   const pathname = usePathname();
   return (
-    <nav aria-label="Stele Gate" className="mt-5 flex gap-1 overflow-x-auto border-b border-line">
+    <nav aria-label="Stele Gate" className="mt-5 flex gap-1 overflow-x-auto overflow-y-hidden border-b border-line">
       {TABS.map((t) => {
         const active = t.exact ? pathname === t.href : pathname.startsWith(t.href);
         return (
@@ -190,7 +202,25 @@ export function documentTitle(d: GateOverview["documents"][number]): string {
   return d.currentVersion?.title ?? d.slug;
 }
 
-/** Shown on Gate pages until the organization enables Stele Gate. */
+const GATE_STEPS = [
+  {
+    icon: <FileIcon className="h-4 w-4" />,
+    title: "You set a policy",
+    body: "Pick one of your documents and the version a protected action requires — for example “deposits need Offering Terms v2”.",
+  },
+  {
+    icon: <TicketIcon className="h-4 w-4" />,
+    title: "Users accept once",
+    body: "A Stele window shows the exact text and the user signs with their wallet — free, Stele pays the fee. Their AccessPass on Solana records the version.",
+  },
+  {
+    icon: <CodeIcon className="h-4 w-4" />,
+    title: "Your program checks",
+    body: "One call, require_current(), before the action. No pass, an old version or someone else’s pass, and Solana refuses the transaction — whoever sent it.",
+  },
+];
+
+/** Shown on Gate pages until the organization enables Stele Gate: what it is, then the switch. */
 export function EnableGate() {
   const { detail, reloadDetail, withStepUp } = useDashboard();
   const [error, setError] = useState<string | null>(null);
@@ -198,41 +228,91 @@ export function EnableGate() {
   if (!detail) return null;
   const canEdit = detail.role === "owner" || detail.role === "admin";
   return (
-    <Card className="mt-6">
-      <EmptyState
-        icon={<GateIcon className="h-5 w-5" />}
-        title="Stele Gate is not enabled for this organization"
-        description="Gate is for Solana applications: require the current version of a document before a protected action in your program. Everything in Proof keeps working."
-        action={
-          <div className="flex flex-col items-center gap-3">
-            <Button
-              disabled={!canEdit || saving}
-              loading={saving}
-              onClick={() => {
-                setSaving(true);
-                setError(null);
-                void withStepUp(() =>
-                  api(`/v1/organizations/${detail.organization.id}/settings`, {
-                    method: "PATCH",
-                    body: { products: { gate: true } },
-                  }),
-                )
-                  .then(reloadDetail)
-                  .catch((e: unknown) => setError(errorMessage(e)))
-                  .finally(() => setSaving(false));
-              }}
-            >
-              Enable Stele Gate
-            </Button>
-            {!canEdit && (
-              <p className="text-[12.5px] text-fg-subtle">
-                Only the owner or an admin can enable it.
-              </p>
-            )}
-            {error && <Alert tone="danger">{error}</Alert>}
-          </div>
-        }
-      />
+    <Card className="mt-6 p-6 sm:p-8">
+      <div className="flex items-start gap-3">
+        <span
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-accent-line bg-accent-soft text-accent"
+          aria-hidden="true"
+        >
+          <GateIcon className="h-5 w-5" />
+        </span>
+        <div>
+          <p className="text-[17px] font-semibold text-fg">
+            Make your Solana program require your current terms
+          </p>
+          <p className="mt-0.5 text-[13.5px] text-fg-muted">
+            For vaults, token offerings and permissioned pools. A website only needs Stele Proof.
+          </p>
+        </div>
+      </div>
+
+      <ol className="mt-6 grid gap-3 md:grid-cols-3">
+        {GATE_STEPS.map((step, i) => (
+          <li key={step.title} className="rounded-xl border border-line bg-surface-2 p-4">
+            <p className="flex items-center gap-2 text-[14px] font-semibold text-fg">
+              <span
+                className="flex h-7 w-7 items-center justify-center rounded-lg border border-line bg-bg/60 text-accent"
+                aria-hidden="true"
+              >
+                {step.icon}
+              </span>
+              <span>
+                <span className="text-fg-subtle">{i + 1}.</span> {step.title}
+              </span>
+            </p>
+            <p className="mt-2 text-[13px] leading-relaxed text-fg-muted">{step.body}</p>
+          </li>
+        ))}
+      </ol>
+
+      <div className="mt-6 flex flex-col gap-4 border-t border-line pt-6 lg:flex-row lg:items-center lg:justify-between">
+        <ul className="space-y-1 text-[13px] text-fg-muted">
+          {[
+            "Enabling only adds the Gate pages here — nothing is written to Solana.",
+            "Everything in Stele Proof keeps working.",
+            "You can hide Gate again on the Organization page.",
+          ].map((t) => (
+            <li key={t} className="flex gap-2">
+              <CheckIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-verified" aria-hidden="true" />
+              {t}
+            </li>
+          ))}
+        </ul>
+        <div className="flex shrink-0 flex-wrap gap-2">
+          <Link href="/demo" className={buttonClasses("secondary", "md")}>
+            <PlayIcon className="h-4 w-4" /> See the demo
+          </Link>
+          <Button
+            disabled={!canEdit || saving}
+            loading={saving}
+            onClick={() => {
+              setSaving(true);
+              setError(null);
+              void withStepUp(() =>
+                api(`/v1/organizations/${detail.organization.id}/settings`, {
+                  method: "PATCH",
+                  body: { products: { gate: true } },
+                }),
+              )
+                .then(reloadDetail)
+                .catch((e: unknown) => setError(errorMessage(e)))
+                .finally(() => setSaving(false));
+            }}
+          >
+            Enable Stele Gate
+          </Button>
+        </div>
+      </div>
+      {!canEdit && (
+        <p className="mt-3 text-[12.5px] text-fg-subtle">
+          Only the owner or an admin can enable it.
+        </p>
+      )}
+      {error && (
+        <Alert tone="danger" className="mt-3">
+          {error}
+        </Alert>
+      )}
     </Card>
   );
 }

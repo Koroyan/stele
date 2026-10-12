@@ -1,7 +1,7 @@
 "use client";
 /** Stele Gate overview: the protected program, the policy it requires, passes and recent results. */
 import Link from "next/link";
-import { Alert, Badge, Card, buttonClasses } from "@stele/ui";
+import { Alert, ArrowRightIcon, Badge, Card, CheckIcon, buttonClasses, cn } from "@stele/ui";
 import {
   EnableGate,
   GateTabs,
@@ -33,6 +33,75 @@ function Fact({
       </div>
       {caption && <p className="mt-1 text-[12.5px] text-fg-muted">{caption}</p>}
     </Card>
+  );
+}
+
+interface SetupStep {
+  done: boolean;
+  title: string;
+  hint: string;
+  href: string;
+}
+
+/** The integration as four steps; the first open one is highlighted as "Next". */
+function GateSetup({ steps }: { steps: SetupStep[] }) {
+  const next = steps.findIndex((s) => !s.done);
+  if (next === -1) return null;
+  return (
+    <Panel
+      className="mt-6"
+      title="Set up Stele Gate"
+      description={`${steps.filter((s) => s.done).length} of ${steps.length} done — follow the steps in order.`}
+    >
+      <ol className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+        {steps.map((step, i) => (
+          <li key={step.title}>
+            <Link
+              href={step.href}
+              className={cn(
+                "flex h-full flex-col rounded-xl border px-4 py-3.5 transition-colors",
+                i === next
+                  ? "border-accent-line bg-accent-soft/40 hover:bg-accent-soft/60"
+                  : step.done
+                    ? "border-line"
+                    : "border-line-strong hover:border-accent-line",
+              )}
+            >
+              <span className="flex items-center gap-2.5">
+                <span
+                  className={cn(
+                    "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border font-mono text-[10.5px]",
+                    step.done
+                      ? "border-accent-line bg-accent-soft text-accent"
+                      : "border-line-strong text-fg-muted",
+                  )}
+                  aria-hidden="true"
+                >
+                  {step.done ? <CheckIcon className="h-3 w-3" /> : i + 1}
+                </span>
+                <span
+                  className={cn(
+                    "text-[13.5px] font-medium",
+                    step.done ? "text-fg-subtle line-through decoration-fg-subtle/50" : "text-fg",
+                  )}
+                >
+                  {step.title}
+                </span>
+                {step.done && <span className="sr-only">(done)</span>}
+                {i === next && (
+                  <span className="ml-auto inline-flex items-center gap-1 text-[12px] font-medium text-accent">
+                    Next <ArrowRightIcon className="h-3.5 w-3.5" />
+                  </span>
+                )}
+              </span>
+              <span className="mt-1.5 pl-[30px] text-[12.5px] leading-relaxed text-fg-muted">
+                {step.hint}
+              </span>
+            </Link>
+          </li>
+        ))}
+      </ol>
+    </Panel>
   );
 }
 
@@ -68,9 +137,11 @@ export default function GateOverviewPage() {
         title="Stele Gate"
         description="Require the current version of your terms before a protected Solana action. Your program enforces it with require_current(); this page shows the state on Solana."
         actions={
-          <Link href="/dashboard/gate/programs" className={buttonClasses("primary", "md")}>
-            Integration wizard
-          </Link>
+          enabled ? (
+            <Link href="/dashboard/gate/programs" className={buttonClasses("primary", "md")}>
+              Integration wizard
+            </Link>
+          ) : undefined
         }
       />
       {!enabled ? (
@@ -87,6 +158,37 @@ export default function GateOverviewPage() {
             <LoadingRows />
           ) : overview.data ? (
             <>
+              <GateSetup
+                steps={[
+                  {
+                    done: overview.data.documents.some((d) => d.versionCount > 0),
+                    title: "Publish your terms",
+                    hint: "The document users must accept, e.g. your Offering Terms.",
+                    href: "/dashboard/documents",
+                  },
+                  {
+                    done: Boolean(policyDoc?.policy),
+                    title: "Create a policy",
+                    hint: "Choose the document and the version a protected action requires.",
+                    href: "/dashboard/gate/policies",
+                  },
+                  {
+                    done: Boolean(program),
+                    title: "Connect your program",
+                    hint: "Register it and add one call, require_current(), to the protected instruction.",
+                    href: "/dashboard/gate/programs",
+                  },
+                  {
+                    done:
+                      (activity.data?.summary.rejectedMissing ?? 0) +
+                        (activity.data?.summary.rejectedOutdated ?? 0) >
+                      0,
+                    title: "Test the bypass",
+                    hint: "Check that a wallet without a current AccessPass is refused on-chain.",
+                    href: "/dashboard/gate/testing",
+                  },
+                ]}
+              />
               <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 <Fact
                   label="Protected program"

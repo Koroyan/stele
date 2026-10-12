@@ -1,5 +1,5 @@
 {
-  "name": "@stele/sdk",
+  "name": "@stelehq/sdk",
   "version": "1.0.0",
   "description": "Stele SDK — verified agreement acceptance for browsers, React components and server helpers",
   "license": "Apache-2.0",
@@ -32,6 +32,7 @@
   ],
   "scripts": {
     "build": "tsup --tsconfig tsconfig.build.json src/index.ts src/react.tsx src/server.ts --format esm --dts --clean --sourcemap --external react && pnpm run build:embed",
+    "prepublishOnly": "pnpm run build",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src test",
     "test": "vitest run",
@@ -47,8 +48,8 @@
   },
   "dependencies": {
     "@solana/kit": "^8.4.0",
-    "@stele/protocol": "workspace:*",
-    "@stele/verifier": "workspace:*",
+    "@stelehq/protocol": "workspace:*",
+    "@stelehq/verifier": "workspace:*",
     "@wallet-standard/app": "^1.1.1",
     "@wallet-standard/base": "^1.1.1"
   },

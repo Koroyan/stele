@@ -1,5 +1,5 @@
 /**
- * @stele/protocol — the TypeScript implementation of Stele Protocol v1.
+ * @stelehq/protocol — the TypeScript implementation of Stele Protocol v1.
  *
  * Normative spec: PROTOCOL_SPEC.md. Cross-checked against the Rust implementation
  * (`crates/stele-core`, `crates/stele-canonical`) with the shared vectors in `spec/test-vectors/`.

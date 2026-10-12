@@ -129,8 +129,10 @@ program then reimburses the relayer the exact fee of each valid recording (compu
 transaction's compute-budget instructions), capped per record and per UTC day. This adds no account
 and no byte to the recording transaction.
 
-Walletless signers use ordinary Ed25519 keys protected by a passkey (WebAuthn PRF); the program sees
-no difference. Their passkey evidence travels in receipts and is checked by verifiers. Details:
+Walletless signers sign with the passkey's own secp256r1 key (`stele/2`): the program verifies the
+WebAuthn signature on-chain through Solana's secp256r1 precompile. Signers enrolled earlier use an
+Ed25519 key protected by their passkey (`stele/1`), which keeps working. Passkey evidence travels in
+receipts and is checked by verifiers. Details:
 [specification §12–§14](../PROTOCOL_SPEC.md#12-proofs--record_proof-stele-statement-v1-stele-proof-v1).
 
 ## Events
@@ -153,7 +155,7 @@ the verifier reads accounts and the original transactions.
 ## Reference implementations and test vectors
 
 - Rust: `crates/stele-core` (used by the program) and `crates/stele-canonical`.
-- TypeScript: `@stele/protocol`, used by the API, SDK, verifier and web app.
+- TypeScript: `@stelehq/protocol`, used by the API, SDK, verifier and web app.
 - Shared vectors: `spec/test-vectors/*.json` (text normalization, content, version fingerprints,
   RFC 3339, acceptance messages and IDs, proof messages and IDs, statements, validation). Both implementations must produce byte-identical
   results; CI regenerates the vectors and fails on any difference.

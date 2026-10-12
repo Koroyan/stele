@@ -10,6 +10,7 @@ import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
 import rateLimit from "@fastify/rate-limit";
 import swagger from "@fastify/swagger";
+import { TAGS, describeRoute } from "./openapi-catalog.js";
 import {
   hasZodFastifySchemaValidationErrors,
   jsonSchemaTransform,
@@ -20,7 +21,7 @@ import {
 import { randomUUID } from "node:crypto";
 import type { Deps } from "./deps.js";
 import { ApiError } from "./errors.js";
-import { authHook, csrfHook } from "./plugins/auth.js";
+import { SESSION_COOKIE, authHook, csrfHook } from "./plugins/auth.js";
 import { registerIdempotency } from "./plugins/idempotency.js";
 import { acceptanceRoutes } from "./routes/acceptance.js";
 import { authRoutes } from "./routes/auth.js";
@@ -131,8 +132,59 @@ export async function buildApp(deps: Deps, opts: BuildOptions = {}) {
       },
       // The web app serves the API under /api: generated clients get the address developers use.
       servers: [{ url: `${deps.config.appOrigins[0]}/api`, description: "This Stele app" }],
+      tags: TAGS,
+      components: {
+        securitySchemes: {
+          apiKey: {
+            type: "http",
+            scheme: "bearer",
+            description:
+              "Server-to-server API key (stl_live_… / stl_test_…), created in the dashboard under API keys. Scoped; never use it in a browser.",
+          },
+          session: {
+            type: "apiKey",
+            in: "cookie",
+            name: SESSION_COOKIE,
+            description:
+              "The dashboard's signed-in wallet session. Writes also need the x-csrf-token header.",
+          },
+          proofToken: {
+            type: "apiKey",
+            in: "header",
+            name: "x-proof-token",
+            description: "The token returned when your server created the proof request.",
+          },
+        },
+      },
     },
-    transform: jsonSchemaTransform,
+    // Each route's group, summary, description and authentication come from openapi-catalog.ts.
+    transform: (args) => {
+      const out = jsonSchemaTransform(args);
+      const method = String(
+        Array.isArray(args.route.method) ? args.route.method[0] : args.route.method,
+      );
+      const entry = describeRoute(method, args.route.url);
+      if (entry === "hidden") return { ...out, schema: { ...out.schema, hide: true } };
+      const scope = entry.auth.startsWith("apiKey:") ? entry.auth.slice("apiKey:".length) : null;
+      const security =
+        entry.auth === "public" ? [] : [{ [scope ? "apiKey" : entry.auth]: [] as string[] }];
+      const description = [
+        entry.description,
+        scope ? `Requires an API key with the \`${scope}\` scope.` : null,
+      ]
+        .filter(Boolean)
+        .join("\n\n");
+      return {
+        ...out,
+        schema: {
+          ...out.schema,
+          tags: [entry.tag],
+          summary: entry.summary,
+          ...(description ? { description } : {}),
+          security,
+        },
+      };
+    },
   });
 
   app.addHook("onRequest", authHook(deps));

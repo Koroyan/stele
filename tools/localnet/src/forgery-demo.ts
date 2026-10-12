@@ -54,7 +54,7 @@ import {
   toBase64Url,
   utf8,
   webauthnChallenge,
-} from "@stele/protocol";
+} from "@stelehq/protocol";
 import { PROGRAM, RPC_URL } from "./chain.js";
 
 const { values } = parseArgs({

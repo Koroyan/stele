@@ -29,20 +29,19 @@ content storage, relayer and attestor keys, web app), each on its own address, f
 |---|---|---|
 | Mainnet | `https://app.stele.example` | Production |
 | Devnet | `https://devnet.app.stele.example` | Integrators' testing |
-| Testnet | `https://testnet.app.stele.example` | Optional; drop it whenever you like |
 
 Never share a database, relayer key or nonce shard between networks. Every web app gets the same
 `STELE_NETWORKS` list, which drives the network switcher in the site header and the dashboard:
 
 ```env
-STELE_NETWORKS=mainnet=https://app.stele.example,devnet=https://devnet.app.stele.example,testnet=https://testnet.app.stele.example
+STELE_NETWORKS=mainnet=https://app.stele.example,devnet=https://devnet.app.stele.example
 ```
 
 The current network is read from the deployment's own API; switching opens the same page on the
 other deployment (dashboard and receipt pages open that network's dashboard and verifier). Every
 page of a test network shows a banner saying so. To retire a network, remove its entry from
 `STELE_NETWORKS` everywhere and redeploy; no code change is needed. An entry without a URL
-(`testnet=`) is listed as "not available".
+(`devnet=`) is listed as "not available". Localnet is never offered in the switcher.
 
 ## Prerequisites
 
@@ -107,7 +106,7 @@ you do not control. On localnet, mark a domain verified directly with the throwa
 pnpm localnet:attest-domain <organization address> mycompany.test
 ```
 
-The script refuses to run against Mainnet, Devnet or Testnet. To try the widget on a plain HTML
+The script refuses to run against Mainnet or Devnet. To try the widget on a plain HTML
 page, serve `examples/local-widget` (it works with the seeded `acme.example` organization) and open
 `http://localhost:8080`:
 

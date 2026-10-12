@@ -239,6 +239,69 @@ pub fn require_current(
     })
 }
 
+/// One action that requires several documents (for example Terms of Service, a Privacy Policy and a
+/// Risk Disclosure — one Stele policy each): `user` must hold a current pass for every policy.
+/// Fails with the first unmet requirement; on success returns one [`GrantedAccess`] per policy,
+/// in order.
+///
+/// ```ignore
+/// stele_gate::require_all_current(
+///     &[
+///         (&ctx.accounts.terms_pass, &ctx.accounts.terms_policy),
+///         (&ctx.accounts.privacy_pass, &ctx.accounts.privacy_policy),
+///     ],
+///     &ctx.accounts.investor,
+/// )?;
+/// ```
+pub fn require_all_current(
+    requirements: &[(&AccountInfo, &AccountInfo)],
+    user: &AccountInfo,
+) -> Result<Vec<GrantedAccess>, ProgramError> {
+    requirements
+        .iter()
+        .map(|(access_pass, policy)| require_current(access_pass, policy, user))
+        .collect()
+}
+
+/// A list of required policies, any length: `user` must hold a current pass for each.
+///
+/// `required` is YOUR list — constants or addresses stored in your program's state, never taken
+/// from the caller (a caller-chosen policy could require nothing). `accounts` are what the caller
+/// passed, in pairs `[policy, access_pass, policy, access_pass, …]` in any order — typically
+/// `ctx.remaining_accounts`, so the instruction needs no named account per document.
+///
+/// Fails with [`GateError::InvalidPolicy`] if a required policy is missing from `accounts` (or the
+/// accounts are not pairs), otherwise with the first unmet requirement. On success returns one
+/// [`GrantedAccess`] per required policy, in the order of `required`.
+///
+/// ```ignore
+/// pub const REQUIRED: [Pubkey; 3] = [TERMS_POLICY, PRIVACY_POLICY, RISK_POLICY];
+///
+/// pub fn deposit(ctx: Context<Deposit>, amount: u64) -> Result<()> {
+///     stele_gate::require_policies(&REQUIRED, ctx.remaining_accounts, &ctx.accounts.investor)?;
+///     // … the protected action
+/// }
+/// ```
+pub fn require_policies(
+    required: &[Pubkey],
+    accounts: &[AccountInfo],
+    user: &AccountInfo,
+) -> Result<Vec<GrantedAccess>, ProgramError> {
+    if accounts.len() % 2 != 0 {
+        return Err(GateError::InvalidPolicy.into());
+    }
+    required
+        .iter()
+        .map(|wanted| {
+            let pair = accounts
+                .chunks_exact(2)
+                .find(|pair| pair[0].key == wanted)
+                .ok_or(GateError::InvalidPolicy)?;
+            require_current(&pair[1], &pair[0], user)
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -350,5 +413,109 @@ mod tests {
         ));
         let (policy, bump) = policy_address(&doc);
         assert!(is_canonical(&policy, &[POLICY_SEED, doc.as_ref()], bump));
+    }
+
+    /// A Stele-owned account as the program would hold it: (key, lamports, data).
+    struct Fake {
+        key: Pubkey,
+        lamports: u64,
+        data: Vec<u8>,
+    }
+
+    /// A policy requiring `version` of `doc`, and `holder`'s pass naming `pass_version`.
+    fn policy_and_pass(doc: Pubkey, holder: Pubkey, version: u32, pass_version: u32) -> (Fake, Fake) {
+        use anchor_lang::prelude::Pubkey as P;
+        let org = P::new_from_array([1; 32]);
+        let hash = [9u8; 32];
+        let (policy_key, policy_bump) = policy_address(&doc);
+        let mut policy = Vec::new();
+        stele::state::GatePolicy {
+            organization: org,
+            document: doc,
+            required_version_hash: hash,
+            updated_by: org,
+            created_at: 0,
+            updated_at: 0,
+            required_version: version,
+            bump: policy_bump,
+        }
+        .try_serialize(&mut policy)
+        .unwrap();
+        let (pass_key, pass_bump) = access_pass_address(&doc, &holder);
+        let mut pass = Vec::new();
+        stele::state::AccessPass {
+            organization: org,
+            document: doc,
+            holder,
+            version: P::new_from_array([4; 32]),
+            version_hash: hash,
+            acceptance_id: [6; 32],
+            accepted_at: 1,
+            first_accepted_at: 1,
+            accepted_slot: 1,
+            version_number: pass_version,
+            acceptance_count: 1,
+            bump: pass_bump,
+        }
+        .try_serialize(&mut pass)
+        .unwrap();
+        (
+            Fake { key: policy_key, lamports: 1, data: policy },
+            Fake { key: pass_key, lamports: 1, data: pass },
+        )
+    }
+
+    fn info(f: &mut Fake, signer: bool) -> AccountInfo<'_> {
+        AccountInfo::new(&f.key, signer, false, &mut f.lamports, &mut f.data, &STELE_PROGRAM_ID, false)
+    }
+
+    #[test]
+    fn require_policies_checks_every_pinned_policy_in_any_order() {
+        let holder = Pubkey::new_from_array([3; 32]);
+        let (mut terms, mut terms_pass) =
+            policy_and_pass(Pubkey::new_from_array([20; 32]), holder, 2, 2);
+        let (mut privacy, mut privacy_pass) =
+            policy_and_pass(Pubkey::new_from_array([21; 32]), holder, 1, 3);
+        let (mut risk, mut risk_pass) =
+            policy_and_pass(Pubkey::new_from_array([22; 32]), holder, 4, 1);
+        let required = [terms.key, privacy.key];
+        let user_key = holder;
+        let mut user_lamports = 0;
+        let mut user_data: Vec<u8> = vec![];
+        let system = Pubkey::default();
+        let user = AccountInfo::new(
+            &user_key, true, false, &mut user_lamports, &mut user_data, &system, false,
+        );
+        let accounts = [
+            info(&mut privacy, false),
+            info(&mut privacy_pass, false),
+            info(&mut risk, false), // extra, not required: ignored
+            info(&mut risk_pass, false),
+            info(&mut terms, false),
+            info(&mut terms_pass, false),
+        ];
+
+        // Both required policies are satisfied, whatever the order of the pairs.
+        let granted = require_policies(&required, &accounts, &user).unwrap();
+        assert_eq!(granted.len(), 2);
+        assert_eq!(granted[0].required_version, 2);
+        assert_eq!(granted[1].version_number, 3);
+
+        // A required policy the caller left out is refused.
+        let only_privacy = &accounts[..2];
+        assert_eq!(
+            require_policies(&required, only_privacy, &user),
+            Err(ProgramError::Custom(GateError::InvalidPolicy as u32))
+        );
+        // An outdated pass for a required policy is refused.
+        assert_eq!(
+            require_policies(&[*accounts[2].key], &accounts, &user),
+            Err(ProgramError::Custom(GateError::AccessPassOutdated as u32))
+        );
+        // Not pairs: refused.
+        assert_eq!(
+            require_policies(&required, &accounts[..5], &user),
+            Err(ProgramError::Custom(GateError::InvalidPolicy as u32))
+        );
     }
 }

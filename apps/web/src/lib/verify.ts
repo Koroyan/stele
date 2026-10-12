@@ -1,6 +1,6 @@
 /** Browser verifier configuration: the user's RPC choices, pinned program, explicit content sources. */
-import type { NetworkInfo } from "@stele/sdk";
-import { chainFromUrls, type VerifierOptions } from "@stele/verifier";
+import type { NetworkInfo } from "@stelehq/sdk";
+import { chainFromUrls, type VerifierOptions } from "@stelehq/verifier";
 import { PINNED_CHAIN_ID, PINNED_PROGRAM_ID } from "./env";
 import { rpcUrls } from "./chain";
 
@@ -59,7 +59,7 @@ export function cliCommand(
   s: VerifySettings,
   target: { tx?: string; receipt?: boolean; version?: string; fingerprint?: string },
 ): string {
-  const parts = ["npx @stele/verifier"];
+  const parts = ["npx @stelehq/verifier"];
   for (const u of s.rpcUrls) parts.push(`--rpc ${u}`);
   if (s.programId) parts.push(`--program ${s.programId}`);
   if (s.expectedChainId) parts.push(`--expect-chain ${s.expectedChainId}`);

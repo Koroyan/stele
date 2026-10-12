@@ -6,8 +6,8 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import QRCode from "qrcode";
-import type { Receipt } from "@stele/protocol";
-import { verifyAcceptance, type VerificationReport } from "@stele/verifier";
+import type { Receipt } from "@stelehq/protocol";
+import { verifyAcceptance, type VerificationReport } from "@stelehq/verifier";
 import {
   Alert,
   Card,

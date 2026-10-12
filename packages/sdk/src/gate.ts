@@ -2,9 +2,9 @@
  * Stele Gate for Solana apps: require the current acceptance of a policy before a protected action.
  *
  * ```ts
- * import { createSteleGate } from "@stele/sdk";
+ * import { createSteleGate } from "@stelehq/sdk";
  *
- * const stele = createSteleGate({ apiBaseUrl: "https://stele.example/api", wallet });
+ * const stele = createSteleGate({ apiBaseUrl: "https://stele.site/api", wallet });
  *
  * const signature = await stele.gate({
  *   policy: OFFERING_TERMS_POLICY, // the Stele policy address your program pins
@@ -29,14 +29,14 @@ import {
   type AccessPassAccount,
   type AccessStatus,
   type GatePolicyAccount,
-} from "@stele/protocol";
+} from "@stelehq/protocol";
 import { address } from "@solana/kit";
-import { chainFromUrls } from "@stele/verifier";
+import { chainFromUrls } from "@stelehq/verifier";
 import { acceptDocument, type AcceptanceResult, type MessageSigner } from "./accept";
 import { SteleClient } from "./client";
 import { IntegrityError, loadVerifiedDocument, type VerifiedDocument } from "./verified-document";
 
-export type { AccessStatus } from "@stele/protocol";
+export type { AccessStatus } from "@stelehq/protocol";
 
 /** The wallet's standing for a policy, read from Solana. */
 export interface AccessCheck {
@@ -106,7 +106,7 @@ export interface GateUi {
 }
 
 export interface SteleGateOptions {
-  /** Stele API base URL, e.g. `https://stele.example/api`. */
+  /** Stele API base URL, e.g. `https://stele.site/api`. */
   apiBaseUrl?: string;
   client?: SteleClient;
   /** The wallet that signs the protected transactions (Wallet Standard `signMessage`). */

@@ -27,9 +27,9 @@ import {
   type DocumentVersionAccount,
   type OrganizationAccount,
   type ProtocolConfigAccount,
-} from "@stele/protocol";
+} from "@stelehq/protocol";
 import { address } from "@solana/kit";
-import { chainFromUrls, type ChainSource } from "@stele/verifier";
+import { chainFromUrls, type ChainSource } from "@stelehq/verifier";
 import type { NetworkInfo, PublicDocument, SteleClient } from "./client";
 
 export class IntegrityError extends Error {

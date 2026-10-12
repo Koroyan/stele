@@ -38,7 +38,7 @@ import {
   toBase58,
   toHex,
   validateNetworkLabel,
-} from "@stele/protocol";
+} from "@stelehq/protocol";
 
 const { values } = parseArgs({
   options: {

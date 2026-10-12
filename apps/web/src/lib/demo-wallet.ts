@@ -3,8 +3,8 @@
  * only (never stored), used on test networks only. It has no funds — the Stele relayer pays fees.
  */
 import { ed25519 } from "@noble/curves/ed25519.js";
-import type { MessageSigner } from "@stele/sdk";
-import { toBase58 } from "@stele/protocol";
+import type { MessageSigner } from "@stelehq/sdk";
+import { toBase58 } from "@stelehq/protocol";
 
 export interface DemoWallet extends MessageSigner {
   /** Signs a transaction message (the bytes a Solana signature covers). */

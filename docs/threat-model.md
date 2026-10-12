@@ -152,7 +152,11 @@ Each row gives the primary defense. Where software cannot remove a risk entirely
 | A23 | Fake "verifier" websites | Open-source verifier library and CLI. |
 | A24 | Sensitive data in logs | Structured logging with redaction paths (authorization headers, cookies, tokens, secrets, signatures, emails). |
 
-### Walletless signing, fee sponsorship and proofs
+### Legacy PRF passkey keys (`stele/1`), fee sponsorship and proofs
+
+New passkey signers are native (`stele/2`): their scenarios are in
+[Native passkeys](#native-passkeys-batched-evidence-and-the-security-review-stele2) below. W01, W06
+and W07 apply only to signers registered before native passkeys, whose Ed25519 key is PRF-encrypted.
 
 | ID | Scenario | Primary defense |
 |---|---|---|

@@ -15,7 +15,7 @@ import {
   systemTransferInstruction,
   updateShardSponsorshipInstruction,
   withdrawShardSponsorshipInstruction,
-} from "@stele/protocol";
+} from "@stelehq/protocol";
 import { Alert, Badge, Button, CopyButton, Field, Fingerprint, Input } from "@stele/ui";
 import {
   LoadingRows,
@@ -195,9 +195,9 @@ function PolicyPanel({ canEdit }: { canEdit: boolean }) {
         ))}
       </fieldset>
       <SectionNote>
-        Passkey signers: the signing key is created and encrypted in the visitor&apos;s browser
-        under their passkey (WebAuthn PRF). Stele stores only ciphertext and cannot sign for them.
-        Browsers without PRF support are offered a wallet instead — never a server-held key.
+        Passkey signers: the passkey&apos;s own key (secp256r1) signs, it never leaves the
+        visitor&apos;s device, and Solana verifies the signature on-chain. Stele holds no key and
+        cannot sign for anyone. Devices without passkey support are offered a wallet instead.
       </SectionNote>
       {message && (
         <Alert tone={message.tone} className="mt-4">
@@ -768,7 +768,7 @@ function Signers({ canEdit, authority }: { canEdit: boolean; authority: WalletAu
       <Recoveries authority={authority} onChanged={signers.reload} />
       <Panel
         title="Passkey signers"
-        description="Walletless signers of this organization. Native passkeys sign with their own key, which never leaves the visitor's device; older PRF signers have an encrypted key blob. Stele never holds a usable private key."
+        description="Walletless signers of this organization. Native passkeys sign with their own key, which never leaves the visitor's device; legacy signers (registered before native passkeys) keep a PRF-encrypted key. Stele never holds a usable private key."
         bodyClassName="px-0 py-0"
       >
         {error && (

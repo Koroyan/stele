@@ -42,7 +42,7 @@ import {
   signSendAndConfirm,
   utf8,
   type SteleRpc,
-} from "@stele/protocol";
+} from "@stelehq/protocol";
 import { PROGRAM, RPC_URL, airdrop, publishVersion, send } from "./chain.js";
 import { DATA_DIR, ensureKeypair, signer, type Role } from "./keys.js";
 import { ACME_PRIVACY_V1, ACME_TERMS_V1, ACME_TERMS_V2 } from "./sample-content.js";

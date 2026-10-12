@@ -14,7 +14,7 @@ import {
   type ReactNode,
 } from "react";
 import { address as toAddress, type Address } from "@solana/kit";
-import { findMemberPda, ROLE_ADMIN, ROLE_PUBLISHER } from "@stele/protocol";
+import { findMemberPda, ROLE_ADMIN, ROLE_PUBLISHER } from "@stelehq/protocol";
 import { api, ApiError, isReauthError } from "./api";
 import { signInWithWallet, type SessionUser } from "./auth";
 import { useNetwork, useWallet } from "./wallet";

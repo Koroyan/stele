@@ -2,7 +2,8 @@ import { cpSync } from "node:fs";
 import { defineConfig } from "tsup";
 
 /**
- * Production bundle. Workspace packages (@stele/*) export TypeScript sources, so they are inlined;
+ * Production bundle. Workspace packages (@stele/* and the published @stelehq/*) export TypeScript
+ * sources, so they are inlined;
  * third-party dependencies stay external and are resolved from this package's node_modules at
  * runtime (every module the bundle imports is therefore a direct dependency of @stele/api). The SQL
  * migrations ship in dist/drizzle, where the inlined @stele/db looks for them.
@@ -15,7 +16,7 @@ export default defineConfig({
   clean: true,
   sourcemap: true,
   splitting: true,
-  noExternal: [/^@stele\//],
+  noExternal: [/^@stele(hq)?\//],
   onSuccess: async () => {
     cpSync("../../packages/db/drizzle", "dist/drizzle", { recursive: true });
   },

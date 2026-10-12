@@ -131,14 +131,15 @@ No custom cryptography; all primitives come from audited libraries (`@noble/curv
 
 ## Walletless signing
 
-- Passkey signers' keys are generated in the user's browser and stored by Stele only as AES-256-GCM
-  ciphertext under a key derived (HKDF-SHA256) from the passkey's WebAuthn PRF output. Stele holds no
-  key that decrypts them, and none is derived from a password.
+- Passkey signers sign with the passkey's own secp256r1 key, which never leaves the device; Solana
+  verifies each signature on-chain. Stele holds no signing key for them. (Signers enrolled earlier
+  keep an Ed25519 key that Stele stores only as AES-256-GCM ciphertext under the passkey's WebAuthn
+  PRF output; Stele cannot decrypt it.)
 - Every signature by a passkey signer needs a user-verified passkey assertion over that exact message
   on the requesting site; Stele refuses to record it otherwise, and receipts carry the assertion.
 - Adding a passkey or recovery kit requires a statement signed by the key itself. Account access alone
   (email, password) never grants control of a key. Lost keys are replaced by new, flagged keys.
-- No PRF, no passkey signing: there is no downgrade to a server-held key.
+- No passkey support, no passkey signing: there is no downgrade to a server-held key.
 
 ## Fee sponsorship
 

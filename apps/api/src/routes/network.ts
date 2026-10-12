@@ -1,6 +1,6 @@
 /** Public network information so clients can verify independently (no secrets). */
 import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod";
-import { fetchProtocolConfig } from "@stele/protocol";
+import { fetchProtocolConfig } from "@stelehq/protocol";
 import type { Deps } from "../deps.js";
 
 export function networkRoutes(deps: Deps): FastifyPluginAsyncZod {

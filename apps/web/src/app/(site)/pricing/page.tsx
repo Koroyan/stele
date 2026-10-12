@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { formatSol } from "@stele/protocol";
+import { formatSol } from "@stelehq/protocol";
 import { Card, buttonClasses, cn } from "@stele/ui";
 import { CheckList, PageHero, Section, SectionHeading } from "@/components/marketing";
 import { getPublic } from "@/lib/server";

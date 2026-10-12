@@ -55,7 +55,7 @@ effect are separate layers. See §11.
 5. **Domain separation everywhere.** Every hash preimage and signed message carries a format or
    protocol identifier, the network (CAIP-2 chain ID), and the program ID.
 6. **Independent verification is a first-class product.** The verifier is a standalone library
-   (`@stele/verifier`) and CLI that talks directly to Solana RPC and content storage. The website's
+   (`@stelehq/verifier`) and CLI that talks directly to Solana RPC and content storage. The website's
    `/verify` page runs that same library *in the user's browser*.
 7. **Honest language.** "Cryptographically verifiable evidence", "tamper-evident history",
    "verifiable proof of acceptance authorization". Never "legally impossible to dispute".
@@ -78,7 +78,7 @@ effect are separate layers. See §11.
               (org wallets/Squads)  │                  │               │
 ┌──────────────────────┐   ┌────────┴─────────┐  ┌─────┴───────────┐  ┌┴──────────────────────┐
 │ Company admins       │   │ apps/web         │  │ apps/api        │  │ Independent verifiers │
-│ (browser wallet /    │──▶│ Next.js 16       │─▶│ Fastify 5       │  │ @stele/verifier (lib) │
+│ (browser wallet /    │──▶│ Next.js 16       │─▶│ Fastify 5       │  │ @stelehq/verifier (lib) │
 │  Squads multisig)    │   │ dashboard, accept│  │ relayer, DNS    │  │ stele-verify (CLI)    │
 └──────────────────────┘   │ flow, /verify    │  │ attestor, API   │  │ /verify (in-browser)  │
 ┌──────────────────────┐   │ (verifier runs   │  │ keys, webhooks  │  └───────────┬───────────┘
@@ -123,10 +123,10 @@ effect are separate layers. See §11.
 │   │                          RFC 3339, acceptance leaf/accumulator. Used by the program.
 │   └── stele-canonical/       Off-chain Rust canonicalizer (NFC, JCS) — cross-checked with TS
 ├── packages/
-│   ├── protocol/              @stele/protocol — TS mirror of the protocol: canonicalization,
+│   ├── protocol/              @stelehq/protocol — TS mirror of the protocol: canonicalization,
 │   │                          hashing, messages, PDAs, account/instruction codecs (@solana/kit)
-│   ├── verifier/              @stele/verifier — independent verification library + CLI
-│   ├── sdk/                   @stele/sdk — REST client, webhook verification, acceptance flow,
+│   ├── verifier/              @stelehq/verifier — independent verification library + CLI
+│   ├── sdk/                   @stelehq/sdk — REST client, webhook verification, acceptance flow,
 │   │                          React <TermsAcceptance/> (subpath export)
 │   ├── db/                    @stele/db — Drizzle schema, migrations, client
 │   └── ui/                    @stele/ui — design system (tokens, primitives, brand mark)
@@ -252,7 +252,7 @@ from the program's first transaction to rebuild the database after total loss.
 - Strict CSP with per-request nonces (`proxy.ts`): scripts execute only with the request's nonce,
   `frame-ancestors 'none'`, network access limited to the API and configured RPC endpoints.
 
-### 6.4 `@stele/verifier`
+### 6.4 `@stelehq/verifier`
 
 Pure TypeScript, no dependency on our backend. Inputs: transaction signature, receipt bundle,
 version address or fingerprint. Talks to one or more RPC endpoints (cross-checking results) and to

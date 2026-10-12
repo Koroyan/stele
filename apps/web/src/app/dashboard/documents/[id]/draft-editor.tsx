@@ -17,7 +17,7 @@ import {
   validateTitle,
   validateVersionLabel,
   validationError,
-} from "@stele/protocol";
+} from "@stelehq/protocol";
 import { Alert, Button, Card, Field, Fingerprint, Input, Textarea } from "@stele/ui";
 import { ContentView } from "@/components/content-view";
 import { api, errorMessage } from "@/lib/api";
