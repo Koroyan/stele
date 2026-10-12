@@ -109,6 +109,7 @@ services:
         NEXT_PUBLIC_PROGRAM_ID: ${PROGRAM_ID}
         NEXT_PUBLIC_CHAIN_ID: ${NEXT_PUBLIC_CHAIN_ID:-}
         NEXT_PUBLIC_RPC_URLS: ${NEXT_PUBLIC_RPC_URLS:-}
+        NEXT_PUBLIC_REPO_URL: ${NEXT_PUBLIC_REPO_URL:-}
         PUBLIC_RPC_URLS: ${PUBLIC_RPC_URLS:-}
     restart: unless-stopped
     depends_on:
