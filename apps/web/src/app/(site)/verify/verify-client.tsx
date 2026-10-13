@@ -17,6 +17,7 @@ import {
   verifierOptions,
   type VerifySettings,
 } from "@/lib/verify";
+import { receiptFromPdf } from "@/lib/receipt-pdf";
 import { useNetwork } from "@/lib/wallet";
 
 type Mode = "acceptance" | "receipt" | "version";
@@ -153,7 +154,20 @@ export function VerifyClient({
       setError("Receipt files larger than 4 MB are not supported.");
       return;
     }
-    setReceiptText(await file.text());
+    const text = await file.text();
+    if (text.startsWith("%PDF")) {
+      // A Stele PDF receipt carries the JSON receipt inside it; only that is verified.
+      const embedded = receiptFromPdf(text);
+      if (!embedded) {
+        setError(
+          "This PDF does not contain a Stele receipt. Download the PDF from a receipt page.",
+        );
+        return;
+      }
+      setReceiptText(embedded);
+      return;
+    }
+    setReceiptText(text);
   }
 
   return (
@@ -217,11 +231,11 @@ export function VerifyClient({
               <label className="inline-flex cursor-pointer items-center gap-2 text-[13px] text-accent hover:text-accent-strong">
                 <input
                   type="file"
-                  accept="application/json,.json"
+                  accept="application/json,.json,application/pdf,.pdf"
                   className="sr-only"
                   onChange={(e) => e.target.files?.[0] && void onFile(e.target.files[0])}
                 />
-                Upload a receipt file
+                Upload a receipt (.json or .pdf)
               </label>
             </div>
           )}

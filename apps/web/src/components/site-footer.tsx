@@ -97,7 +97,7 @@ export function SiteFooter() {
               className="shrink-0 text-fg-muted hover:text-fg"
               rel="noreferrer noopener"
             >
-              Source code
+              Open source · Apache 2.0
             </a>
           )}
         </div>

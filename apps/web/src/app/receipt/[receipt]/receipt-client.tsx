@@ -21,6 +21,7 @@ import {
   buttonClasses,
 } from "@stele/ui";
 import { downloadJson, ReportView } from "@/components/report-view";
+import { downloadReceiptPdf } from "@/lib/receipt-pdf";
 import { api, ApiError, errorMessage } from "@/lib/api";
 import { txExplorerUrl } from "@/lib/chain";
 import { cliCommand, defaultSettings, rpcHosts, verifierOptions } from "@/lib/verify";
@@ -146,8 +147,9 @@ export function ReceiptClient({ acceptanceId }: { acceptanceId: string }) {
           <Card className="p-5">
             <p className="text-[14px] font-semibold text-fg">Keep this receipt</p>
             <p className="mt-1 text-[12.5px] leading-relaxed text-fg-muted">
-              The JSON bundle contains everything needed to re-verify this acceptance, including the
-              document text.
+              The receipt contains everything needed to re-verify this acceptance, including the
+              document text. The PDF carries the same receipt inside it: upload either one on the
+              Verify page.
             </p>
             <div className="mt-4 space-y-2">
               <button
@@ -155,11 +157,26 @@ export function ReceiptClient({ acceptanceId }: { acceptanceId: string }) {
                 disabled={!receipt}
                 onClick={() =>
                   receipt &&
-                  downloadJson(`stele-receipt-${acceptanceId.slice(0, 12)}.json`, receipt)
+                  downloadReceiptPdf(
+                    `stele-receipt-${acceptanceId.slice(0, 12)}.pdf`,
+                    receipt,
+                    `${window.location.origin}/verify`,
+                  )
                 }
                 className={buttonClasses("primary", "md", "w-full")}
               >
-                <DownloadIcon className="h-4 w-4" /> Download receipt
+                <DownloadIcon className="h-4 w-4" /> Download PDF receipt
+              </button>
+              <button
+                type="button"
+                disabled={!receipt}
+                onClick={() =>
+                  receipt &&
+                  downloadJson(`stele-receipt-${acceptanceId.slice(0, 12)}.json`, receipt)
+                }
+                className={buttonClasses("secondary", "md", "w-full")}
+              >
+                <DownloadIcon className="h-4 w-4" /> Download JSON receipt
               </button>
               {txSignature && (
                 <a

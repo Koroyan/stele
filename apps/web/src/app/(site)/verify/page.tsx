@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { NetworkBoundary } from "@/components/network-boundary";
+import { REPO_URL } from "@/lib/env";
 import { VerifyClient } from "./verify-client";
 
 export const metadata: Metadata = {
@@ -43,6 +44,53 @@ export default async function VerifyPage({ searchParams }: { searchParams: Promi
             />
           </NetworkBoundary>
         </div>
+
+        <section
+          aria-labelledby="without-stele"
+          className="mt-12 rounded-xl border border-line bg-bg-raised p-6"
+        >
+          <h2 id="without-stele" className="text-[17px] font-semibold text-fg">
+            Open source — and it keeps working without Stele
+          </h2>
+          <ul className="mt-4 space-y-2.5 text-[14px] leading-relaxed text-fg-muted">
+            <li>
+              <span className="font-medium text-fg">Every acceptance lives on Solana,</span> not in
+              Stele&apos;s database: the signature, the exact message and the document fingerprint.
+              If this website disappeared tomorrow, they would still be there.
+            </li>
+            <li>
+              <span className="font-medium text-fg">Keep the receipt (PDF or JSON).</span> It holds
+              the document text too, so it can be verified against any Solana RPC with no Stele
+              server at all.
+            </li>
+            <li>
+              <span className="font-medium text-fg">The verifier is open source</span> (Apache 2.0):
+              this page runs it in your browser, and anyone can run the same checks with{" "}
+              <code className="font-mono text-[12.5px] text-fg">npx @stelehq/verifier</code>.
+            </li>
+          </ul>
+          <p className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-[13.5px]">
+            {REPO_URL && (
+              <a
+                href={`${REPO_URL}/tree/main/packages/verifier`}
+                className="text-accent hover:underline"
+                rel="noreferrer noopener"
+              >
+                Verifier source code
+              </a>
+            )}
+            <a
+              href="https://www.npmjs.com/package/@stelehq/verifier"
+              className="text-accent hover:underline"
+              rel="noreferrer noopener"
+            >
+              @stelehq/verifier on npm
+            </a>
+            <a href="/docs/trust-model" className="text-accent hover:underline">
+              Trust model
+            </a>
+          </p>
+        </section>
       </div>
     </div>
   );
