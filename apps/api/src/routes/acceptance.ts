@@ -11,6 +11,7 @@
 import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod";
 import { z } from "zod";
 import {
+  acceptanceChallenges,
   acceptanceSessions,
   acceptances,
   and,
@@ -19,13 +20,14 @@ import {
   documentVersions,
   eq,
   gte,
+  isNull,
   lt,
   lte,
   organizations,
 } from "@stele/db";
 import type { Deps } from "../deps.js";
 import { badRequest, notFound } from "../errors.js";
-import { randomToken, sha256Hex } from "../lib/crypto.js";
+import { decrypt, encrypt, randomToken, sha256Hex } from "../lib/crypto.js";
 import { afterCursor, cursorParam, page } from "../lib/pagination.js";
 import {
   getChallengeStatus,
@@ -82,17 +84,46 @@ export function acceptanceRoutes(deps: Deps): FastifyPluginAsyncZod {
             /** Ed25519 signature (wallet / PRF signers); native passkeys send only the assertion. */
             signature: base58Signature.optional(),
             passkeyAssertion: passkeyAssertionBody.optional(),
+            /** The browser's IANA time zone and UTC offset, for the off-chain audit trail. */
+            timeZone: z
+              .string()
+              .max(64)
+              .regex(/^[A-Za-z0-9_+\-/]+$/)
+              .optional(),
+            utcOffsetMinutes: z.number().int().min(-840).max(840).optional(),
           }),
         },
       },
-      async (req) =>
-        submitChallenge(
+      async (req) => {
+        const result = await submitChallenge(
           deps,
           req.params.challengeId,
           req.body.clientBinding,
           req.body.signature,
           req.body.passkeyAssertion,
-        ),
+        );
+        // Off-chain audit trail, written only after the client binding was checked, and once:
+        // the IP address the signature came from (encrypted) and the signer's time zone.
+        const audit = {
+          ip: req.ip ?? null,
+          timeZone: req.body.timeZone ?? null,
+          utcOffsetMinutes: req.body.utcOffsetMinutes ?? null,
+        };
+        await deps.db
+          .update(acceptanceChallenges)
+          .set({
+            signerIpCiphertext: audit.ip ? encrypt(audit.ip, deps.encryptionKey) : null,
+            signerTimeZone: audit.timeZone,
+            signerUtcOffsetMinutes: audit.utcOffsetMinutes,
+          })
+          .where(
+            and(
+              eq(acceptanceChallenges.id, req.params.challengeId),
+              isNull(acceptanceChallenges.signerIpCiphertext),
+            ),
+          );
+        return { ...result, audit };
+      },
     );
 
     app.get(
@@ -185,7 +216,31 @@ export function acceptanceRoutes(deps: Deps): FastifyPluginAsyncZod {
       feePayer: acceptances.feePayer,
       feeLamports: acceptances.feeLamports,
       reimbursedLamports: acceptances.reimbursedLamports,
+      signerIpCiphertext: acceptanceChallenges.signerIpCiphertext,
+      signerTimeZone: acceptanceChallenges.signerTimeZone,
+      signerUtcOffsetMinutes: acceptanceChallenges.signerUtcOffsetMinutes,
     };
+
+    /** The organization's own audit trail for an acceptance (off-chain; the IP decrypted). */
+    function withAudit<
+      T extends {
+        signerIpCiphertext: string | null;
+        signerTimeZone: string | null;
+        signerUtcOffsetMinutes: number | null;
+      },
+    >(row: T) {
+      const { signerIpCiphertext, signerTimeZone, signerUtcOffsetMinutes, ...rest } = row;
+      let ip: string | null;
+      try {
+        ip = signerIpCiphertext ? decrypt(signerIpCiphertext, deps.encryptionKey) : null;
+      } catch {
+        ip = null;
+      }
+      return {
+        ...rest,
+        audit: { ip, timeZone: signerTimeZone, utcOffsetMinutes: signerUtcOffsetMinutes },
+      };
+    }
 
     async function listAcceptances(organizationId: string, q: z.infer<typeof acceptanceQuery>) {
       const conditions = [eq(acceptances.organizationId, organizationId)];
@@ -209,6 +264,7 @@ export function acceptanceRoutes(deps: Deps): FastifyPluginAsyncZod {
         .select(record)
         .from(acceptances)
         .innerJoin(documents, eq(documents.id, acceptances.documentId))
+        .leftJoin(acceptanceChallenges, eq(acceptanceChallenges.id, acceptances.challengeId))
         .where(and(...conditions))
         .orderBy(desc(acceptances.slot), desc(acceptances.acceptanceId))
         .limit(q.limit + 1);
@@ -216,7 +272,7 @@ export function acceptanceRoutes(deps: Deps): FastifyPluginAsyncZod {
         slot: r.slot,
         id: r.acceptanceId,
       }));
-      return { acceptances: items, nextCursor };
+      return { acceptances: items.map(withAudit), nextCursor };
     }
 
     app.get("/v1/acceptances", { schema: { querystring: acceptanceQuery } }, async (req) => {
@@ -242,6 +298,7 @@ export function acceptanceRoutes(deps: Deps): FastifyPluginAsyncZod {
           .select(record)
           .from(acceptances)
           .innerJoin(documents, eq(documents.id, acceptances.documentId))
+          .leftJoin(acceptanceChallenges, eq(acceptanceChallenges.id, acceptances.challengeId))
           .where(
             and(
               eq(acceptances.acceptanceId, req.params.acceptanceId),
@@ -249,7 +306,10 @@ export function acceptanceRoutes(deps: Deps): FastifyPluginAsyncZod {
             ),
           );
         if (!a) throw notFound("Acceptance");
-        return { acceptance: a, receiptUrl: `${deps.config.APP_ORIGIN}/receipt/${a.acceptanceId}` };
+        return {
+          acceptance: withAudit(a),
+          receiptUrl: `${deps.config.APP_ORIGIN}/receipt/${a.acceptanceId}`,
+        };
       },
     );
 

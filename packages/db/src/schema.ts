@@ -380,6 +380,13 @@ export const acceptanceChallenges = pgTable(
     txSignature: text("tx_signature"),
     acceptanceId: text("acceptance_id"),
     failureReason: text("failure_reason"),
+    /**
+     * Off-chain audit trail, recorded when the signature is submitted (never on-chain): the
+     * signer's IP address (AES-256-GCM under ENCRYPTION_KEY) and the browser's time zone.
+     */
+    signerIpCiphertext: text("signer_ip_ciphertext"),
+    signerTimeZone: text("signer_time_zone"),
+    signerUtcOffsetMinutes: integer("signer_utc_offset_minutes"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },

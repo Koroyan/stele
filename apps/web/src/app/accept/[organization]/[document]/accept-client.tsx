@@ -471,6 +471,7 @@ export function AcceptClient({
                             `stele-receipt-${result.acceptanceId.slice(0, 16)}.pdf`,
                             receipt,
                             `${window.location.origin}/verify`,
+                            result.audit,
                           ),
                         )
                         .catch((e: unknown) => setError(errorMessage(e)))

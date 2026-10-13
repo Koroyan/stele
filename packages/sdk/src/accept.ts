@@ -16,7 +16,7 @@ import {
   verifyEd25519,
   type PasskeyAssertion,
 } from "@stelehq/protocol";
-import type { FeeInfo, SignerType, SteleClient } from "./client";
+import type { FeeInfo, SignerAudit, SignerType, SteleClient } from "./client";
 import { NativePasskeySigner } from "./native-passkey";
 import { IntegrityError, type VerifiedDocument } from "./verified-document";
 
@@ -72,6 +72,8 @@ export interface AcceptanceResult {
   signerType: SignerType;
   /** Who paid the network fee (never the signer). */
   fee: FeeInfo | null;
+  /** Off-chain audit trail: the IP address and time zone the server recorded (not evidence). */
+  audit: SignerAudit | null;
 }
 
 export interface AcceptOptions {
@@ -153,6 +155,7 @@ export async function acceptDocument(opts: AcceptOptions): Promise<AcceptanceRes
     evidenceMode: result.evidenceMode ?? "DIRECT_ONCHAIN",
     signerType: signer.signerType ?? "wallet",
     fee: result.fee ?? null,
+    audit: result.audit ?? null,
   };
 }
 
@@ -215,5 +218,6 @@ async function acceptNative(
     evidenceMode: result.evidenceMode ?? "DIRECT_ONCHAIN",
     signerType: "passkey_p256",
     fee: result.fee ?? null,
+    audit: result.audit ?? null,
   };
 }

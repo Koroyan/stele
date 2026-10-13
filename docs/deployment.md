@@ -231,7 +231,7 @@ CI builds the program with `cargo build-sbf` and publishes its SHA-256 as a buil
 | `PRIORITY_FEE_MICROLAMPORTS` | API | Priority fee for relayed acceptances |
 | `STELE_TREASURY_ADDRESS`, `STELE_CREDIT_PACKS`, `STELE_FREE_RECORDS_PER_MONTH` | API | Billing: where credit purchases are paid (address only, never a key), the packs on sale, the free monthly allowance |
 | `ENCRYPTION_KEY` | API | 32 random bytes, base64: encrypts webhook secrets and stored idempotent responses |
-| `IP_HASH_SECRET` | API | Keyed hashing of IP addresses (raw IPs are never stored) |
+| `IP_HASH_SECRET` | API | Keyed hashing of IP addresses for rate limits and sessions |
 | `STORAGE_*`, `S3_*`, `PUBLIC_CONTENT_BASE_URL` | API | Content storage and the public mirror |
 | `RUN_WORKERS`, `RUN_INDEXER` | API | Run workers / the indexer inside the API process (single-node) |
 | `STEP_UP_MINUTES`, `SESSION_TTL_HOURS`, `SESSION_IDLE_HOURS` | API | Session policy |

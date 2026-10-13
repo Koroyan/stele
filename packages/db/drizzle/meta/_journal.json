@@ -64,6 +64,13 @@
       "when": 1791352029620,
       "tag": "0008_gate_policies",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1791928403675,
+      "tag": "0009_signer_audit_trail",
+      "breakpoints": true
     }
   ]
 }

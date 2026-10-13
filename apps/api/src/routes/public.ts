@@ -286,7 +286,15 @@ export function publicRoutes(deps: Deps): FastifyPluginAsyncZod {
           report.facts.acceptance?.evidenceMode === "MERKLE_BATCHED"
             ? receiptV2FromReport(report, { includeContent: true })
             : receiptFromReport(report, { includeContent: true });
-        const body = { receipt, report };
+        // The signer's time zone from the off-chain audit trail (never the IP address, which only
+        // the organization sees). Not part of the receipt: it is not evidence the verifier checks.
+        const signerContext = challenge?.signerTimeZone
+          ? {
+              timeZone: challenge.signerTimeZone,
+              utcOffsetMinutes: challenge.signerUtcOffsetMinutes,
+            }
+          : null;
+        const body = { receipt, report, signerContext };
         receiptCache.set(req.params.acceptanceId, { at: Date.now(), body });
         if (receiptCache.size > 5_000) receiptCache.delete(receiptCache.keys().next().value!);
         return body;

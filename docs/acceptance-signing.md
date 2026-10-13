@@ -213,3 +213,10 @@ person, email or customer ID stay in the integrator's systems (or in Stele's off
 sessions). Note that a wallet address is a pseudonym: acceptances made with the same wallet are
 linkable to one another on a public ledger. Privacy-conscious users can use a separate account per
 service.
+
+**Audit trail (off-chain).** When the signature is submitted, Stele's server also records the IP
+address it came from and the browser's time zone, like the audit trail of an e-signature service. The
+IP is stored encrypted and shown only to the organization (dashboard, API, CSV export) and on the
+signer's own PDF receipt; public receipts show only the time zone, so times can be given in the
+signer's local time as well as UTC. None of it is on-chain, and none of it is evidence: the verifier
+does not (and cannot) check it. Times are exact to the second: the Solana block time, in UTC.

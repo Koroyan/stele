@@ -6,7 +6,7 @@ import { Alert, Badge, Button, EmptyState, Field, Input, Select } from "@stele/u
 import { LoadingRows, PageHeader, Panel, Table, Td, TxLink } from "@/components/dashboard/ui";
 import { api, errorMessage } from "@/lib/api";
 import { useDashboard } from "@/lib/dashboard";
-import { formatDateTime, shortAddress } from "@/lib/format";
+import { formatAtOffset, formatExactUtc, shortAddress } from "@/lib/format";
 import { useApi } from "@/lib/use-api";
 import type { DocumentRow } from "@/lib/types";
 
@@ -22,6 +22,8 @@ interface AcceptanceRow {
   externalUserRef: string | null;
   commitment: "confirmed" | "finalized";
   documentSlug: string;
+  /** Off-chain audit trail recorded with the signature (absent for older acceptances). */
+  audit?: { ip: string | null; timeZone: string | null; utcOffsetMinutes: number | null };
 }
 
 const PAGE = 50;
@@ -39,6 +41,9 @@ function toCsv(rows: AcceptanceRow[]): string {
     "request_domain",
     "external_user_ref",
     "commitment",
+    "signer_ip",
+    "signer_time_zone",
+    "signer_utc_offset_minutes",
   ];
   const esc = (v: unknown) => {
     const s = v === null || v === undefined ? "" : String(v);
@@ -61,6 +66,9 @@ function toCsv(rows: AcceptanceRow[]): string {
         r.requestDomain,
         r.externalUserRef,
         r.commitment,
+        r.audit?.ip,
+        r.audit?.timeZone,
+        r.audit?.utcOffsetMinutes,
       ]
         .map(esc)
         .join(","),
@@ -208,8 +216,9 @@ export default function AcceptancesPage() {
           <>
             <Table
               head={[
-                "Recorded (UTC)",
+                "Recorded",
                 "Signer",
+                "IP address",
                 "Document",
                 "Requested by",
                 "User ref",
@@ -220,8 +229,26 @@ export default function AcceptancesPage() {
             >
               {rows.map((r) => (
                 <tr key={r.acceptanceId}>
-                  <Td className="whitespace-nowrap">{formatDateTime(r.blockTime)}</Td>
+                  <Td className="whitespace-nowrap">
+                    <span className="block">{formatExactUtc(r.blockTime)}</span>
+                    {typeof r.audit?.utcOffsetMinutes === "number" && (
+                      <span
+                        className="block text-[11.5px] text-fg-subtle"
+                        title={r.audit.timeZone ?? undefined}
+                      >
+                        Signer&apos;s time {formatAtOffset(r.blockTime, r.audit.utcOffsetMinutes)}
+                      </span>
+                    )}
+                  </Td>
                   <Td mono>{shortAddress(r.signer, 5, 5)}</Td>
+                  <Td mono>
+                    {r.audit?.ip ?? "—"}
+                    {r.audit?.timeZone && (
+                      <span className="block font-sans text-[11.5px] text-fg-subtle">
+                        {r.audit.timeZone}
+                      </span>
+                    )}
+                  </Td>
                   <Td>
                     <span className="text-fg">{r.documentSlug}</span>{" "}
                     <span className="text-fg-subtle">#{r.versionNumber}</span>

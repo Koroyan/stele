@@ -153,6 +153,31 @@ export interface SubmitResult {
   evidenceMode?: "DIRECT_ONCHAIN" | "MERKLE_BATCHED";
   signerType?: SignerType;
   fee?: FeeInfo | null;
+  /** Off-chain audit trail recorded with the signature (absent on older servers). */
+  audit?: SignerAudit;
+}
+
+/**
+ * What Stele's server recorded when the signature was submitted. Off-chain and not evidence the
+ * verifier checks: the IP address it came from and the browser's time zone.
+ */
+export interface SignerAudit {
+  ip: string | null;
+  timeZone: string | null;
+  /** Minutes east of UTC (Tbilisi: 240). */
+  utcOffsetMinutes: number | null;
+}
+
+/** The browser's time zone, sent with each signature for the audit trail. */
+function browserTimeZone(): { timeZone?: string; utcOffsetMinutes?: number } {
+  try {
+    return {
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      utcOffsetMinutes: -new Date().getTimezoneOffset(),
+    };
+  } catch {
+    return {};
+  }
 }
 
 export interface CeremonyOptions {
@@ -297,7 +322,7 @@ export class SteleClient {
   ): Promise<SubmitResult> {
     return this.request(`/v1/acceptance/challenges/${challengeId}/submit`, {
       method: "POST",
-      body: JSON.stringify({ clientBinding, signature, passkeyAssertion }),
+      body: JSON.stringify({ clientBinding, signature, passkeyAssertion, ...browserTimeZone() }),
     });
   }
 
@@ -428,7 +453,12 @@ export class SteleClient {
     });
   }
 
-  getReceipt(acceptanceId: string): Promise<{ receipt: unknown; report: unknown }> {
+  getReceipt(acceptanceId: string): Promise<{
+    receipt: unknown;
+    report: unknown;
+    /** The signer's time zone from the audit trail (never the IP), when recorded. */
+    signerContext?: { timeZone: string; utcOffsetMinutes: number | null } | null;
+  }> {
     return this.request(`/v1/public/acceptances/${acceptanceId}/receipt`);
   }
 }

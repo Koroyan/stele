@@ -174,7 +174,8 @@ Off-chain costs (database, storage, RPC) are small by comparison: a document ver
 ## Observability
 
 - Structured JSON logs (pino) with request IDs; secrets, cookies and authorization headers are
-  redacted; IP addresses are stored only as keyed hashes.
+  redacted; IP addresses appear in logs and rate limits only as keyed hashes (the acceptance audit
+  trail stores them encrypted).
 - Health endpoints: `GET /health` (process) and `GET /ready` (RPC reachable).
 - Signals worth alerting on: relay failures by program error code, shard capacity above 80%, webhook
   endpoints with consecutive failures, domain attestations expiring within 30 days without renewal,

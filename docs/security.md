@@ -63,7 +63,7 @@ is in the [threat model](threat-model.md).
 | Sessions, API keys | 256-bit random tokens; only SHA-256 digests stored; constant-time comparison |
 | Webhook signatures | HMAC-SHA256 over `timestamp.body`; secrets encrypted at rest with AES-256-GCM |
 | Stored idempotent responses | AES-256-GCM |
-| IP addresses | HMAC-SHA256 with a server secret (raw IPs never stored) |
+| IP addresses | Rate limits and sessions: HMAC-SHA256 with a server secret. Acceptance audit trail: AES-256-GCM (see below) |
 
 No custom cryptography; all primitives come from audited libraries (`@noble/curves`,
 `@noble/hashes`, Node's `crypto`, Solana's runtime).
@@ -115,9 +115,14 @@ No custom cryptography; all primitives come from audited libraries (`@noble/curv
 
 ## Data protection
 
-- **Never stored:** private keys, seed phrases, raw IP addresses, plaintext API keys or session tokens.
-- **Encrypted at rest:** webhook secrets, stored idempotent responses (application layer), plus
-  database and bucket encryption at the infrastructure layer.
+- **Never stored:** private keys, seed phrases, plaintext API keys or session tokens.
+- **Acceptance audit trail:** when a signature is submitted, the API records the IP address it came
+  from (encrypted with AES-256-GCM) and the browser's time zone, off-chain, next to the acceptance.
+  Only the organization sees the IP (dashboard, API, CSV export) and the signer sees it on their own
+  PDF receipt; public receipts show the time zone only. It is never written on-chain and is not
+  evidence the verifier checks.
+- **Encrypted at rest:** webhook secrets, stored idempotent responses, acceptance IP addresses
+  (application layer), plus database and bucket encryption at the infrastructure layer.
 - **Minimized:** wallet addresses are pseudonymous; integrators' user references stay off-chain;
   member labels stay off-chain.
 - **Audit log:** append-only (a database trigger rejects updates and deletes) and hash-chained per

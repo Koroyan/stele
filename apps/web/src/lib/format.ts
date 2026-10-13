@@ -76,3 +76,23 @@ export function formatBytes(n: number): string {
 export const LAMPORTS_PER_SOL = 1_000_000_000;
 export const formatSol = (lamports: bigint | number) =>
   `${(Number(lamports) / LAMPORTS_PER_SOL).toLocaleString("en-US", { maximumFractionDigits: 6 })} SOL`;
+
+/** Exact to the second, in UTC: "2026-10-12 12:23:15 UTC". */
+export function formatExactUtc(v: Parameters<typeof toDate>[0]): string {
+  const d = toDate(v);
+  return d ? `${d.toISOString().slice(0, 19).replace("T", " ")} UTC` : "—";
+}
+
+/** "UTC+04:00" for an offset in minutes east of UTC. */
+export function utcOffsetLabel(minutes: number): string {
+  const m = Math.abs(minutes);
+  return `UTC${minutes < 0 ? "-" : "+"}${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+}
+
+/** The same instant in another UTC offset: "16:23:15 (UTC+04:00)". */
+export function formatAtOffset(v: Parameters<typeof toDate>[0], minutes: number): string {
+  const d = toDate(v);
+  if (!d) return "—";
+  const shifted = new Date(d.getTime() + minutes * 60_000);
+  return `${shifted.toISOString().slice(11, 19)} (${utcOffsetLabel(minutes)})`;
+}
