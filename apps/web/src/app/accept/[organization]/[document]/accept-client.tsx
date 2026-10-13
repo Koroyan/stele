@@ -56,6 +56,7 @@ import { PINNED_CHAIN_ID, PINNED_PROGRAM_ID, PINNED_RPC_URLS } from "@/lib/env";
 import { formatDate, formatDateTime, shortAddress } from "@/lib/format";
 import { rpcHosts } from "@/lib/verify";
 import { useNetwork, useWallet } from "@/lib/wallet";
+import { downloadReceiptPdf } from "@/lib/receipt-pdf";
 
 type Load =
   | { kind: "loading" }
@@ -466,15 +467,16 @@ export function AcceptClient({
                       void client
                         .getReceipt(result.acceptanceId)
                         .then(({ receipt }) =>
-                          downloadJson(
-                            `stele-receipt-${result.acceptanceId.slice(0, 16)}.json`,
+                          downloadReceiptPdf(
+                            `stele-receipt-${result.acceptanceId.slice(0, 16)}.pdf`,
                             receipt,
+                            `${window.location.origin}/verify`,
                           ),
                         )
                         .catch((e: unknown) => setError(errorMessage(e)))
                     }
                   >
-                    Download receipt
+                    Download receipt (PDF)
                   </Button>
                   <p className="text-[12px] leading-relaxed text-fg-subtle">
                     Acceptance ID{" "}
