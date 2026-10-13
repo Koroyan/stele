@@ -174,6 +174,25 @@ export const CATALOG: Record<string, CatalogEntry> = {
     summary: "A public acceptance record",
     auth: pub,
   },
+  "GET /v1/public/acceptances/:acceptanceId/receipt.pdf": {
+    tag: "Verification",
+    summary: "A receipt as a PDF certificate (any language)",
+    description:
+      "A printable Certificate of Acceptance with the full document text, rendered for every script. The original JSON receipt is attached inside the PDF; upload the PDF on the Verify page to check it. Shows the signer's time zone, never the IP address.",
+    auth: pub,
+  },
+  "POST /v1/acceptance/challenges/:challengeId/receipt.pdf": {
+    tag: "Accepting",
+    summary: "The signer's own PDF certificate, with the audit trail",
+    description:
+      "For the browser that made the acceptance (proven by its client binding): the certificate including the off-chain audit trail (IP address and time zone).",
+    auth: pub,
+  },
+  "GET /v1/organizations/:orgId/acceptances/:acceptanceId/receipt.pdf": {
+    tag: "Dashboard",
+    summary: "An acceptance's PDF certificate, with the audit trail",
+    auth: "session",
+  },
   "GET /v1/public/acceptances/:acceptanceId/receipt": {
     tag: "Verification",
     summary: "A receipt, verified against Solana",

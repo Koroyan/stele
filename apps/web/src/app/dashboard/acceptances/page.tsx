@@ -272,6 +272,12 @@ export default function AcceptancesPage() {
                     >
                       Receipt
                     </Link>
+                    <a
+                      href={`/api/v1/organizations/${orgId}/acceptances/${r.acceptanceId}/receipt.pdf`}
+                      className="ml-3 text-[12.5px] text-accent hover:text-accent-strong"
+                    >
+                      PDF
+                    </a>
                   </Td>
                 </tr>
               ))}

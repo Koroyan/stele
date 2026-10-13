@@ -1,0 +1,14 @@
+{
+  "name": "@stele/pdf-renderer",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Internal service: renders Stele's HTML templates (PDF receipts) to PDF with Chromium.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.mjs"
+  },
+  "dependencies": {
+    "puppeteer-core": "^24.0.0"
+  }
+}

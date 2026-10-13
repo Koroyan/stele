@@ -232,6 +232,7 @@ CI builds the program with `cargo build-sbf` and publishes its SHA-256 as a buil
 | `STELE_TREASURY_ADDRESS`, `STELE_CREDIT_PACKS`, `STELE_FREE_RECORDS_PER_MONTH` | API | Billing: where credit purchases are paid (address only, never a key), the packs on sale, the free monthly allowance |
 | `ENCRYPTION_KEY` | API | 32 random bytes, base64: encrypts webhook secrets and stored idempotent responses |
 | `IP_HASH_SECRET` | API | Keyed hashing of IP addresses for rate limits and sessions |
+| `PDF_RENDERER_URL` | API | Internal PDF renderer for PDF receipts (unset: PDF receipts disabled) |
 | `STORAGE_*`, `S3_*`, `PUBLIC_CONTENT_BASE_URL` | API | Content storage and the public mirror |
 | `RUN_WORKERS`, `RUN_INDEXER` | API | Run workers / the indexer inside the API process (single-node) |
 | `STEP_UP_MINUTES`, `SESSION_TTL_HOURS`, `SESSION_IDLE_HOURS` | API | Session policy |
@@ -276,6 +277,12 @@ Processes:
 | Workers | `node dist/worker-main.js`, or `RUN_WORKERS=true` in the API | Any number; work is claimed with `SKIP LOCKED` |
 | Indexer | `node dist/indexer-main.js` (`STELE_INDEXER_REBUILD=1` replays history) | One or more; idempotent |
 | Web | `node apps/web/server.js` (standalone build) | Horizontally |
+| PDF renderer | `node apps/pdf-renderer/src/server.mjs` (Chromium + Noto fonts) | One per API host; renders one PDF at a time |
+
+The PDF renderer (`infra/docker/pdf-renderer.Dockerfile`) turns the API's certificate templates into
+PDF receipts in any script. It sits on an internal network with no internet access; only the API can
+reach it (`PDF_RENDERER_URL`, default `http://pdf-renderer:4100`). Without it, PDF receipts return
+503 and everything else keeps working.
 
 ## Monitoring
 

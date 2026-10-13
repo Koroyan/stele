@@ -65,6 +65,8 @@ const schema = z.object({
 
   /** 32-byte key (base64) for AES-256-GCM encryption of webhook secrets. */
   ENCRYPTION_KEY: z.string().min(1),
+  /** Internal PDF renderer (apps/pdf-renderer). Unset: PDF receipts are unavailable (503). */
+  PDF_RENDERER_URL: z.string().url().optional(),
   /** Secret used to hash IP addresses before storage (privacy). */
   IP_HASH_SECRET: z.string().min(16),
 

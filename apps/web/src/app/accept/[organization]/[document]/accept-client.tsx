@@ -56,7 +56,7 @@ import { PINNED_CHAIN_ID, PINNED_PROGRAM_ID, PINNED_RPC_URLS } from "@/lib/env";
 import { formatDate, formatDateTime, shortAddress } from "@/lib/format";
 import { rpcHosts } from "@/lib/verify";
 import { useNetwork, useWallet } from "@/lib/wallet";
-import { downloadReceiptPdf } from "@/lib/receipt-pdf";
+import { saveBlob } from "@/lib/receipt-from-pdf";
 
 type Load =
   | { kind: "loading" }
@@ -465,14 +465,9 @@ export function AcceptClient({
                     className="w-full"
                     onClick={() =>
                       void client
-                        .getReceipt(result.acceptanceId)
-                        .then(({ receipt }) =>
-                          downloadReceiptPdf(
-                            `stele-receipt-${result.acceptanceId.slice(0, 16)}.pdf`,
-                            receipt,
-                            `${window.location.origin}/verify`,
-                            result.audit,
-                          ),
+                        .signerReceiptPdf(result.receiptAccess)
+                        .then((blob) =>
+                          saveBlob(`stele-receipt-${result.acceptanceId.slice(0, 16)}.pdf`, blob),
                         )
                         .catch((e: unknown) => setError(errorMessage(e)))
                     }

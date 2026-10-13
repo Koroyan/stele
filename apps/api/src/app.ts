@@ -24,6 +24,7 @@ import { ApiError } from "./errors.js";
 import { SESSION_COOKIE, authHook, csrfHook } from "./plugins/auth.js";
 import { registerIdempotency } from "./plugins/idempotency.js";
 import { acceptanceRoutes } from "./routes/acceptance.js";
+import { receiptPdfRoutes } from "./routes/receipt-pdf.js";
 import { authRoutes } from "./routes/auth.js";
 import { documentRoutes } from "./routes/documents.js";
 import { integrationRoutes } from "./routes/integrations.js";
@@ -234,6 +235,7 @@ export async function buildApp(deps: Deps, opts: BuildOptions = {}) {
   await app.register(authRoutes(deps));
   await app.register(publicRoutes(deps));
   await app.register(acceptanceRoutes(deps));
+  await app.register(receiptPdfRoutes(deps));
   await app.register(signerRoutes(deps));
   await app.register(proofRoutes(deps));
   await app.register(organizationRoutes(deps));

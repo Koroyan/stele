@@ -35,6 +35,7 @@ x-api-env: &api-env
   PUBLIC_CONTENT_BASE_URL: ${PUBLIC_CONTENT_BASE_URL:?set PUBLIC_CONTENT_BASE_URL}
   DOH_RESOLVERS: ${DOH_RESOLVERS:-https://cloudflare-dns.com/dns-query,https://dns.google/resolve}
   TRUST_PROXY_HOPS: ${TRUST_PROXY_HOPS:-1}
+  PDF_RENDERER_URL: ${PDF_RENDERER_URL:-http://pdf-renderer:4100}
 
 services:
   postgres:
@@ -67,6 +68,7 @@ services:
     secrets: [relayer, attestor]
     volumes:
       - content:/data/storage
+    networks: [default, render]
     ports:
       - "127.0.0.1:4000:4000"
     extra_hosts:
@@ -99,6 +101,20 @@ services:
     cap_drop: [ALL]
     healthcheck:
       disable: true
+
+  # PDF receipts: Chromium renders the API's HTML templates in every script. No internet access
+  # (internal network), JavaScript off, requests blocked; only the API can reach it.
+  pdf-renderer:
+    build:
+      context: ..
+      dockerfile: infra/docker/pdf-renderer.Dockerfile
+    restart: unless-stopped
+    networks: [render]
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    mem_limit: 768m
 
   web:
     build:
@@ -149,6 +165,11 @@ secrets:
     file: ./secrets/relayer.json
   attestor:
     file: ./secrets/attestor.json
+
+networks:
+  default:
+  render:
+    internal: true
 
 volumes:
   pgdata:

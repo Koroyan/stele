@@ -17,8 +17,18 @@ import {
   eq,
   organizations,
 } from "@stele/db";
-import { parseCanonicalContent, type PasskeyAssertion } from "@stelehq/protocol";
-import { receiptFromReport, receiptV2FromReport, verifyAcceptance } from "@stelehq/verifier";
+import {
+  parseCanonicalContent,
+  type PasskeyAssertion,
+  type Receipt,
+  type ReceiptV2,
+} from "@stelehq/protocol";
+import {
+  receiptFromReport,
+  receiptV2FromReport,
+  verifyAcceptance,
+  type VerificationReport,
+} from "@stelehq/verifier";
 import { leafEvidence } from "../services/batches.js";
 import type { Deps } from "../deps.js";
 import { conflict, notFound } from "../errors.js";
@@ -26,7 +36,10 @@ import { signerEvidenceFor } from "../services/signers.js";
 import { base58Address, base58Signature, hex32, slug } from "./schemas.js";
 
 /** Small in-memory cache for receipts (verification costs several RPC round trips). */
-const receiptCache = new Map<string, { at: number; body: unknown }>();
+const receiptCache = new Map<
+  string,
+  { at: number; body: VerifiedReceipt; challengeId: string | null }
+>();
 const RECEIPT_TTL_MS = 60_000;
 
 export function publicRoutes(deps: Deps): FastifyPluginAsyncZod {
@@ -227,77 +240,21 @@ export function publicRoutes(deps: Deps): FastifyPluginAsyncZod {
       "/v1/public/acceptances/:acceptanceId/receipt",
       { schema: { params: z.object({ acceptanceId: hex32 }) } },
       async (req, reply) => {
-        const cached = receiptCache.get(req.params.acceptanceId);
-        if (cached && Date.now() - cached.at < RECEIPT_TTL_MS) return cached.body;
-        const [a] = await deps.db
-          .select()
-          .from(acceptances)
-          .where(eq(acceptances.acceptanceId, req.params.acceptanceId));
-        if (!a) throw notFound("Acceptance");
-        // Signer-type evidence (passkey signers) is verified by the verifier like everything else.
-        const [challenge] = a.challengeId
-          ? await deps.db
-              .select()
-              .from(acceptanceChallenges)
-              .where(eq(acceptanceChallenges.id, a.challengeId))
-          : [];
-        const signer = await signerEvidenceFor(deps, {
-          signerType: a.signerType,
-          passkeyAssertion: (challenge?.passkeyAssertion as PasskeyAssertion | null) ?? null,
-        });
-        // MERKLE_BATCHED: the evidence is off-chain (the leaf + its inclusion proof); the verifier
-        // checks every part of it against the anchored root before a receipt is issued.
-        const batched =
-          a.evidenceMode === "MERKLE_BATCHED" ? await leafEvidence(deps, a.acceptanceId) : null;
-        if (a.evidenceMode === "MERKLE_BATCHED" && !batched)
-          throw conflict("pending_batch", "This acceptance is not anchored yet");
-        const report = await verifyAcceptance(
-          {
-            transactionSignature: a.txSignature,
-            acceptanceId: a.acceptanceId,
-            signer,
-            // stele/2: only the hash is on-chain; the verifier accepts the text only if it matches.
-            message: a.signedMessage ?? undefined,
-            batched: batched?.evidence,
-          },
-          {
-            chain: deps.chain.verifierSource(),
-            programId: deps.chain.programAddress,
-            content: { mirrors: [deps.config.PUBLIC_CONTENT_BASE_URL] },
-            fetchImpl: storageBackedFetch(deps),
-            trustedRequestDomains: [deps.config.HOSTED_ACCEPT_DOMAIN],
-          },
-        );
-        if (report.verdict !== "VALID" && report.verdict !== "VALID_WITH_WARNINGS") {
+        const result = await verifiedReceipt(deps, req.params.acceptanceId);
+        if (result.status === "invalid") {
           req.log.error(
-            { acceptanceId: a.acceptanceId, verdict: report.verdict },
+            { acceptanceId: req.params.acceptanceId, verdict: result.report.verdict },
             "indexed acceptance failed verification",
           );
           return reply.code(422).send({
             error: {
               code: "verification_failed",
-              message: `Evidence verdict: ${report.verdict}`,
+              message: `Evidence verdict: ${result.report.verdict}`,
             },
-            report,
+            report: result.report,
           });
         }
-        const receipt =
-          report.facts.acceptance?.protocol === "stele/2" ||
-          report.facts.acceptance?.evidenceMode === "MERKLE_BATCHED"
-            ? receiptV2FromReport(report, { includeContent: true })
-            : receiptFromReport(report, { includeContent: true });
-        // The signer's time zone from the off-chain audit trail (never the IP address, which only
-        // the organization sees). Not part of the receipt: it is not evidence the verifier checks.
-        const signerContext = challenge?.signerTimeZone
-          ? {
-              timeZone: challenge.signerTimeZone,
-              utcOffsetMinutes: challenge.signerUtcOffsetMinutes,
-            }
-          : null;
-        const body = { receipt, report, signerContext };
-        receiptCache.set(req.params.acceptanceId, { at: Date.now(), body });
-        if (receiptCache.size > 5_000) receiptCache.delete(receiptCache.keys().next().value!);
-        return body;
+        return result.body;
       },
     );
 
@@ -348,6 +305,83 @@ export function publicRoutes(deps: Deps): FastifyPluginAsyncZod {
       },
     );
   };
+}
+
+export interface VerifiedReceipt {
+  receipt: Receipt | ReceiptV2;
+  report: VerificationReport;
+  /** The signer's time zone from the off-chain audit trail (never the IP). */
+  signerContext: { timeZone: string; utcOffsetMinutes: number | null } | null;
+}
+
+/**
+ * The receipt bundle for an acceptance, produced by running the independent verifier against the
+ * chain — never from database rows alone. Cached briefly (verification costs RPC round trips).
+ */
+export async function verifiedReceipt(
+  deps: Deps,
+  acceptanceId: string,
+): Promise<
+  | { status: "ok"; body: VerifiedReceipt; challengeId: string | null }
+  | { status: "invalid"; report: VerificationReport }
+> {
+  const cached = receiptCache.get(acceptanceId);
+  if (cached && Date.now() - cached.at < RECEIPT_TTL_MS)
+    return { status: "ok", body: cached.body, challengeId: cached.challengeId };
+  const [a] = await deps.db
+    .select()
+    .from(acceptances)
+    .where(eq(acceptances.acceptanceId, acceptanceId));
+  if (!a) throw notFound("Acceptance");
+  // Signer-type evidence (passkey signers) is verified by the verifier like everything else.
+  const [challenge] = a.challengeId
+    ? await deps.db
+        .select()
+        .from(acceptanceChallenges)
+        .where(eq(acceptanceChallenges.id, a.challengeId))
+    : [];
+  const signer = await signerEvidenceFor(deps, {
+    signerType: a.signerType,
+    passkeyAssertion: (challenge?.passkeyAssertion as PasskeyAssertion | null) ?? null,
+  });
+  // MERKLE_BATCHED: the evidence is off-chain (the leaf + its inclusion proof); the verifier
+  // checks every part of it against the anchored root before a receipt is issued.
+  const batched =
+    a.evidenceMode === "MERKLE_BATCHED" ? await leafEvidence(deps, a.acceptanceId) : null;
+  if (a.evidenceMode === "MERKLE_BATCHED" && !batched)
+    throw conflict("pending_batch", "This acceptance is not anchored yet");
+  const report = await verifyAcceptance(
+    {
+      transactionSignature: a.txSignature,
+      acceptanceId: a.acceptanceId,
+      signer,
+      // stele/2: only the hash is on-chain; the verifier accepts the text only if it matches.
+      message: a.signedMessage ?? undefined,
+      batched: batched?.evidence,
+    },
+    {
+      chain: deps.chain.verifierSource(),
+      programId: deps.chain.programAddress,
+      content: { mirrors: [deps.config.PUBLIC_CONTENT_BASE_URL] },
+      fetchImpl: storageBackedFetch(deps),
+      trustedRequestDomains: [deps.config.HOSTED_ACCEPT_DOMAIN],
+    },
+  );
+  if (report.verdict !== "VALID" && report.verdict !== "VALID_WITH_WARNINGS")
+    return { status: "invalid", report };
+  const receipt =
+    report.facts.acceptance?.protocol === "stele/2" ||
+    report.facts.acceptance?.evidenceMode === "MERKLE_BATCHED"
+      ? receiptV2FromReport(report, { includeContent: true })
+      : receiptFromReport(report, { includeContent: true });
+  // Not part of the receipt: the audit trail is not evidence the verifier checks.
+  const signerContext = challenge?.signerTimeZone
+    ? { timeZone: challenge.signerTimeZone, utcOffsetMinutes: challenge.signerUtcOffsetMinutes }
+    : null;
+  const body: VerifiedReceipt = { receipt, report, signerContext };
+  receiptCache.set(acceptanceId, { at: Date.now(), body, challengeId: a.challengeId });
+  if (receiptCache.size > 5_000) receiptCache.delete(receiptCache.keys().next().value!);
+  return { status: "ok", body, challengeId: a.challengeId };
 }
 
 /** Lets the in-process verifier read our own content store for the content mirror URL. */

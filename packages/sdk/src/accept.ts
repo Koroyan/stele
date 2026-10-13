@@ -74,6 +74,11 @@ export interface AcceptanceResult {
   fee: FeeInfo | null;
   /** Off-chain audit trail: the IP address and time zone the server recorded (not evidence). */
   audit: SignerAudit | null;
+  /**
+   * Lets this browser download its own PDF certificate (with the audit trail):
+   * `client.downloadReceiptPdf(receiptAccess)`. The binding is this acceptance's client secret.
+   */
+  receiptAccess: { challengeId: string; clientBinding: string };
 }
 
 export interface AcceptOptions {
@@ -156,6 +161,7 @@ export async function acceptDocument(opts: AcceptOptions): Promise<AcceptanceRes
     signerType: signer.signerType ?? "wallet",
     fee: result.fee ?? null,
     audit: result.audit ?? null,
+    receiptAccess: { challengeId: challenge.challengeId, clientBinding: challenge.clientBinding },
   };
 }
 
@@ -219,5 +225,6 @@ async function acceptNative(
     signerType: "passkey_p256",
     fee: result.fee ?? null,
     audit: result.audit ?? null,
+    receiptAccess: { challengeId: challenge.challengeId, clientBinding: challenge.clientBinding },
   };
 }

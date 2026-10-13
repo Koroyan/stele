@@ -21,7 +21,6 @@ import {
   buttonClasses,
 } from "@stele/ui";
 import { downloadJson, ReportView } from "@/components/report-view";
-import { downloadReceiptPdf } from "@/lib/receipt-pdf";
 import { api, ApiError, errorMessage } from "@/lib/api";
 import { txExplorerUrl } from "@/lib/chain";
 import { cliCommand, defaultSettings, rpcHosts, verifierOptions } from "@/lib/verify";
@@ -36,11 +35,6 @@ export function ReceiptClient({ acceptanceId }: { acceptanceId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [serverWarning, setServerWarning] = useState<string | null>(null);
   const [qr, setQr] = useState<string | null>(null);
-  /** The signer's time zone from the audit trail (never the IP), for local times in the PDF. */
-  const [signerContext, setSignerContext] = useState<{
-    timeZone: string;
-    utcOffsetMinutes: number | null;
-  } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -48,12 +42,10 @@ export function ReceiptClient({ acceptanceId }: { acceptanceId: string }) {
       let r: Receipt | null = null;
       let sig: string;
       try {
-        const body = await api<{
-          receipt: Receipt;
-          signerContext?: { timeZone: string; utcOffsetMinutes: number | null } | null;
-        }>(`/v1/public/acceptances/${acceptanceId}/receipt`);
+        const body = await api<{ receipt: Receipt }>(
+          `/v1/public/acceptances/${acceptanceId}/receipt`,
+        );
         r = body.receipt;
-        setSignerContext(body.signerContext ?? null);
         sig = r.transaction.signature;
       } catch (e) {
         if (e instanceof ApiError && e.status === 404)
@@ -159,22 +151,18 @@ export function ReceiptClient({ acceptanceId }: { acceptanceId: string }) {
               Verify page.
             </p>
             <div className="mt-4 space-y-2">
-              <button
-                type="button"
-                disabled={!receipt}
-                onClick={() =>
-                  receipt &&
-                  downloadReceiptPdf(
-                    `stele-receipt-${acceptanceId.slice(0, 12)}.pdf`,
-                    receipt,
-                    `${window.location.origin}/verify`,
-                    signerContext,
-                  )
-                }
-                className={buttonClasses("primary", "md", "w-full")}
+              <a
+                href={`/api/v1/public/acceptances/${acceptanceId}/receipt.pdf`}
+                download={`stele-receipt-${acceptanceId.slice(0, 12)}.pdf`}
+                aria-disabled={!receipt}
+                className={buttonClasses(
+                  "primary",
+                  "md",
+                  `w-full ${receipt ? "" : "pointer-events-none opacity-50"}`,
+                )}
               >
                 <DownloadIcon className="h-4 w-4" /> Download PDF receipt
-              </button>
+              </a>
               <button
                 type="button"
                 disabled={!receipt}

@@ -113,6 +113,19 @@ No custom cryptography; all primitives come from audited libraries (`@noble/curv
 - **Redirects:** post-login destinations must be same-site relative paths (no open redirects).
 - **Headers:** `X-Frame-Options: DENY`, `nosniff`, a strict `Permissions-Policy`, CORP, COOP, HSTS.
 
+## PDF receipts
+
+- **Rendering:** the API builds the certificate as HTML in which every value (document text, names,
+  addresses) is HTML-escaped, and Chromium renders it in the separate `pdf-renderer` container. The
+  page has JavaScript disabled and every network request is blocked; the container has no internet
+  access (internal Docker network), runs as an unprivileged user with a read-only filesystem, no
+  capabilities and a memory limit.
+- **Not evidence:** the PDF's visible text is a readable copy. The original JSON receipt is attached
+  inside, and the Verify page verifies only that receipt, against Solana. Editing the PDF's text
+  cannot change a verification result.
+- **Audit trail:** public certificates show the signer's time zone only; the IP address appears on
+  the signer's own certificate (proven by the acceptance's client binding) and the organization's.
+
 ## Data protection
 
 - **Never stored:** private keys, seed phrases, plaintext API keys or session tokens.

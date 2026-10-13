@@ -17,7 +17,7 @@ import {
   verifierOptions,
   type VerifySettings,
 } from "@/lib/verify";
-import { receiptFromPdf } from "@/lib/receipt-pdf";
+import { receiptFromPdf } from "@/lib/receipt-from-pdf";
 import { useNetwork } from "@/lib/wallet";
 
 type Mode = "acceptance" | "receipt" | "version";

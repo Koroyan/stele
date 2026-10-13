@@ -453,6 +453,20 @@ export class SteleClient {
     });
   }
 
+  /** The signer's PDF certificate (any language; the JSON receipt is attached inside). */
+  async signerReceiptPdf(access: { challengeId: string; clientBinding: string }): Promise<Blob> {
+    const res = await this.fetchImpl(
+      `${this.apiBaseUrl}/v1/acceptance/challenges/${access.challengeId}/receipt.pdf`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ clientBinding: access.clientBinding }),
+      },
+    );
+    if (!res.ok) throw new Error(`The PDF receipt could not be produced (HTTP ${res.status}).`);
+    return res.blob();
+  }
+
   getReceipt(acceptanceId: string): Promise<{
     receipt: unknown;
     report: unknown;
