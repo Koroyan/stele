@@ -18,6 +18,8 @@ export interface PdfReceipt {
   acceptance: {
     message: string;
     requestDomain: string;
+    issuedAt?: number;
+    expiresAt?: number;
     signer?: string;
     signature?: string | null;
   };
@@ -29,6 +31,7 @@ export interface PdfReceipt {
     number: number;
     versionHash: string;
     publishedAt?: number;
+    effectiveAt?: number | null;
   };
   content?: { blocks: Record<string, unknown>[] };
   fees?: { payer: string; sponsor: string; feeLamports: number };
@@ -356,7 +359,12 @@ function layout(
   );
   p.row("Document", r.version.title);
   p.row("Version", `${r.version.label}  (version #${r.version.number})`);
-  if (r.version.publishedAt) p.row("Published", `${longTime(r.version.publishedAt)} UTC`);
+  if (r.version.publishedAt)
+    p.row("This version published", [
+      `${longTime(r.version.publishedAt)} UTC`,
+      "Every change is a new version: this is when the terms last changed.",
+    ]);
+  if (r.version.effectiveAt) p.row("Effective from", `${longTime(r.version.effectiveAt)} UTC`);
   p.row("Digital fingerprint", r.version.versionHash, true);
 
   // ---- The full text.
@@ -374,7 +382,12 @@ function layout(
   p.heading("The signature");
   p.row("Signed using", s.kind);
   p.row("Signer's key", s.key, true);
-  p.row("Date and time", times);
+  p.row("Accepted at", times);
+  if (r.acceptance.issuedAt && r.acceptance.expiresAt)
+    p.row("Signing window", [
+      `${longTime(r.acceptance.issuedAt)} - ${longTime(r.acceptance.expiresAt).split(", ")[1]} UTC`,
+      "The signature could be recorded only within this window.",
+    ]);
   p.row("Requested from", r.acceptance.requestDomain);
   if (r.fees)
     p.row(
@@ -417,7 +430,7 @@ function layout(
   // ---- The message that was signed.
   p.heading("The message that was signed");
   p.para(
-    "This short message is what the key actually signed. It names the document by its fingerprint, so it cannot be reused for any other text.",
+    'This short message is what the key actually signed. It names the document by its fingerprint, so it cannot be reused for any other text. "Issued" and "Expires" are the signing window above; the moment of acceptance is when Solana recorded it.',
     "F1",
     8.5,
     { before: 4 },
@@ -483,6 +496,7 @@ function layout(
   p.y = top - boxQ;
 
   // ---- What this proves.
+  p.ensure(110); // keep the closing section together
   p.heading("What this certificate proves");
   for (const [mark, line] of [
     ["+", "This key accepted exactly this text, in this version, at the time shown."],
