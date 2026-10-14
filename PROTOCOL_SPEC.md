@@ -1476,7 +1476,7 @@ IDs, enrollment and rotation statements, client-data and authenticator-data rule
 `spec/test-vectors/batch.json` (leaves, roots, every inclusion proof, batch IDs). Both the Rust and
 TypeScript implementations MUST reproduce them.
 
-## 18. Stele Gate — policies, access passes and `require_current`
+## 18. Stele Gate — policies, access passes, passports and `require_current`
 
 Stele Gate lets another Solana program require, before a protected action, that the signing wallet
 accepted a given version of a document. It adds two accounts and three instructions to the Stele
@@ -1619,3 +1619,77 @@ Does not prove: who controls the wallet (not KYC); that the document's terms are
 enforceable; that the protected program integrates the check correctly (pinning, every
 instruction). The policy is controlled by the organization's authorities and the program by its
 upgrade authority (§15).
+
+### 18.8 Passports (Gate v3)
+
+A passport holds every document one wallet accepted in a single account, so a wallet that accepts
+many documents pays for one header instead of one `AccessPass` each, and the deposits belong to
+whoever paid them. Passports and access passes coexist: an organization chooses which one its gated
+acceptances write (the API defaults to passports), and the protected program calls the matching
+check.
+
+**Account.** PDA `["passport", holder]`, discriminator `[18, 61, 245, 239, 6, 15, 18, 34]`, size
+`77 + 76 × count` bytes.
+
+| Offset | Field | Type | Meaning |
+|---|---|---|---|
+| 8 | `holder` | Pubkey | The wallet |
+| 40 | `count` | u32 | Number of entries |
+| 44 | `bump` | u8 | |
+| 45 | `base_payer` | Pubkey | Paid the header's deposit; receives it when the passport is closed |
+| 77 + 76·i | entry `i` | 76 bytes | Sorted by `document` (byte order), no duplicates |
+
+Entry: `document` Pubkey (+0), `version_number` u32 (+32), `accepted_at` i64 (+36), `payer` Pubkey
+(+44, paid this entry's deposit). The deposit is exactly the rent-exemption increase: header
+`(77 + 128) × 6,960` plus `76 × 6,960` per entry — 1,955,760 lamports for the first document and
+528,960 for each further one.
+
+**`record_passport_acceptance(nonce_index, nonce_tag, issued_at, expires_at, passport_bump)`** —
+accounts: `relayer` (signer, mut), `rent_payer` (signer, mut; may equal `relayer`), `config`,
+`organization`, `document`, `version`, `nonce_shard` (mut), `passport` (mut), `system_program`,
+`instructions_sysvar`. Performs every check and effect of `record_acceptance` (§8), then:
+
+1. `passport` MUST be `["passport", signer]` for the runtime-verified Ed25519 signer, derived with
+   `passport_bump` (`PassportMismatch`, 6084). There is no `holder` argument to forge.
+2. If the account does not exist, it is created with `holder = signer`, `base_payer = rent_payer`
+   and the header deposit from `rent_payer`.
+3. If `document` has an entry, its `version_number` MUST be lower than the new one
+   (`AccessPassAlreadyCurrent`, 6083) and is advanced with `accepted_at`; the entry's `payer` does
+   not change. Otherwise a new entry is inserted in order, the account grows by 76 bytes and
+   `rent_payer` deposits exactly that rent and is recorded as the entry's `payer`.
+4. Emits `AcceptanceRecorded` (§9) and `PassportUpdated` (holder, passport, organization, document,
+   version, fingerprint, version number, acceptance identifier, time, slot, deposit payer, and
+   whether the passport and the entry were created).
+
+Verifiers (§11) treat it like `record_acceptance` with the accounts at indices
+`[0, 2, 3, 4, 5, 6, 9]`, and MUST check that index 7 is the signer's passport PDA.
+
+**`remove_passport_entry(document)`** — accounts: `authority` (signer), `passport` (mut),
+`refund_to` (mut). `authority` MUST be the holder or the entry's `payer`
+(`PassportUnauthorized`, 6086); `refund_to` MUST be the entry's `payer`
+(`PassportRefundMismatch`, 6087). Removes the entry (`PassportEntryMissing`, 6085, if absent),
+shrinks the account and returns that entry's deposit. Emits `PassportEntryRemoved`.
+
+**`close_passport()`** — same accounts. `authority` MUST be the holder or `base_payer`, `refund_to`
+MUST be `base_payer`, and every remaining entry MUST have been paid by `base_payer`
+(`PassportHasOtherDeposits`, 6088). Closes the account and returns all its lamports. Emits
+`PassportClosed`.
+
+Removing an entry or closing a passport deletes no evidence: the acceptances stay in the ledger and
+their receipts still verify (§11). Protected programs only stop admitting the holder for those
+documents until they accept again.
+
+**`require_current_passport(passport, policy, user)`** (`crates/stele-gate`) applies rules 1–2 of
+§18.4, then: `passport` owned by the Stele program (else `AccessPassMissing` 7602 at the canonical
+address, `AccessPassInvalid` 7603 elsewhere); the passport discriminator and a length matching
+`count` (7603); `holder == user` (`AccessPassMismatch` 7604); the canonical address from the stored
+bump (7603); a binary search for `policy.document` (`AccessPassMissing` 7602 if absent);
+`version_number ≥ policy.required_version` (`AccessPassOutdated` 7605). Version numbers of a
+document are immutable (§6), so the entry needs no fingerprint. The cost is logarithmic in the
+number of entries (the whole demo deposit uses ≈ 9,200 compute units with 1 entry, ≈ 10,800 with
+10,000) and the check charges no fee. It returns the organization, document, accepted version number, required version and
+acceptance time; the acceptance identifier is in the `PassportUpdated` event and the receipt.
+
+The demo vault (§18.5) exposes `deposit_with_passport(amount)` with accounts `investor`, `vault`,
+`policy`, `passport`. Off-chain, `readAccess` in `@stelehq/protocol` and `SteleGate.check()` in
+`@stelehq/sdk` read both the pass and the passport and report the better of the two.
