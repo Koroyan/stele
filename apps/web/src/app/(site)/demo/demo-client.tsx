@@ -107,9 +107,9 @@ const client = new SteleClient({ apiBaseUrl: "/api" });
 const DEPOSIT = 5_000_000_000n; // 5,000 demo USDC (6 decimals)
 
 const REQUIRE_CURRENT = `// programs/gate-demo — the vault's whole Stele integration
-pub fn deposit(ctx: Context<Deposit>, amount: u64) -> Result<()> {
-    require_current(
-        &ctx.accounts.access_pass,
+pub fn deposit_with_passport(ctx: Context<DepositWithPassport>, amount: u64) -> Result<()> {
+    require_current_passport(
+        &ctx.accounts.passport, // the investor's Stele passport
         &ctx.accounts.policy,   // pinned: #[account(address = vault.policy)]
         &ctx.accounts.investor, // must sign
     )?;
@@ -197,15 +197,15 @@ interface Outcome {
 const FAILURES: Record<string, { headline: string; body: string }> = {
   AccessPassMissing: {
     headline: "Blocked on-chain — this wallet never accepted the terms",
-    body: "The vault program looked on Solana for this wallet's AccessPass and found none, so it refused the deposit. No website was involved: the check lives inside the program.",
+    body: "The vault program looked in this wallet's Stele passport on Solana and found no acceptance of these terms, so it refused the deposit. No website was involved: the check lives inside the program.",
   },
   AccessPassOutdated: {
     headline: "Blocked on-chain — the acceptance is out of date",
     body: "This wallet accepted an older version, but the vault now requires the newest one. The old acceptance is still on record; it just isn't enough any more.",
   },
   AccessPassMismatch: {
-    headline: "Blocked on-chain — that AccessPass belongs to someone else",
-    body: "A pass only works for the wallet that signed the terms. Presenting another wallet's pass is refused.",
+    headline: "Blocked on-chain — that passport belongs to someone else",
+    body: "A passport only works for the wallet that signed the terms. Presenting another wallet's passport is refused.",
   },
 };
 
@@ -217,14 +217,14 @@ function depositOutcome(r: DepositResult, who: "you" | "other", direct: boolean)
   };
   const program = {
     label: "Vault program",
-    sub: "require_current()",
+    sub: "checks the passport",
     icon: <BuildingIcon className="h-4 w-4" />,
   };
   if (r.ok) {
     return {
       tone: "success",
       headline: "Deposit executed",
-      body: `The vault program found a current AccessPass (Offering Terms v${r.deposit?.termsVersionNumber}) and accepted 5,000 USDC.`,
+      body: `The vault program found a current acceptance in the passport (Offering Terms v${r.deposit?.termsVersionNumber}) and accepted 5,000 USDC.`,
       technical: `Deposited event · terms v${r.deposit?.termsVersionNumber}`,
       signature: r.signature,
       flow: [
@@ -289,12 +289,12 @@ const CHAPTERS: Chapter[] = [
       "Playing the issuer, publish version 2 and make it the required version. Nobody's history is edited: your v1 acceptance stays on record.",
     action: "publish",
     button: "Publish & require v2 (as Atlas)",
-    expect: "Expected: your AccessPass becomes outdated",
+    expect: "Expected: your acceptance becomes outdated",
   },
   {
     nav: "Old acceptance",
     title: "Try to invest with the old acceptance",
-    intro: "Send another deposit straight to the program. Your AccessPass still says v1.",
+    intro: "Send another deposit straight to the program. Your passport still says v1.",
     action: "direct",
     button: "Send the deposit directly",
     expect: "Expected: refused — v2 is required now",
@@ -312,10 +312,10 @@ const CHAPTERS: Chapter[] = [
     nav: "Borrow access",
     title: "Try to use someone else's acceptance",
     intro:
-      "A different wallet sends a deposit and presents your AccessPass, hoping to ride on your acceptance.",
+      "A different wallet sends a deposit and presents your passport, hoping to ride on your acceptance.",
     action: "borrow",
     button: "Deposit from another wallet",
-    expect: "Expected: refused — a pass works only for its owner",
+    expect: "Expected: refused — a passport works only for its owner",
   },
 ];
 
@@ -563,7 +563,7 @@ function GateDemo({
       push({
         label: `Accepted Investor Offering Terms v${accepted}`,
         tone: "success",
-        outcome: "AccessPass valid",
+        outcome: "Passport entry valid",
       });
     }
     logDeposit("Deposit through the app (Stele SDK)", r);
@@ -572,7 +572,7 @@ function GateDemo({
       return {
         ...out,
         headline: `Accepted v${accepted} and invested`,
-        body: `Two things happened with one click: (1) your signature on Offering Terms v${accepted} was recorded on Solana — Stele paid the fee — and your AccessPass now says v${accepted}; (2) the deposit went through, because the vault program found that pass.`,
+        body: `Two things happened with one click: (1) your signature on Offering Terms v${accepted} was recorded on Solana — Stele paid the fee — and your passport now says v${accepted}; (2) the deposit went through, because the vault program found that acceptance in your passport.`,
         flow: [
           {
             label: "You accept",
@@ -581,14 +581,14 @@ function GateDemo({
             state: "done",
           },
           {
-            label: "AccessPass",
+            label: "Passport",
             sub: `valid · v${accepted}`,
             icon: <TicketIcon className="h-4 w-4" />,
             state: "success",
           },
           {
             label: "Vault program",
-            sub: "require_current()",
+            sub: "checks the passport",
             icon: <BuildingIcon className="h-4 w-4" />,
             state: "done",
           },
@@ -612,13 +612,13 @@ function GateDemo({
     push({
       label: `Atlas published and requires Offering Terms v${v.number}`,
       tone: "warning",
-      outcome: "Older passes are outdated",
+      outcome: "Older acceptances are outdated",
       signature: v.signature,
     });
     return {
       tone: "warning",
       headline: `Version ${v.number} is now required`,
-      body: `Atlas signed one transaction: publish v${v.number} and require it. Every AccessPass for an older version — including yours — no longer satisfies the policy. Nothing was rewritten: earlier acceptances stay verifiable.`,
+      body: `Atlas signed one transaction: publish v${v.number} and require it. Every acceptance of an older version — including yours — no longer satisfies the policy. Nothing was rewritten: earlier acceptances stay verifiable.`,
       technical: `PolicyChanged · requires v${v.number}`,
       signature: v.signature,
       flow: [
@@ -635,7 +635,7 @@ function GateDemo({
           state: "warning",
         },
         {
-          label: "Your AccessPass",
+          label: "Your passport",
           sub: "outdated",
           icon: <TicketIcon className="h-4 w-4" />,
           state: "warning",
@@ -646,13 +646,13 @@ function GateDemo({
 
   const borrow = async (): Promise<Outcome> => {
     const r = await sendDeposit(stranger, wallet.address);
-    logDeposit("Another wallet presents your AccessPass", r);
+    logDeposit("Another wallet presents your passport", r);
     return depositOutcome(r, "other", true);
   };
 
   const noPass = async (): Promise<Outcome> => {
     const r = await sendDeposit(stranger, stranger.address);
-    logDeposit("A wallet with no AccessPass calls deposit()", r);
+    logDeposit("A wallet that never accepted calls deposit()", r);
     return depositOutcome(r, "other", true);
   };
 
@@ -883,8 +883,8 @@ function GateDemo({
             </div>
             <p className="mt-6 text-[15px] font-semibold text-fg">Every acceptance is a Proof</p>
             <p className="mt-1 text-[14px] text-fg-muted">
-              The acceptance behind your AccessPass is an ordinary Stele receipt: the exact text,
-              version, signature and time — anyone can verify it without Stele.
+              The acceptance behind your passport entry is an ordinary Stele receipt: the exact
+              text, version, signature and time — anyone can verify it without Stele.
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
               <Link
@@ -950,7 +950,7 @@ function GateDemo({
               onClick={() => void run("nopass", noPass, "free")}
               disabled={!!busy}
             >
-              Script: wallet without a pass
+              Script: wallet that never accepted
             </button>
             <button
               type="button"
@@ -958,7 +958,7 @@ function GateDemo({
               onClick={() => void run("borrow", borrow, "free")}
               disabled={!!busy}
             >
-              Script: reuse your pass from another wallet
+              Script: reuse your passport from another wallet
             </button>
             {freeOutcome && (
               <div className="sm:col-span-2">
@@ -982,7 +982,7 @@ function GateDemo({
             <StateRow item="policy" icon={<GateIcon className="h-4 w-4" />} label="Atlas requires">
               Offering Terms v{access?.requiredVersion ?? session.version.number}
             </StateRow>
-            <StateRow item="pass" icon={<TicketIcon className="h-4 w-4" />} label="Your AccessPass">
+            <StateRow item="pass" icon={<TicketIcon className="h-4 w-4" />} label="Your passport">
               {!access ? (
                 <StatusBadge tone="neutral">Checking</StatusBadge>
               ) : access.status === "VALID" ? (
