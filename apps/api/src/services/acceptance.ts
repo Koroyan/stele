@@ -44,7 +44,9 @@ import {
   type EvidenceMode,
   recordAcceptanceInstruction,
   recordGatedAcceptanceInstruction,
+  recordPassportAcceptanceInstruction,
   findAccessPassPda,
+  findPassportPda,
   recordPasskeyAcceptanceInstruction,
   secp256r1Instruction,
   toBase64Url,
@@ -564,8 +566,9 @@ export async function submitChallenge(
     .from(organizations)
     .where(eq(organizations.id, ch.organizationId));
   const [doc] = await deps.db.select().from(documents).where(eq(documents.id, ch.documentId));
-  // Stele Gate: a wallet's acceptance of a gated policy must create its access pass, which only the
-  // program can write after verifying the signature itself — so it is always recorded directly.
+  // Stele Gate: a wallet's acceptance of a gated policy must write its passport entry (or access
+  // pass), which only the program can write after verifying the signature itself — so it is
+  // always recorded directly.
   const gated = doc!.gated && ch.signerType === "wallet";
   if (org!.settings.evidenceMode === "MERKLE_BATCHED" && !gated) {
     await assertVersionStillCurrent(deps, ch);
@@ -611,19 +614,35 @@ export async function submitChallenge(
     issuedAt: ch.issuedAt,
     expiresAt: ch.expiresAt,
   };
-  const recordInstruction = gated
-    ? recordGatedAcceptanceInstruction({
-        ...recordArgs,
-        holder: address(ch.signerAddress),
-        accessPass: (
-          await findAccessPassPda(
-            address(doc!.address),
-            address(ch.signerAddress),
-            deps.chain.programAddress,
-          )
-        )[0],
-      })
-    : recordAcceptanceInstruction(recordArgs);
+  let recordInstruction;
+  if (gated && (org!.settings.gateStorage ?? "passport") === "passport") {
+    // Gate v3: the document goes into the signer's passport; the relayer pays any new deposit on
+    // the organization's behalf and is recorded as its owner (refunded when the entry is removed).
+    const [passport, passportBump] = await findPassportPda(
+      address(ch.signerAddress),
+      deps.chain.programAddress,
+    );
+    recordInstruction = recordPassportAcceptanceInstruction({
+      ...recordArgs,
+      rentPayer: deps.chain.relayer,
+      passport,
+      passportBump,
+    });
+  } else if (gated) {
+    recordInstruction = recordGatedAcceptanceInstruction({
+      ...recordArgs,
+      holder: address(ch.signerAddress),
+      accessPass: (
+        await findAccessPassPda(
+          address(doc!.address),
+          address(ch.signerAddress),
+          deps.chain.programAddress,
+        )
+      )[0],
+    });
+  } else {
+    recordInstruction = recordAcceptanceInstruction(recordArgs);
+  }
   const ed = buildEd25519Instruction(signer, signature, utf8(ch.message));
 
   return relayAndIndex(deps, ch, { org: org!, doc: doc!, shard: shard! }, ed, recordInstruction);
