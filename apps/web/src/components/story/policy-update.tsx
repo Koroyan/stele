@@ -5,12 +5,12 @@ import { Reveal, StatusBadge, StoryFrame } from "./story-ui";
 import { useSequence } from "./use-sequence";
 
 const CAPTIONS = [
-  "The investor accepted Offering Terms v1. Their AccessPass names v1 — and the policy requires v1.",
+  "The investor accepted Offering Terms v1. Their passport names v1 — and the policy requires v1.",
   "The fund's admin publishes Offering Terms v2 and makes the policy require it.",
   "Nothing is rewritten: the v1 pass simply no longer satisfies the policy.",
   "The investor tries another deposit. The vault program rejects it: v2 is required.",
   "The investor accepts v2 in the Stele modal.",
-  "The same AccessPass now names v2. The deposit succeeds — and the v1 acceptance stays on record.",
+  "The same passport entry now names v2. The deposit succeeds — and the v1 acceptance stays on record.",
 ];
 
 function VersionCard({ v, state }: { v: 1 | 2; state: "current" | "previous" | "hidden" }) {
@@ -57,7 +57,7 @@ export function PolicyUpdate() {
 
         <div className="space-y-3">
           <p className="text-[11.5px] font-semibold uppercase tracking-[0.08em] text-fg-subtle">
-            The wallet&apos;s AccessPass
+            The wallet&apos;s passport
           </p>
           <div
             className={cn(
@@ -68,7 +68,7 @@ export function PolicyUpdate() {
             )}
           >
             <div className="flex items-center gap-2 text-[13px] font-medium text-fg">
-              <TicketIcon className="h-4 w-4 text-fg-subtle" /> AccessPass
+              <TicketIcon className="h-4 w-4 text-fg-subtle" /> Passport
             </div>
             <p className="mt-2 text-[13px] text-fg-muted">
               accepted: <span className="font-semibold text-fg">Offering Terms v{passVersion}</span>

@@ -6,12 +6,12 @@ import { useSequence } from "./use-sequence";
 
 const CAPTIONS = [
   "An investor taps “Deposit 5,000 USDC” in the Atlas Real Estate Vault app.",
-  "The vault program checks the investor's Stele AccessPass with require_current().",
+  "The vault program checks the investor's Stele passport with require_current_passport().",
   "There is none: the deposit would be blocked. The app opens the Stele modal instead of failing.",
   "The modal shows the Investor Offering Terms, version 1. The investor agrees.",
   "The investor signs the exact terms with their wallet. The acceptance is recorded on Solana.",
-  "Recording the acceptance creates the investor's AccessPass — valid for v1.",
-  "The deposit continues: require_current() passes and the vault executes it.",
+  "Recording the acceptance adds v1 to the investor's passport.",
+  "The deposit continues: the passport check passes and the vault executes it.",
 ];
 
 const PASS = ["Missing", "Missing", "Missing", "Missing", "Creating", "Valid", "Valid"] as const;
@@ -58,7 +58,7 @@ export function GateFlow() {
                   Deposit succeeded
                 </StatusBadge>
               )}
-              {blocked && <StatusBadge tone="danger">Blocked · no AccessPass</StatusBadge>}
+              {blocked && <StatusBadge tone="danger">Blocked · not accepted</StatusBadge>}
             </div>
 
             {/* The Stele modal */}
@@ -113,8 +113,8 @@ export function GateFlow() {
               />
               <FlowNode
                 icon={<ShieldIcon className="h-[18px] w-[18px]" />}
-                label="require_current()"
-                sub={s === 6 ? "AccessPass v1 ✓" : blocked ? "AccessPass missing" : "AccessPass?"}
+                label="Passport check"
+                sub={s === 6 ? "v1 accepted ✓" : blocked ? "not accepted" : "accepted?"}
                 state={blocked ? "blocked" : s === 6 ? "success" : s === 1 ? "active" : "idle"}
               />
               <Connector state={s === 6 ? "active" : "idle"} />
@@ -129,7 +129,7 @@ export function GateFlow() {
             <div className="mt-5 grid gap-3 @min-[520px]:grid-cols-2">
               <div className="rounded-xl border border-line bg-bg-raised p-3.5">
                 <p className="flex items-center gap-1.5 text-[11.5px] uppercase tracking-[0.08em] text-fg-subtle">
-                  <TicketIcon className="h-3.5 w-3.5" /> AccessPass
+                  <TicketIcon className="h-3.5 w-3.5" /> Passport
                 </p>
                 <p className="mt-2">
                   <StatusBadge

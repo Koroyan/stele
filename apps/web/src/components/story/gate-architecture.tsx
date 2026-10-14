@@ -17,13 +17,13 @@ const NODES = [
   { label: "Your app", sub: "frontend", icon: <LayersIcon className="h-[18px] w-[18px]" /> },
   { label: "Stele SDK", sub: "stele.gate()", icon: <CodeIcon className="h-[18px] w-[18px]" /> },
   {
-    label: "AccessPass",
+    label: "Passport",
     sub: "on Solana",
     icon: <TicketIcon className="h-[18px] w-[18px]" />,
   },
   {
     label: "Your program",
-    sub: "require_current()",
+    sub: "require_current_passport()",
     icon: <ShieldIcon className="h-[18px] w-[18px]" />,
   },
   {
@@ -36,9 +36,9 @@ const NODES = [
 const CAPTIONS = [
   "The investor starts a deposit in your app.",
   "Your frontend calls stele.gate() around the deposit instead of sending it directly.",
-  "The SDK reads the policy and the wallet's AccessPass from Solana.",
-  "Missing or outdated? The modal records the acceptance, which creates or advances the AccessPass.",
-  "Your program calls require_current() with the AccessPass and the policy it pins.",
+  "The SDK reads the policy and the wallet's passport from Solana.",
+  "Missing or outdated? The modal records the acceptance, which adds or advances the entry in the passport.",
+  "Your program calls require_current_passport() with the passport and the policy it pins.",
   "Only with a current pass does the deposit execute. Everything before it is UX; this is enforcement.",
 ];
 
@@ -82,8 +82,8 @@ export function GateArchitecture() {
         >
           <p className="text-[15px] font-semibold text-fg">On-chain check = enforcement</p>
           <p className="mt-1 text-[13px] text-fg-muted">
-            Your program checks the AccessPass before it acts. A client that skips the SDK is
-            rejected here.
+            Your program checks the passport before it acts. A client that skips the SDK is rejected
+            here.
           </p>
         </div>
       </div>

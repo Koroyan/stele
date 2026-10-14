@@ -68,7 +68,7 @@ export const DOCS: DocEntry[] = [
     title: "Stele Gate",
     group: "Developers",
     summary:
-      "Require the current terms before a protected action: policies, AccessPasses and require_current() in your Solana program.",
+      "Require the current terms before a protected action: policies, passports and require_current_passport() in your Solana program.",
   },
   {
     slug: "verification",
@@ -90,7 +90,7 @@ export const DOCS: DocEntry[] = [
     title: "Stele Gate: step by step",
     group: "Developers",
     summary:
-      "From zero to a protected Solana action: policy, program check, the user's AccessPass, Accept & Continue, tests.",
+      "From zero to a protected Solana action: policy, program check, the user's passport, Accept & Continue, tests.",
   },
   {
     slug: "api",

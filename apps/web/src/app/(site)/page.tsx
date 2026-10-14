@@ -90,7 +90,7 @@ export default function HomePage() {
             </h2>
             <p className="mt-4 text-[16px] leading-relaxed text-fg-muted">
               An RWA app requires its current offering terms before a deposit. The investor&apos;s
-              AccessPass proves current acceptance, and the Solana program checks it directly.
+              passport proves current acceptance, and the Solana program checks it directly.
             </p>
             <Link href="/gate" className={buttonClasses("primary", "md", "mt-6")}>
               Explore Gate <ArrowRightIcon className="h-4 w-4" />
@@ -137,7 +137,7 @@ export default function HomePage() {
         <SectionHeading
           eyebrow="Versioning"
           title="Publish v2 and old access no longer satisfies the requirement."
-          lead="An AccessPass names the version its holder accepted. When the organization requires a newer version, older passes simply stop satisfying the policy — nothing is rewritten."
+          lead="A wallet's passport names the version it accepted of each document. When the organization requires a newer version, older acceptances simply stop satisfying the policy — nothing is rewritten."
         />
         <div className="mt-10">
           <PolicyUpdate />
@@ -217,8 +217,8 @@ export default function HomePage() {
             icon={<ShieldIcon className="h-[18px] w-[18px]" />}
             title="Enforced by your program"
           >
-            AccessPasses are written only by verified acceptances and checked by the program that
-            acts. Stele never holds funds.
+            Passports are written only by verified acceptances and checked by the program that acts.
+            Stele never holds funds.
           </FeatureCard>
           <FeatureCard icon={<LockIcon className="h-[18px] w-[18px]" />} title="Verified by anyone">
             Receipts are checked against any archival Solana RPC with open-source tools — with

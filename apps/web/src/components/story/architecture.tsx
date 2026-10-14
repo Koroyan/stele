@@ -88,12 +88,15 @@ export function Architecture() {
           tone="gate"
           items={[
             { name: "Policy", detail: "required version of a document, set by the organization" },
-            { name: "AccessPass", detail: "per policy and wallet" },
+            { name: "Passport", detail: "one per wallet, an entry per document" },
             {
               name: "Gate instructions",
               detail: "create_policy, set_policy_requirement, record_gated_acceptance",
             },
-            { name: "require_current()", detail: "one call in your program (stele-gate crate)" },
+            {
+              name: "require_current_passport()",
+              detail: "one call in your program (stele-gate crate)",
+            },
           ]}
         />
         <Arrow label="read by your program" />
@@ -104,14 +107,14 @@ export function Architecture() {
           items={[
             {
               name: "Solana program",
-              detail: "pins the policy; require_current() before every protected action",
+              detail: "pins the policy; checks the passport before every protected action",
             },
           ]}
         />
       </div>
       <figcaption className="mt-4 text-center text-[13px] text-fg-muted">
-        Acceptances flow from the client into Stele Core; the Gate layer turns them into
-        AccessPasses that your program checks before executing.
+        Acceptances flow from the client into Stele Core; the Gate layer turns them into passports
+        that your program checks before executing.
       </figcaption>
     </figure>
   );

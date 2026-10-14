@@ -11,13 +11,13 @@ const STEPS: { title: string; body: string; tone: "neutral" | "danger" | "succes
     tone: "neutral",
   },
   {
-    title: "No AccessPass → the modal opens",
+    title: "Not accepted → the modal opens",
     body: "Investor Offering Terms v1, hash-verified against Solana. “Accept & Deposit”.",
     tone: "neutral",
   },
   {
     title: "Acceptance recorded, deposit succeeds",
-    body: "The acceptance creates the AccessPass; the vault's require_current() passes.",
+    body: "The acceptance is added to the investor's passport; the vault's check passes.",
     tone: "success",
   },
   {
@@ -38,8 +38,8 @@ const STEPS: { title: string; body: string; tone: "neutral" | "danger" | "succes
 ];
 
 const CODE = `pub fn deposit(ctx: Context<Deposit>, amount: u64) -> Result<()> {
-    stele_gate::require_current(
-        &ctx.accounts.access_pass,
+    stele_gate::require_current_passport(
+        &ctx.accounts.passport,
         &ctx.accounts.policy,
         &ctx.accounts.investor,
     )?;
@@ -92,7 +92,7 @@ export function RwaExample() {
         <CodeBlock code={CODE} language="rust" />
         <p className="mt-3 text-[13px] leading-relaxed text-fg-muted">
           Stele never holds the investor&apos;s funds and is not in the deposit&apos;s execution
-          path: the vault program reads the AccessPass and the policy itself.
+          path: the vault program reads the passport and the policy itself.
         </p>
         <Link href="/demo" className={buttonClasses("primary", "md", "mt-5")}>
           Run it on Devnet <ArrowRightIcon className="h-4 w-4" />

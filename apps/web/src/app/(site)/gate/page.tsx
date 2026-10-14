@@ -17,18 +17,18 @@ export const metadata: Metadata = {
     "Investors can't deposit until they've accepted your current terms: Stele Gate turns versioned document acceptance into a condition your Solana program enforces.",
 };
 
-const REQUIRE_CURRENT = `stele_gate::require_current(
-    &ctx.accounts.access_pass, // the investor's AccessPass
-    &ctx.accounts.policy,      // the Stele policy your program pins
-    &ctx.accounts.investor,    // a Signer
+const REQUIRE_CURRENT = `stele_gate::require_current_passport(
+    &ctx.accounts.passport, // the investor's Stele passport
+    &ctx.accounts.policy,   // the Stele policy your program pins
+    &ctx.accounts.investor, // a Signer
 )?;`;
 
 const CHECKS = [
   "The policy is a Stele policy at its canonical address",
   "The investor signed the transaction",
-  "The AccessPass is a Stele account at its canonical address — not a look-alike",
-  "It belongs to this wallet, this document and this organization",
-  "It names the required version or a later one (same fingerprint at the required version)",
+  "The passport is a Stele account at its canonical address — not a look-alike",
+  "It belongs to this wallet and has an entry for the policy's document",
+  "The entry names the required version or a later one",
 ];
 
 export default function GatePage() {
@@ -67,10 +67,10 @@ export default function GatePage() {
           <div>
             <Eyebrow>One call</Eyebrow>
             <h2 className="mt-3 text-[30px] font-semibold leading-[1.15] tracking-[-0.025em] text-fg">
-              require_current() checks everything.
+              require_current_passport() checks everything.
             </h2>
             <p className="mt-4 text-[15px] leading-relaxed text-fg-muted">
-              Add the AccessPass and the policy to your protected instruction and make one call. You
+              Add the passport and the policy to your protected instruction and make one call. You
               don&apos;t re-implement a list of checks:
             </p>
             <div className="mt-5">
@@ -159,8 +159,8 @@ export default function GatePage() {
                 from their own client.
               </p>
               <p>
-                A Solana program evaluates its own accounts, whatever the interface. The AccessPass
-                is an account only the Stele program can write — and only after verifying the
+                A Solana program evaluates its own accounts, whatever the interface. The passport is
+                an account only the Stele program can write — and only after verifying the
                 investor&apos;s signature over the exact terms — so your program can trust it in the
                 same transaction as the deposit. No oracle, no off-chain lookup.
               </p>
@@ -178,7 +178,10 @@ export default function GatePage() {
                   "Later acceptances (new versions)",
                   "10,000 lamports; the pass is updated in place",
                 ],
-                ["The demo deposit, including require_current()", "9,406 compute units"],
+                [
+                  "The demo deposit, including the passport check",
+                  "≈9,200 compute units, no extra fee",
+                ],
                 ["For the investor", "Nothing: no fee for accepting"],
               ].map(([k, v]) => (
                 <div key={k} className="grid gap-1 py-3 sm:grid-cols-[1fr_1.2fr] sm:gap-4">
@@ -213,8 +216,8 @@ export default function GatePage() {
                 tone="muted"
                 items={[
                   "Gate enforces acceptance of a document version — not KYC, jurisdiction, age or accreditation (future integrations).",
-                  "An AccessPass binds the wallet that signed; passkey acceptances create Proof evidence, not passes.",
-                  "The SDK is user experience; protection exists only where your program calls require_current().",
+                  "A passport binds the wallet that signed; passkey acceptances create Proof evidence, not passport entries.",
+                  "The SDK is user experience; protection exists only where your program calls require_current_passport().",
                   "Accepting and acting are two transactions (not atomic).",
                   "Passes are public accounts: anyone can see that a wallet accepted a version.",
                   "Stele's program is upgradeable today (moving to a multisig); it runs on Devnet, not Mainnet yet.",

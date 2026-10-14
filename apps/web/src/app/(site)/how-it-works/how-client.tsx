@@ -19,10 +19,10 @@ const PROOF_STEPS = [
 ] as const;
 
 const GATE_STEPS = [
-  ["Protect", "Your program calls require_current() before the protected action."],
-  ["Check", "The SDK reads the investor's AccessPass and the policy from Solana."],
+  ["Protect", "Your program calls require_current_passport() before the protected action."],
+  ["Check", "The SDK reads the investor's passport and the policy from Solana."],
   ["Accept if required", "Missing or outdated? The Stele modal records the acceptance."],
-  ["Continue", "The AccessPass is created or advanced; the original action runs."],
+  ["Continue", "The passport entry is added or advanced; the original action runs."],
   ["Enforce", "Your program rejects any call without a current pass — even from the CLI."],
 ] as const;
 

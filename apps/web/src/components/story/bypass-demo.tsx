@@ -7,8 +7,8 @@ import { useSequence } from "./use-sequence";
 const CAPTIONS = [
   "Without program enforcement, the terms checkbox lives in the frontend. A normal investor passes through it.",
   "But anyone can call deposit() directly from a script or the CLI. The checkbox never appears: frontend bypassed.",
-  "With Stele Gate, the vault program calls require_current(). The same direct call finds no AccessPass and is rejected.",
-  "An investor who accepted the current terms holds a valid AccessPass, and the deposit executes.",
+  "With Stele Gate, the vault program calls require_current_passport(). The same direct call finds no acceptance in the passport and is rejected.",
+  "An investor who accepted the current terms has a current entry in their passport, and the deposit executes.",
 ];
 
 function Lane({
@@ -133,8 +133,8 @@ export function BypassDemo() {
               <Connector state={s === 2 ? "blocked" : "idle"} />
               <FlowNode
                 icon={<ShieldIcon className="h-4 w-4" />}
-                label="require_current()"
-                sub={s >= 2 ? "AccessPass missing → rejected" : "AccessPass?"}
+                label="Passport check"
+                sub={s >= 2 ? "not accepted → rejected" : "accepted?"}
                 state={s === 2 ? "blocked" : s > 2 ? "done" : "idle"}
               />
             </Flow>
@@ -153,8 +153,8 @@ export function BypassDemo() {
               <Connector state={s === 3 ? "active" : "idle"} />
               <FlowNode
                 icon={<ShieldIcon className="h-4 w-4" />}
-                label="require_current()"
-                sub="AccessPass valid"
+                label="Passport check"
+                sub="current version ✓"
                 state={s === 3 ? "success" : "idle"}
               />
               <Connector state={s === 3 ? "active" : "idle"} />

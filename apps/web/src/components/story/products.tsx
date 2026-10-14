@@ -35,8 +35,8 @@ export function ProductCards() {
         statement="Require current acceptance before protected actions."
         flow={["Action", "Check", "Accept if needed", "Execute"]}
         steps={[
-          "Your program calls require_current() before a deposit or any protected action.",
-          "Investors accept in an embedded modal; an on-chain AccessPass records it.",
+          "Your program calls require_current_passport() before a deposit or any protected action.",
+          "Investors accept in an embedded modal; their on-chain passport records it.",
           "Publish v2 and old access no longer satisfies the requirement.",
         ]}
         audience={GATE_FOR}
@@ -212,7 +212,7 @@ export function Chooser() {
           product="Stele Gate"
           wants={[
             "Everything in Proof",
-            "AccessPass for each wallet",
+            "One passport per wallet",
             "Policy version enforcement",
             "Protected Solana actions",
             "SDK and program integration",
@@ -280,7 +280,7 @@ function ChoiceCard(p: {
 /** Gate is a layer on top of Proof, not a separate product. */
 export function Layers() {
   const proof = ["Documents", "Versions", "Acceptances", "Receipts", "Verification"];
-  const gate = ["AccessPass", "Policy enforcement", "Solana integration", "Protected actions"];
+  const gate = ["Passport", "Policy enforcement", "Solana integration", "Protected actions"];
   return (
     <div className="mx-auto max-w-3xl">
       <div className="rounded-2xl border border-accent-line bg-accent-soft/30 p-5">
@@ -331,7 +331,7 @@ const ROWS: [string, boolean | string, boolean | string][] = [
   ["Independent verification", true, true],
   ["Passkeys", true, "for evidence; access needs the wallet"],
   ["Wallet signatures", true, true],
-  ["AccessPass", false, true],
+  ["Passport (on-chain acceptance per wallet)", false, true],
   ["Program enforcement", false, true],
   ["Protected actions", false, true],
   ["Solana developer SDK", "optional", true],

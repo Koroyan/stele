@@ -10,8 +10,8 @@ const STEPS = [
     title: "Link the action to a Stele policy",
     body: "Your program pins the policy and makes one call before it acts. The policy says which version of your terms is required.",
     code: `pub fn deposit(ctx: Context<Deposit>, amount: u64) -> Result<()> {
-    stele_gate::require_current(
-        &ctx.accounts.access_pass,
+    stele_gate::require_current_passport(
+        &ctx.accounts.passport,
         &ctx.accounts.policy,
         &ctx.accounts.investor,
     )?;
@@ -20,9 +20,9 @@ const STEPS = [
   {
     name: "Check",
     title: "The investor starts the action",
-    body: "The Stele SDK reads the policy and the wallet's AccessPass from Solana before anything is signed.",
+    body: "The Stele SDK reads the policy and the wallet's passport from Solana before anything is signed.",
     code: `stele.gate({ policy, action })
-→ AccessPass: missing`,
+→ passport entry: missing`,
   },
   {
     name: "Accept",
@@ -35,14 +35,14 @@ const STEPS = [
   {
     name: "Continue",
     title: "The pass is created, the deposit continues",
-    body: "The acceptance is recorded on Solana and creates or advances the AccessPass; then your original action runs.",
-    code: `AccessPass → valid (v1)
+    body: "The acceptance is recorded on Solana and adds or advances the entry in the wallet's passport; then your original action runs.",
+    code: `passport entry → valid (v1)
 deposit() → sent`,
   },
   {
     name: "Enforce",
     title: "The program rejects everything else",
-    body: "No pass, an older version, someone else's pass, another policy or a forged account: require_current() fails and the deposit never happens.",
+    body: "Never accepted, an older version, someone else's passport, another policy or a forged account: the check fails and the deposit never happens.",
     code: `deposit() without a current pass
 → AccessPassMissing · AccessPassOutdated
 → AccessPassMismatch · InvalidPolicy`,
