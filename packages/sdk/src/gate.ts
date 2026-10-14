@@ -155,6 +155,8 @@ export interface GateRequest<T> {
 export class SteleGate {
   readonly client: SteleClient;
   private readonly opts: SteleGateOptions;
+  /** The most recent acceptance this gate recorded (its receipt: `/receipt/<acceptanceId>`). */
+  lastAcceptance: AcceptanceResult | null = null;
 
   constructor(opts: SteleGateOptions) {
     if (!opts.client && !opts.apiBaseUrl)
@@ -280,6 +282,7 @@ export class SteleGate {
         throw new StaleTermsError();
       throw e;
     }
+    this.lastAcceptance = acceptance;
     onStatus("confirming");
     const deadline = Date.now() + (this.opts.confirmTimeoutMs ?? 30_000);
     for (;;) {
