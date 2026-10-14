@@ -15,6 +15,7 @@ import {
   buildEd25519Instruction,
   enrollPasskeySignerInstruction,
   recordAcceptanceInstruction,
+  recordPassportAcceptanceInstruction,
   recordPasskeyAcceptanceInstruction,
   recoverPasskeySignerInstruction,
   rotatePasskeySignerInstruction,
@@ -346,6 +347,27 @@ describe("relayer transaction policy", () => {
       expiresAt: 2,
       assertion,
     });
+    // Gate v3: the relayer may fill the rent-payer slot itself, never with another key.
+    const passportArgs = {
+      ...base,
+      document: a(3),
+      version: a(4),
+      nonceShard: a(5),
+      passport: a(7),
+      passportBump: 255,
+      nonceIndex: 1,
+      nonceTag: new Uint8Array(8),
+      issuedAt: 1,
+      expiresAt: 2,
+    };
+    const passportByRelayer = recordPassportAcceptanceInstruction({
+      ...passportArgs,
+      rentPayer: relayer,
+    });
+    const passportByOther = recordPassportAcceptanceInstruction({
+      ...passportArgs,
+      rentPayer: other,
+    });
     const indirect = { ...secp, data: Uint8Array.from(secp.data!) };
     indirect.data[4] = 0; // signature read from instruction 0 instead of itself
     const withAccounts = { ...secp, accounts: [{ address: a(9), role: 0 }] } as typeof secp;
@@ -355,6 +377,7 @@ describe("relayer transaction policy", () => {
       [limit, secp, enroll],
       [limit, secp, rotate],
       [limit, ed, recordV1],
+      [limit, ed, passportByRelayer],
     ])
       expect(() => assertSponsoredRecordingShape(ok, opts)).not.toThrow();
     for (const bad of [
@@ -366,6 +389,8 @@ describe("relayer transaction policy", () => {
       [limit, secp, recover],
       [limit, secp, recordByOther],
       [limit, recordPasskey, secp],
+      [limit, ed, passportByOther],
+      [limit, secp, passportByRelayer],
     ])
       expect(() => assertSponsoredRecordingShape(bad, opts)).toThrow(/refusing to sign/);
   });

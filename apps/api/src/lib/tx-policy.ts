@@ -7,7 +7,8 @@
  * with the relayer as the only signer and fee payer, and exactly these precompile / instruction
  * pairs:
  *
- *   Ed25519    → record_acceptance | record_gated_acceptance | record_proof         (stele/1)
+ *   Ed25519    → record_acceptance | record_gated_acceptance | record_passport_acceptance
+ *                | record_proof                                                          (stele/1)
  *   secp256r1  → record_passkey_acceptance | enroll_passkey_signer | rotate_passkey_signer (stele/2)
  *
  * or a batch anchor, which carries no signature to verify on-chain (MERKLE_BATCHED):
@@ -31,7 +32,12 @@ import {
 
 /** Stele instructions the relayer may sign, by the precompile that must precede them. */
 const ALLOWED: Record<string, readonly InstructionName[]> = {
-  [ED25519_PROGRAM_ADDRESS]: ["record_acceptance", "record_gated_acceptance", "record_proof"],
+  [ED25519_PROGRAM_ADDRESS]: [
+    "record_acceptance",
+    "record_gated_acceptance",
+    "record_passport_acceptance",
+    "record_proof",
+  ],
   [SECP256R1_PROGRAM_ADDRESS]: [
     "record_passkey_acceptance",
     "enroll_passkey_signer",
@@ -127,7 +133,8 @@ function checkPrecompileAndRecord(
     fail("last instruction is not a Stele instruction");
   const name = identifyInstruction(new Uint8Array(record.data ?? []));
   if (!name || !allowed!.includes(name)) fail(`instruction ${name} is not allowed`);
-  const signers = (record.accounts ?? []).filter((a) => a.role >= 2);
-  if (signers.length !== 1 || signers[0]!.address !== opts.relayer)
-    fail("the relayer must be the only signer");
+  // A passport acceptance names its rent payer as a second signer slot: the relayer may fill it
+  // (it then pays the deposit), never another key.
+  const signers = new Set((record.accounts ?? []).filter((a) => a.role >= 2).map((a) => a.address));
+  if (signers.size !== 1 || !signers.has(opts.relayer)) fail("the relayer must be the only signer");
 }
