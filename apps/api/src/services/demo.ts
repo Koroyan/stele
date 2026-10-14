@@ -36,6 +36,7 @@ import {
   createPolicyInstruction,
   createVaultInstruction,
   decodeDepositedFromLogs,
+  decodePassportDepositedFromLogs,
   findConfigPda,
   findDocumentPda,
   findPolicyPda,
@@ -571,7 +572,9 @@ export async function relayDemoDeposit(deps: Deps, token: string, wireBase64: st
   const failure: GateFailure | null = ok
     ? null
     : explainFailure(deps.chain.programAddress, result.meta?.err, logs);
+  // deposit (access pass) emits Deposited; deposit_with_passport emits PassportDeposited.
   const event = ok ? (decodeDepositedFromLogs(logs)[0] ?? null) : null;
+  const passportEvent = ok && !event ? (decodePassportDepositedFromLogs(logs)[0] ?? null) : null;
   return {
     signature,
     slot: Number(result.slot),
@@ -584,9 +587,20 @@ export async function relayDemoDeposit(deps: Deps, token: string, wireBase64: st
           totalDeposited: Number(event.totalDeposited),
           depositCount: Number(event.depositCount),
           termsVersionNumber: event.termsVersionNumber,
-          termsFingerprint: toHex(event.termsFingerprint),
-          acceptanceId: toHex(event.acceptanceId),
+          termsFingerprint: toHex(event.termsFingerprint) as string | null,
+          acceptanceId: toHex(event.acceptanceId) as string | null,
         }
-      : null,
+      : passportEvent
+        ? {
+            investor: passportEvent.investor as string,
+            amount: Number(passportEvent.amount),
+            totalDeposited: Number(passportEvent.totalDeposited),
+            depositCount: Number(passportEvent.depositCount),
+            termsVersionNumber: passportEvent.termsVersionNumber,
+            // A passport entry carries the version number only; the receipt has the rest.
+            termsFingerprint: null,
+            acceptanceId: null,
+          }
+        : null,
   };
 }
