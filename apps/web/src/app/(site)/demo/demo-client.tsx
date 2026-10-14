@@ -23,8 +23,8 @@ import {
 } from "@solana/kit";
 import {
   createRpc,
-  depositInstruction,
-  findAccessPassPda,
+  depositWithPassportInstruction,
+  findPassportPda,
   shortFingerprint,
   toHex,
 } from "@stelehq/protocol";
@@ -478,13 +478,13 @@ function GateDemo({
   };
 
   async function sendDeposit(investor: DemoWallet, passOwner: string): Promise<DepositResult> {
-    const document = address(session!.document);
-    const [accessPass] = await findAccessPassPda(document, address(passOwner));
-    const ix = depositInstruction({
+    // Gate v3: the vault reads the pass owner's Stele passport (one account for every document).
+    const [passport] = await findPassportPda(address(passOwner));
+    const ix = depositWithPassportInstruction({
       investor: address(investor.address),
       vault: address(session!.vault!),
       policy: address(session!.policy!),
-      accessPass,
+      passport,
       amount: DEPOSIT,
     });
     const { value: blockhash } = await rpc!.getLatestBlockhash({ commitment: "confirmed" }).send();
@@ -725,7 +725,9 @@ function GateDemo({
     );
   }
 
-  const receiptId = access?.pass ? toHex(access.pass.acceptanceId) : null;
+  const receiptId =
+    gate.lastAcceptance?.acceptanceId ?? (access?.pass ? toHex(access.pass.acceptanceId) : null);
+  const acceptedVersion = access?.passportEntry?.versionNumber ?? access?.pass?.versionNumber;
   const finale = chapter >= CHAPTERS.length;
   const current = CHAPTERS[chapter];
   const outcome = outcomes[chapter];
@@ -984,9 +986,9 @@ function GateDemo({
               {!access ? (
                 <StatusBadge tone="neutral">Checking</StatusBadge>
               ) : access.status === "VALID" ? (
-                <StatusBadge tone="success">Valid · v{access.pass?.versionNumber}</StatusBadge>
+                <StatusBadge tone="success">Valid · v{acceptedVersion}</StatusBadge>
               ) : access.status === "OUTDATED" ? (
-                <StatusBadge tone="warning">Outdated · v{access.pass?.versionNumber}</StatusBadge>
+                <StatusBadge tone="warning">Outdated · v{acceptedVersion}</StatusBadge>
               ) : (
                 <StatusBadge tone="neutral">Missing</StatusBadge>
               )}
