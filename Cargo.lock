@@ -4231,7 +4231,7 @@ dependencies = [
 
 [[package]]
 name = "stele-gate"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "anchor-lang",
  "stele",
