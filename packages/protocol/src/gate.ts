@@ -17,8 +17,12 @@ import {
 import {
   decodeAccessPass,
   decodeGatePolicy,
+  decodePassport,
+  passportEntry,
   type AccessPassAccount,
   type GatePolicyAccount,
+  type PassportAccount,
+  type PassportEntry,
 } from "./accounts";
 import { BorshReader, BorshWriter } from "./borsh";
 import { fetchManyAccountData, type SteleRpc } from "./client";
@@ -26,7 +30,7 @@ import { bytesEqual, fromBase64, utf8 } from "./encoding";
 import { ProtocolError } from "./errors";
 import { anchorDiscriminator } from "./hash";
 import { SYSTEM_PROGRAM_ADDRESS } from "./instructions";
-import { findAccessPassPda } from "./pda";
+import { findAccessPassPda, findPassportPda } from "./pda";
 
 export type AccessStatus = "MISSING" | "OUTDATED" | "VALID";
 
@@ -39,6 +43,11 @@ export interface AccessEvaluation {
   pass: AccessPassAccount | null;
   /** The version number the policy requires (a later accepted version also satisfies it). */
   requiredVersion: number;
+  /** The holder's passport address and its entry for the policy's document (Gate v3). */
+  passport?: Address;
+  passportEntry?: PassportEntry | null;
+  /** Which account satisfies (or comes closest to satisfying) the policy. */
+  storage?: "pass" | "passport" | null;
 }
 
 /** The rule of `stele_gate::require_current`, applied to already-fetched accounts. */
@@ -76,7 +85,29 @@ export function evaluateAccess(i: {
   return { ...base, status: "VALID" };
 }
 
-/** Reads a policy and the holder's pass from Solana and evaluates the requirement. */
+/** The rule of `stele_gate::require_current_passport`, applied to an already-fetched passport. */
+export function evaluatePassport(i: {
+  policyAccount: GatePolicyAccount;
+  holder: Address;
+  passport: PassportAccount | null;
+}): { status: AccessStatus; entry: PassportEntry | null } {
+  const entry =
+    i.passport && i.passport.holder === i.holder
+      ? passportEntry(i.passport, i.policyAccount.document)
+      : null;
+  if (!entry) return { status: "MISSING", entry: null };
+  return {
+    status: entry.versionNumber >= i.policyAccount.requiredVersion ? "VALID" : "OUTDATED",
+    entry,
+  };
+}
+
+const RANK: Record<AccessStatus, number> = { MISSING: 0, OUTDATED: 1, VALID: 2 };
+
+/**
+ * Reads a policy, the holder's access pass and the holder's passport from Solana and evaluates
+ * the requirement: VALID if either satisfies it (the passport is preferred).
+ */
 export async function readAccess(
   rpc: SteleRpc,
   i: { policy: Address; holder: Address; programAddress?: Address },
@@ -85,10 +116,40 @@ export async function readAccess(
   if (!policyData) throw new ProtocolError("DECODE_ERROR", `policy ${i.policy} not found`);
   const policyAccount = decodeGatePolicy(policyData);
   const [accessPass] = await findAccessPassPda(policyAccount.document, i.holder, i.programAddress);
-  const [passData] = await fetchManyAccountData(rpc, [accessPass]);
+  const [passport] = await findPassportPda(i.holder, i.programAddress);
+  const [passData, passportData] = await fetchManyAccountData(rpc, [accessPass, passport]);
   const pass = passData && passData.length > 0 ? decodeAccessPass(passData) : null;
+  let decodedPassport: PassportAccount | null;
+  try {
+    decodedPassport = passportData && passportData.length > 0 ? decodePassport(passportData) : null;
+  } catch {
+    decodedPassport = null;
+  }
+  const byPass = evaluateAccess({
+    policy: i.policy,
+    policyAccount,
+    holder: i.holder,
+    accessPass,
+    pass,
+  });
+  const byPassport = evaluatePassport({
+    policyAccount,
+    holder: i.holder,
+    passport: decodedPassport,
+  });
+  const status = RANK[byPassport.status] >= RANK[byPass.status] ? byPassport.status : byPass.status;
+  const storage =
+    status === "MISSING"
+      ? null
+      : RANK[byPassport.status] >= RANK[byPass.status]
+        ? "passport"
+        : "pass";
   return {
-    ...evaluateAccess({ policy: i.policy, policyAccount, holder: i.holder, accessPass, pass }),
+    ...byPass,
+    status,
+    passport,
+    passportEntry: byPassport.entry,
+    storage,
     policyAccount,
   };
 }
@@ -193,6 +254,29 @@ export function depositInstruction(i: {
       { address: i.vault, role: AccountRole.WRITABLE },
       { address: i.policy, role: AccountRole.READONLY },
       { address: i.accessPass, role: AccountRole.READONLY },
+    ],
+    (w) => w.u64(i.amount),
+    i.programAddress,
+  );
+}
+
+/** `deposit_with_passport(amount)` of the demo vault: admitted by the investor's passport. */
+export function depositWithPassportInstruction(i: {
+  investor: Address;
+  vault: Address;
+  policy: Address;
+  passport: Address;
+  /** Demo USDC base units (6 decimals). */
+  amount: bigint | number;
+  programAddress?: Address;
+}): Instruction {
+  return demoInstruction(
+    "deposit_with_passport",
+    [
+      { address: i.investor, role: AccountRole.READONLY_SIGNER },
+      { address: i.vault, role: AccountRole.WRITABLE },
+      { address: i.policy, role: AccountRole.READONLY },
+      { address: i.passport, role: AccountRole.READONLY },
     ],
     (w) => w.u64(i.amount),
     i.programAddress,
