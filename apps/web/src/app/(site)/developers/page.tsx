@@ -17,12 +17,12 @@ export const metadata: Metadata = {
  */
 const PLACEHOLDERS = ["acme.com", "terms-of-service", "YOUR_POLICY_ADDRESS"];
 
-const GATE_RUST = `// Cargo.toml: stele-gate = "1"
+const GATE_RUST = `// Cargo.toml: stele-gate = "1.1"
 pub const POLICY: Pubkey = pubkey!("YOUR_POLICY_ADDRESS");
 
 pub fn deposit(ctx: Context<Deposit>, amount: u64) -> Result<()> {
-    stele_gate::require_current(
-        &ctx.accounts.access_pass,
+    stele_gate::require_current_passport(
+        &ctx.accounts.passport, // stele_gate::passport_address(user).0
         &ctx.accounts.policy, // #[account(address = POLICY)]
         &ctx.accounts.user,
     )?;
@@ -190,7 +190,7 @@ export default async function DevelopersPage() {
             tagline="Make your program require the current terms"
             steps={[
               "Create a policy: which document and version an action needs.",
-              "Call require_current() in your Solana program.",
+              "Call require_current_passport() in your Solana program.",
               "Wrap the action with gate() in your app: Accept & Continue.",
             ]}
             guide={{ href: "/docs/gate-guide", label: "Gate guide — step by step" }}

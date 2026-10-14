@@ -2,8 +2,9 @@
 
 /**
  * Integration code for Stele Gate. Every sample is the real API: @stelehq/sdk (createSteleGate),
- * @stelehq/protocol (findAccessPassPda, findPolicyPda) and the stele-gate crate (require_current), as
- * used by the Atlas vault demo in programs/gate-demo and its tests in programs/stele/tests/gate.rs.
+ * @stelehq/protocol (findPassportPda, findPolicyPda) and the stele-gate crate
+ * (require_current_passport), as used by the Atlas vault demo in programs/gate-demo and its tests in
+ * programs/stele/tests/passport.rs.
  */
 import { useState } from "react";
 import { CodeBlock, Tabs, cn } from "@stele/ui";
@@ -23,32 +24,32 @@ const stele = createSteleGate({
   },
 });
 
-// Shows the Stele modal only if the investor's AccessPass is missing or
-// outdated, records the acceptance, then sends the deposit.
+// Shows the Stele modal only if the investor's passport has no current entry
+// for the policy's document, records the acceptance, then sends the deposit.
 const signature = await stele.gate({
   policy: OFFERING_TERMS_POLICY, // the policy address your program pins
   action: () => sendDepositTransaction(5_000_000_000n),
   acceptLabel: "Accept & Deposit",
 });`;
 
-const ONCHAIN = `// Cargo.toml: stele-gate = "1"   (crates.io/crates/stele-gate)
-use stele_gate::require_current;
+const ONCHAIN = `// Cargo.toml: stele-gate = "1.1"   (crates.io/crates/stele-gate)
+use stele_gate::require_current_passport;
 
 #[derive(Accounts)]
 pub struct Deposit<'info> {
     pub investor: Signer<'info>,
     #[account(mut, seeds = [b"vault", vault.policy.as_ref()], bump = vault.bump)]
     pub vault: Account<'info, Vault>,
-    /// CHECK: pinned to the vault's policy; verified by require_current
+    /// CHECK: pinned to the vault's policy; verified by require_current_passport
     #[account(address = vault.policy)]
     pub policy: UncheckedAccount<'info>,
-    /// CHECK: verified by require_current
-    pub access_pass: UncheckedAccount<'info>,
+    /// CHECK: the investor's Stele passport; verified by require_current_passport
+    pub passport: UncheckedAccount<'info>,
 }
 
 pub fn deposit(ctx: Context<Deposit>, amount: u64) -> Result<()> {
-    require_current(
-        &ctx.accounts.access_pass,
+    require_current_passport(
+        &ctx.accounts.passport,
         &ctx.accounts.policy,
         &ctx.accounts.investor,
     )?;
@@ -56,39 +57,39 @@ pub fn deposit(ctx: Context<Deposit>, amount: u64) -> Result<()> {
     Ok(())
 }`;
 
-const FLOW = `import { depositInstruction, findAccessPassPda, findPolicyPda } from "@stelehq/protocol";
+const FLOW = `import { depositWithPassportInstruction, findPassportPda, findPolicyPda } from "@stelehq/protocol";
 
-// The policy of your offering terms, and the investor's AccessPass.
+// The policy of your offering terms, and the investor's passport (one per wallet).
 const [policy] = await findPolicyPda(offeringTermsDocument);
-const [accessPass] = await findAccessPassPda(offeringTermsDocument, investor);
+const [passport] = await findPassportPda(investor);
 
 await stele.gate({
   policy,
   acceptLabel: "Accept & Deposit",
   action: async () => {
     // Transaction 2 (after the acceptance transaction, when one was needed):
-    const ix = depositInstruction({ investor, vault, policy, accessPass, amount: 5_000_000_000n });
+    const ix = depositWithPassportInstruction({ investor, vault, policy, passport, amount: 5_000_000_000n });
     return sendAndConfirm([ix]);
   },
 });
 
 // Without the SDK — a script or the CLI — the program still decides:
-//   no pass → AccessPassMissing · older version → AccessPassOutdated
-//   someone else's pass → AccessPassMismatch · another policy → WrongPolicy`;
+//   no entry → AccessPassMissing · older version → AccessPassOutdated
+//   someone else's passport → AccessPassMismatch · another policy → WrongPolicy`;
 
-const TESTING = `// programs/stele/tests/gate.rs — LiteSVM with the real program binaries
-// 1. No pass: a direct call to deposit() fails on-chain.
+const TESTING = `// programs/stele/tests/passport.rs — LiteSVM with the real program binaries
+// 1. Nothing accepted: a direct call to deposit() fails on-chain.
 assert_custom(
-    &deposit(&mut env, &investor, &v, &policy, &my_pass),
+    &deposit(&mut env, &investor, &t, &passport).0,
     gate_err(GateError::AccessPassMissing),
 );
-// 2. Accept v1 (records the Proof acceptance and creates the pass).
-assert_ok(&accept_gated(&mut env, &investor, &t, &a));
-assert_ok(&deposit(&mut env, &investor, &v, &policy, &my_pass));
-// 3. The organization requires v2: the v1 pass is outdated.
-assert_ok(&require_version(&mut env, &owner, &t, &v2));
+// 2. Accept v1 (records the Proof acceptance and the passport entry).
+assert_ok(&accept_into_passport(&mut env, &investor, &payer, &t, &a).0);
+assert_ok(&deposit(&mut env, &investor, &t, &passport).0);
+// 3. The organization requires v2: the v1 entry is outdated.
+assert_ok(&env.send(&[require_version_ix(&owner.pubkey(), &t)], &owner, &[]));
 assert_custom(
-    &deposit(&mut env, &investor, &v, &policy, &my_pass),
+    &deposit(&mut env, &investor, &t, &passport).0,
     gate_err(GateError::AccessPassOutdated),
 );
 
@@ -102,7 +103,7 @@ const SAMPLES: Record<Tab, { code: string; language: string }> = {
   testing: { code: TESTING, language: "rust" },
 };
 
-const FLOW_STEPS = ["deposit()", "check AccessPass", "modal if required", "accept", "continue"];
+const FLOW_STEPS = ["deposit()", "check passport", "modal if required", "accept", "continue"];
 
 export function DevTabs() {
   const [tab, setTab] = useState<Tab>("frontend");

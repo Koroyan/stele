@@ -101,10 +101,10 @@ function groups(origin: string): RefGroup[] {
 }): Promise<T>`,
           description: (
             <>
-              If the wallet&apos;s AccessPass is current, runs{" "}
+              If the wallet&apos;s passport (or access pass) is current, runs{" "}
               <code className="font-mono">action</code> right away. Otherwise shows the exact
-              required text, records the acceptance (free for the user), waits until the pass is on
-              Solana, then runs it. Closing the window throws{" "}
+              required text, records the acceptance (free for the user), waits until it is visible
+              on Solana, then runs it. Closing the window throws{" "}
               <code className="font-mono">GateCancelledError</code> and nothing runs.
             </>
           ),
@@ -118,7 +118,8 @@ function groups(origin: string): RefGroup[] {
           name: "stele.check(policy, wallet)",
           kind: "method",
           signature: `check(policy: string, holder: string): Promise<AccessCheck>
-// { status: "VALID" | "MISSING" | "OUTDATED", requiredVersion, accessPass, pass, document }`,
+// { status: "VALID" | "MISSING" | "OUTDATED", requiredVersion, storage: "passport" | "pass",
+//   gateAccount, passport, passportEntry, accessPass, pass, document }`,
           description:
             "The wallet's status without prompting — for your interface (badges, disabled buttons). The same data is at GET /v1/public/gate/access.",
         },
