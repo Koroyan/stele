@@ -22,9 +22,11 @@ import {
 import {
   GATE_DEMO_PROGRAM_ADDRESS,
   depositInstruction,
+  depositWithPassportInstruction,
   describeProgramError,
   explainGateFailure,
   findAccessPassPda,
+  findPassportPda,
   findVaultPda,
   readAccess,
 } from "@stelehq/protocol";
@@ -146,6 +148,11 @@ export interface AccessView {
     acceptedAt: number;
     acceptanceCount: number;
   } | null;
+  /** Gate v3: the holder's passport and its entry for the policy's document. */
+  passport: string | null;
+  passportEntry: { versionNumber: number; acceptedAt: number } | null;
+  /** Which account satisfies (or comes closest to satisfying) the policy. */
+  storage: "pass" | "passport" | null;
 }
 
 /** Reads a policy and the holder's pass from Solana (UX only: enforcement is on-chain). */
@@ -175,6 +182,14 @@ export async function accessStatus(
           acceptanceCount: e.pass.acceptanceCount,
         }
       : null,
+    passport: e.passport ?? null,
+    passportEntry: e.passportEntry
+      ? {
+          versionNumber: e.passportEntry.versionNumber,
+          acceptedAt: Number(e.passportEntry.acceptedAt),
+        }
+      : null,
+    storage: e.storage ?? null,
   };
 }
 
@@ -498,20 +513,41 @@ export async function runProbes(deps: Deps, organizationId: string, programId: s
   const demo =
     vault !== null &&
     (await deps.chain.rpc.getAccountInfo(vault, { encoding: "base64" }).send()).value !== null;
+  const [org] = await deps.db
+    .select({ settings: organizations.settings })
+    .from(organizations)
+    .where(eq(organizations.id, organizationId));
+  const storage: "pass" | "passport" =
+    (org?.settings.gateStorage ?? "passport") === "pass" ? "pass" : "passport";
+  /** The account `holder` would present: their passport (Gate v3) or their AccessPass. */
   const passOf = async (holder: Address) =>
-    (await findAccessPassPda(address(d.address), holder, deps.chain.programAddress))[0];
+    storage === "passport"
+      ? (await findPassportPda(holder, deps.chain.programAddress))[0]
+      : (await findAccessPassPda(address(d.address), holder, deps.chain.programAddress))[0];
 
-  /** Runs one scenario: `holder` presents `pass`. */
-  const probe = async (holder: Address, pass: Address): Promise<Simulation> => {
+  /** Runs one scenario: `holder` presents `pass` (an AccessPass or a passport, per `kind`). */
+  const probe = async (
+    holder: Address,
+    pass: Address,
+    kind: string = storage,
+  ): Promise<Simulation> => {
     if (demo) {
       return simulate(deps, [
-        depositInstruction({
-          investor: holder,
-          vault: vault!,
-          policy,
-          accessPass: pass,
-          amount: 1,
-        }),
+        kind === "passport"
+          ? depositWithPassportInstruction({
+              investor: holder,
+              vault: vault!,
+              policy,
+              passport: pass,
+              amount: 1,
+            })
+          : depositInstruction({
+              investor: holder,
+              vault: vault!,
+              policy,
+              accessPass: pass,
+              amount: 1,
+            }),
       ]);
     }
     const e = await readAccess(deps.chain.rpc, {
@@ -519,7 +555,7 @@ export async function runProbes(deps: Deps, organizationId: string, programId: s
       holder,
       programAddress: deps.chain.programAddress,
     });
-    const presentedOwn = pass === e.accessPass;
+    const presentedOwn = pass === e.accessPass || pass === e.passport;
     const ok = presentedOwn && e.status === "VALID";
     return {
       ok,
@@ -556,7 +592,9 @@ export async function runProbes(deps: Deps, organizationId: string, programId: s
       label: `Current AccessPass → ${subject}`,
       expect: "allow" as const,
       reason: null,
-      run: current ? async () => probe(address(current.holder), address(current.address)) : null,
+      run: current
+        ? async () => probe(address(current.holder), address(current.address), current.storage)
+        : null,
       skip: "No wallet has accepted the required version yet",
     },
     {
@@ -564,7 +602,9 @@ export async function runProbes(deps: Deps, organizationId: string, programId: s
       label: `AccessPass for an older version → ${subject}`,
       expect: "reject" as const,
       reason: "AccessPassOutdated",
-      run: outdated ? async () => probe(address(outdated.holder), address(outdated.address)) : null,
+      run: outdated
+        ? async () => probe(address(outdated.holder), address(outdated.address), outdated.storage)
+        : null,
       skip: "No pass for an older version exists (require a newer version to create one)",
     },
     {
@@ -572,7 +612,9 @@ export async function runProbes(deps: Deps, organizationId: string, programId: s
       label: `Direct call with someone else's AccessPass → ${subject}`,
       expect: "reject" as const,
       reason: "AccessPassMismatch",
-      run: passes[0] ? async () => probe(stranger, address(passes[0]!.address)) : null,
+      run: passes[0]
+        ? async () => probe(stranger, address(passes[0]!.address), passes[0]!.storage)
+        : null,
       skip: "No access pass exists yet",
     },
   ];

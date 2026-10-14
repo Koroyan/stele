@@ -182,9 +182,13 @@ async function demoOrganization(deps: Deps) {
     .from(organizations)
     .where(eq(organizations.address, deps.config.STELE_DEMO_ORGANIZATION!));
   if (!org) throw new ApiError(503, "demo_unavailable", "The demo organization is not indexed yet");
-  // The demo shows both ways to sign: a wallet, or a passkey (no wallet at all).
-  if (org.settings?.signingPolicy !== "WALLET_OR_PASSKEY") {
-    org.settings = { ...org.settings, signingPolicy: "WALLET_OR_PASSKEY" };
+  // The demo shows both ways to sign (a wallet, or a passkey with no wallet at all) and records
+  // Gate acceptances into passports (Gate v3).
+  if (
+    org.settings?.signingPolicy !== "WALLET_OR_PASSKEY" ||
+    org.settings?.gateStorage !== "passport"
+  ) {
+    org.settings = { ...org.settings, signingPolicy: "WALLET_OR_PASSKEY", gateStorage: "passport" };
     await deps.db
       .update(organizations)
       .set({ settings: org.settings })
@@ -312,7 +316,11 @@ export async function createDemoSession(deps: Deps, i: { kind: Kind; ipHash: str
   if ((await sessionsToday(deps)) >= deps.config.STELE_DEMO_DAILY_SESSIONS)
     throw new ApiError(429, "demo_budget_exhausted", "Today's live-demo budget is used up");
   if ((await sessionsToday(deps, i.ipHash)) >= deps.config.STELE_DEMO_SESSIONS_PER_IP)
-    throw new ApiError(429, "demo_rate_limited", "Demo limit reached for your network today. Try again tomorrow — or open any receipt from an earlier run on the Verify page");
+    throw new ApiError(
+      429,
+      "demo_rate_limited",
+      "Demo limit reached for your network today. Try again tomorrow — or open any receipt from an earlier run on the Verify page",
+    );
 
   const org = await demoOrganization(deps);
   const signer = await owner(deps);
@@ -488,7 +496,12 @@ export async function relayDemoDeposit(deps: Deps, token: string, wireBase64: st
   const dep = ixs[ixs.length - 1];
   if (!dep || dep.programId !== GATE_DEMO_PROGRAM_ADDRESS)
     fail("the last instruction must be a vault deposit");
-  if (!bytesEqual(dep!.data.subarray(0, 8), anchorDiscriminator("global", "deposit")))
+  // `deposit` (per-document AccessPass) or `deposit_with_passport` (Gate v3); nothing else.
+  const head = dep!.data.subarray(0, 8);
+  if (
+    !bytesEqual(head, anchorDiscriminator("global", "deposit")) &&
+    !bytesEqual(head, anchorDiscriminator("global", "deposit_with_passport"))
+  )
     fail("only deposit is relayed");
   if (
     dep!.accounts[0] !== investor ||
