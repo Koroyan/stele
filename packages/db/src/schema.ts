@@ -111,6 +111,11 @@ export interface OrganizationSettings {
    * (acceptance session with externalUserRef required).
    */
   signingPolicy?: SigningPolicy;
+  /**
+   * Where Stele Gate records a wallet's acceptance: "passport" (Gate v3, default: one account per
+   * wallet for every document) or "pass" (Gate v2: one AccessPass per document and wallet).
+   */
+  gateStorage?: "passport" | "pass";
   /** Who pays network fees: Stele's relayer (quota) or the organization's sponsored shard. */
   feeSponsor?: "stele" | "organization";
   /** When the organization's sponsorship cannot pay, Stele may pay within its quota. */
@@ -1006,8 +1011,15 @@ export const accessPasses = pgTable(
     documentId: uuid("document_id")
       .notNull()
       .references(() => documents.id, { onDelete: "cascade" }),
-    /** The pass account address. */
-    address: text("address").notNull().unique(),
+    /**
+     * The account that holds the holder's Gate state for this document: their AccessPass, or
+     * their passport (one passport covers many documents, so the address is not unique here).
+     */
+    address: text("address").notNull(),
+    /** "pass" (per-document AccessPass, Gate v2) or "passport" (Gate v3). */
+    storage: text("storage").notNull().default("pass"),
+    /** Passport entries: who paid the deposit (refunded to them on removal). */
+    depositPayer: text("deposit_payer"),
     holder: text("holder").notNull(),
     versionAddress: text("version_address").notNull(),
     versionNumber: integer("version_number").notNull(),

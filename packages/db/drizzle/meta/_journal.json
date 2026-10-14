@@ -71,6 +71,13 @@
       "when": 1791928403675,
       "tag": "0009_signer_audit_trail",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1792017893992,
+      "tag": "0010_gate_passports",
+      "breakpoints": true
     }
   ]
 }
