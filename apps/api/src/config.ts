@@ -149,7 +149,9 @@ export type Config = z.infer<typeof schema> & {
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   // Compose passes unset variables as "": treat them as absent.
-  const parsed = schema.safeParse(Object.fromEntries(Object.entries(env).filter(([, v]) => v !== "")));
+  const parsed = schema.safeParse(
+    Object.fromEntries(Object.entries(env).filter(([, v]) => v !== "")),
+  );
   if (!parsed.success) {
     const issues = parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
     throw new Error(`invalid configuration: ${issues}`);
