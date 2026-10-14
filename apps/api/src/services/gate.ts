@@ -349,6 +349,8 @@ export async function listAccessPasses(
     passes: rows.map(({ p, d, g }) => ({
       address: p.address,
       holder: p.holder,
+      storage: p.storage,
+      depositPayer: p.depositPayer,
       document: { id: d.id, address: d.address, slug: d.slug },
       versionAddress: p.versionAddress,
       versionNumber: p.versionNumber,
