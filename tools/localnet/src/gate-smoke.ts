@@ -120,11 +120,15 @@ async function deposit(investor: KeyPairSigner, passOwner: Address) {
       ),
   );
   const tx = await partiallySignTransaction([investor.keyPair], compileTransaction(message));
-  return call<{ ok: boolean; signature: string; failure: { name: string } | null }>(
-    "POST",
-    "/v1/demo/sessions/deposit",
-    { token: session.token, transaction: getBase64EncodedWireTransaction(tx) },
-  );
+  return call<{
+    ok: boolean;
+    signature: string;
+    failure: { name: string } | null;
+    deposit: { termsVersionNumber: number; depositCount: number } | null;
+  }>("POST", "/v1/demo/sessions/deposit", {
+    token: session.token,
+    transaction: getBase64EncodedWireTransaction(tx),
+  });
 }
 
 let failures = 0;
@@ -149,8 +153,10 @@ expect(
 r = await deposit(investor, investor.address);
 expect(
   "deposit with the v1 entry",
-  r.ok,
-  r.ok ? `allowed (tx ${r.signature.slice(0, 12)}…)` : r.failure!.name,
+  r.ok && r.deposit?.termsVersionNumber === 1 && r.deposit.depositCount === 1,
+  r.ok
+    ? `allowed under v${r.deposit?.termsVersionNumber}, deposit #${r.deposit?.depositCount} (tx ${r.signature.slice(0, 12)}…)`
+    : r.failure!.name,
 );
 
 await call("POST", "/v1/demo/sessions/publish", { token: session.token });
@@ -165,7 +171,11 @@ expect("deposit with the outdated v1 entry", !r.ok, r.failure?.name ?? "ALLOWED"
 
 await accept(investor);
 r = await deposit(investor, investor.address);
-expect("deposit after accepting v2", r.ok, r.ok ? "allowed" : r.failure!.name);
+expect(
+  "deposit after accepting v2",
+  r.ok && r.deposit?.termsVersionNumber === 2,
+  r.ok ? `allowed under v${r.deposit?.termsVersionNumber}` : r.failure!.name,
+);
 
 r = await deposit(mallory, investor.address);
 expect("direct call with someone else's passport", !r.ok, r.failure?.name ?? "ALLOWED");
