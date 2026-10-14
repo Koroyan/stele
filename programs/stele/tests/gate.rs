@@ -372,7 +372,11 @@ fn a_wallet_cannot_record_the_same_version_twice() {
     );
     let p = pass(&env, &t.document, &user.pubkey());
     assert_eq!((p.version_number, p.acceptance_count), (1, 1));
-    assert_eq!(env.shard(&t.shard).accepted_count, 1, "nothing recorded twice");
+    assert_eq!(
+        env.shard(&t.shard).accepted_count,
+        1,
+        "nothing recorded twice"
+    );
 }
 
 #[test]
