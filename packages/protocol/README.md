@@ -9,20 +9,26 @@ npm install @stelehq/protocol
 ```
 
 Everything needed to work **without Stele's servers** is here — for example to read a wallet's
-AccessPass straight from Solana:
+Stele Gate status straight from Solana:
 
 ```ts
-import { createRpc, decodeAccessPass, decodeGatePolicy, fetchAccountData, findAccessPassPda } from "@stelehq/protocol";
+import { createRpc, readAccess } from "@stelehq/protocol";
 
 const rpc = createRpc("https://api.devnet.solana.com");
+const access = await readAccess(rpc, { policy: POLICY, holder: wallet });
+// access.status: "VALID" | "MISSING" | "OUTDATED"; access.storage: "passport" | "pass"
+```
+
+or by hand, from the wallet's passport (one account per wallet, an entry per document):
+
+```ts
+import { decodeGatePolicy, decodePassport, fetchAccountData, findPassportPda, passportEntry } from "@stelehq/protocol";
+
 const policy = decodeGatePolicy((await fetchAccountData(rpc, POLICY))!);
-const [pass] = await findAccessPassPda(policy.document, wallet);
-const data = await fetchAccountData(rpc, pass);
-const status = !data
-  ? "MISSING"
-  : decodeAccessPass(data).versionNumber >= policy.requiredVersion
-    ? "VALID"
-    : "OUTDATED";
+const [passport] = await findPassportPda(wallet);
+const data = await fetchAccountData(rpc, passport);
+const entry = data ? passportEntry(decodePassport(data), policy.document) : null;
+const status = !entry ? "MISSING" : entry.versionNumber >= policy.requiredVersion ? "VALID" : "OUTDATED";
 ```
 
 Most apps use [`@stelehq/sdk`](https://www.npmjs.com/package/@stelehq/sdk) instead, which builds on

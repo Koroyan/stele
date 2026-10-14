@@ -35,7 +35,11 @@ await stele.gate({
 ```
 
 Your Solana program enforces the same rule with the
-[`stele-gate`](https://crates.io/crates/stele-gate) crate: `stele_gate::require_current(...)`.
+[`stele-gate`](https://crates.io/crates/stele-gate) crate:
+`stele_gate::require_current_passport(&passport, &policy, &user)` — the passport is one Stele
+account per wallet (`findPassportPda(wallet)` in `@stelehq/protocol`). `stele.check(policy, wallet)`
+reports the wallet's status from its passport or, for organizations on per-document storage, its
+access pass.
 
 ## Stele Proof: accept any document
 
