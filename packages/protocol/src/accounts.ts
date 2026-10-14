@@ -20,6 +20,7 @@ export const ACCOUNT_NAMES = [
   "PasskeySigner",
   "AccessPass",
   "GatePolicy",
+  "Passport",
 ] as const;
 export type AccountName = (typeof ACCOUNT_NAMES)[number];
 
@@ -422,6 +423,53 @@ export function decodeAccessPass(data: Uint8Array): AccessPassAccount {
     acceptanceCount: r.u32(),
     bump: r.u8(),
   };
+}
+
+/** Passport layout (programs/stele/src/instructions/passport.rs). */
+export const PASSPORT_HEADER_LEN = 77;
+export const PASSPORT_ENTRY_LEN = 76;
+
+/** One document in a passport. */
+export interface PassportEntry {
+  document: Address;
+  versionNumber: number;
+  acceptedAt: bigint;
+  /** Who paid this entry's deposit (refunded to them when the entry is removed). */
+  payer: Address;
+}
+
+/** Stele Gate: every document a wallet accepted, in one account (PROTOCOL_SPEC.md §18.8). */
+export interface PassportAccount {
+  holder: Address;
+  bump: number;
+  /** Who paid the header's deposit (refunded when the passport is closed). */
+  basePayer: Address;
+  /** Sorted by document address bytes. */
+  entries: PassportEntry[];
+}
+
+export function decodePassport(data: Uint8Array): PassportAccount {
+  const r = reader(data, "Passport");
+  const holder = r.address();
+  const count = r.u32();
+  const bump = r.u8();
+  const basePayer = r.address();
+  if (data.length !== PASSPORT_HEADER_LEN + count * PASSPORT_ENTRY_LEN)
+    throw new ProtocolError("DECODE_ERROR", "passport length does not match its entry count");
+  const entries: PassportEntry[] = [];
+  for (let i = 0; i < count; i++)
+    entries.push({
+      document: r.address(),
+      versionNumber: r.u32(),
+      acceptedAt: r.i64(),
+      payer: r.address(),
+    });
+  return { holder, bump, basePayer, entries };
+}
+
+/** The passport's entry for `document`, if any. */
+export function passportEntry(passport: PassportAccount, document: Address): PassportEntry | null {
+  return passport.entries.find((e) => e.document === document) ?? null;
 }
 
 /** Size of a GatePolicy account (programs/stele/src/state.rs). */

@@ -131,6 +131,14 @@ export const PROGRAM_ERRORS = [
   ],
   ["PolicyMismatch", "The policy does not belong to this document"],
   ["AccessPassAlreadyCurrent", "This wallet has already accepted this version"],
+  ["PassportMismatch", "The passport does not belong to this holder or is malformed"],
+  ["PassportEntryMissing", "The passport has no entry for this document"],
+  ["PassportUnauthorized", "Only the holder or the deposit's payer can release a passport deposit"],
+  ["PassportRefundMismatch", "A deposit can only be refunded to the account that paid it"],
+  [
+    "PassportHasOtherDeposits",
+    "Remove the entries other payers deposited for before closing the passport",
+  ],
 ] as const;
 
 export type ProgramErrorName = (typeof PROGRAM_ERRORS)[number][0];

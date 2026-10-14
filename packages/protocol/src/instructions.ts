@@ -65,6 +65,9 @@ export const INSTRUCTION_NAMES = [
   "record_gated_acceptance",
   "create_policy",
   "set_policy_requirement",
+  "record_passport_acceptance",
+  "remove_passport_entry",
+  "close_passport",
 ] as const;
 export type InstructionName = (typeof INSTRUCTION_NAMES)[number];
 
@@ -611,6 +614,70 @@ export function recordGatedAcceptanceInstruction(
 }
 
 /**
+ * Stele Gate: records a wallet's acceptance exactly like `record_acceptance` and adds or advances
+ * the document's entry in the signer's passport (PROTOCOL_SPEC.md §18.8). `passport` and
+ * `passportBump` come from `findPassportPda(signer)`; `rentPayer` pays any new deposit and is
+ * recorded as its owner (the investor, or the organization through the relayer).
+ */
+export function recordPassportAcceptanceInstruction(
+  i: Base &
+    RecordAcceptanceArgs & {
+      relayer: SignerInput;
+      rentPayer: SignerInput;
+      config: Address;
+      organization: Address;
+      document: Address;
+      version: Address;
+      nonceShard: Address;
+      passport: Address;
+      passportBump: number;
+    },
+): Instruction {
+  return build(
+    "record_passport_acceptance",
+    [
+      signer(i.relayer, true),
+      signer(i.rentPayer, true),
+      ro(i.config),
+      ro(i.organization),
+      ro(i.document),
+      ro(i.version),
+      rw(i.nonceShard),
+      rw(i.passport),
+      ro(SYSTEM_PROGRAM_ADDRESS),
+      ro(INSTRUCTIONS_SYSVAR_ADDRESS),
+    ],
+    (w) =>
+      w.u32(i.nonceIndex).fixed(i.nonceTag, 8).i64(i.issuedAt).i64(i.expiresAt).u8(i.passportBump),
+    i.programAddress,
+  );
+}
+
+/** Stele Gate: removes one document from a passport; the deposit returns to its payer. */
+export function removePassportEntryInstruction(
+  i: Base & { authority: SignerInput; passport: Address; refundTo: Address; document: Address },
+): Instruction {
+  return build(
+    "remove_passport_entry",
+    [signer(i.authority, false), rw(i.passport), rw(i.refundTo)],
+    (w) => w.address(i.document),
+    i.programAddress,
+  );
+}
+
+/** Stele Gate: closes a passport; everything returns to the base payer. */
+export function closePassportInstruction(
+  i: Base & { authority: SignerInput; passport: Address; refundTo: Address },
+): Instruction {
+  return build(
+    "close_passport",
+    [signer(i.authority, false), rw(i.passport), rw(i.refundTo)],
+    () => undefined,
+    i.programAddress,
+  );
+}
+
+/**
  * Stele Gate: creates the policy of `document`, requiring `version` (PROTOCOL_SPEC.md §18.2).
  * Signed by the organization's owner, an admin or a publisher.
  */
@@ -674,11 +741,16 @@ export function setPolicyRequirementInstruction(
 
 export function decodeRecordAcceptanceArgs(data: Uint8Array): RecordAcceptanceArgs {
   const name = identifyInstruction(data);
-  if (name !== "record_acceptance" && name !== "record_gated_acceptance")
+  if (
+    name !== "record_acceptance" &&
+    name !== "record_gated_acceptance" &&
+    name !== "record_passport_acceptance"
+  )
     throw new ProtocolError("DECODE_ERROR", "not a record_acceptance instruction");
   const r = new BorshReader(data);
   r.bytes(8);
   const out = { nonceIndex: r.u32(), nonceTag: r.bytes(8), issuedAt: r.i64(), expiresAt: r.i64() };
+  if (name === "record_passport_acceptance") r.u8(); // passport bump
   if (r.remaining !== 0) throw new ProtocolError("DECODE_ERROR", "trailing instruction data");
   return out;
 }

@@ -141,6 +141,23 @@ export interface AccessPassUpdatedEvent {
   created: boolean;
 }
 
+/** Stele Gate: a verified acceptance added or advanced a passport entry. */
+export interface PassportUpdatedEvent {
+  holder: Address;
+  passport: Address;
+  organization: Address;
+  document: Address;
+  version: Address;
+  versionHash: Uint8Array;
+  versionNumber: number;
+  acceptanceId: Uint8Array;
+  acceptedAt: bigint;
+  slot: bigint;
+  depositPayer: Address;
+  passportCreated: boolean;
+  entryCreated: boolean;
+}
+
 /** Stele Gate: a policy was created or its required version changed. */
 export interface PolicyChangedEvent {
   organization: Address;
@@ -159,6 +176,29 @@ export type SteleEvent =
   | { name: "AcceptanceRecorded"; data: AcceptanceRecordedEvent }
   | { name: "AccessPassUpdated"; data: AccessPassUpdatedEvent }
   | { name: "PolicyChanged"; data: PolicyChangedEvent }
+  | { name: "PassportUpdated"; data: PassportUpdatedEvent }
+  | {
+      name: "PassportEntryRemoved";
+      data: {
+        holder: Address;
+        passport: Address;
+        document: Address;
+        removedBy: Address;
+        refundTo: Address;
+        refunded: bigint;
+      };
+    }
+  | {
+      name: "PassportClosed";
+      data: {
+        holder: Address;
+        passport: Address;
+        closedBy: Address;
+        refundTo: Address;
+        entries: number;
+        refunded: bigint;
+      };
+    }
   | { name: "AcceptanceBatchAnchored"; data: AcceptanceBatchAnchoredEvent }
   | { name: "PasskeyAcceptanceRecorded"; data: PasskeyAcceptanceRecordedEvent }
   | { name: "PasskeySignerChanged"; data: PasskeySignerChangedEvent }
@@ -310,6 +350,37 @@ const DECODERS: Record<SteleEvent["name"], Decoder> = {
     versionNumber: r.u32(),
     acceptanceCount: r.u32(),
     created: r.bool(),
+  }),
+  PassportUpdated: (r) => ({
+    holder: r.address(),
+    passport: r.address(),
+    organization: r.address(),
+    document: r.address(),
+    version: r.address(),
+    versionHash: r.bytes(32),
+    versionNumber: r.u32(),
+    acceptanceId: r.bytes(32),
+    acceptedAt: r.i64(),
+    slot: r.u64(),
+    depositPayer: r.address(),
+    passportCreated: r.bool(),
+    entryCreated: r.bool(),
+  }),
+  PassportEntryRemoved: (r) => ({
+    holder: r.address(),
+    passport: r.address(),
+    document: r.address(),
+    removedBy: r.address(),
+    refundTo: r.address(),
+    refunded: r.u64(),
+  }),
+  PassportClosed: (r) => ({
+    holder: r.address(),
+    passport: r.address(),
+    closedBy: r.address(),
+    refundTo: r.address(),
+    entries: r.u32(),
+    refunded: r.u64(),
   }),
   PolicyChanged: (r) => ({
     organization: r.address(),
