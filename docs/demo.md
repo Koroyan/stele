@@ -146,13 +146,13 @@ and kept in memory only; its key never leaves the page.
 | # | Click | Say |
 |---|---|---|
 | 1 | — | "This is a tokenized real-estate vault. Investors must accept the current offering terms before depositing. Not on a website — inside the Solana program." |
-| 2 | **Deposit (through Stele)** | The AccessPass shows *Missing*, so the Stele modal opens with the exact v1 text, its fingerprint checked against Solana. |
-| 3 | **Accept & Deposit** | Transaction 1: the acceptance (the wallet signs a message, Stele pays). Transaction 2: the deposit. Pass → *Valid · v1*; the log shows the deposit transaction. "Two transactions, one click — not atomic, and we don't claim it is." |
-| 4 | **Admin: publish & require the next version** | v2 published and required in one admin transaction. Pass → *Outdated · v1*. "The old acceptance is still on record; it just isn't enough any more." |
+| 2 | **Deposit (through Stele)** | The passport shows *Missing*, so the Stele modal opens with the exact v1 text, its fingerprint checked against Solana. |
+| 3 | **Accept & Deposit** | Transaction 1: the acceptance (the wallet signs a message, Stele pays). Transaction 2: the deposit. Passport → *Valid · v1*; the log shows the deposit transaction. "Two transactions, one click — not atomic, and we don't claim it is." |
+| 4 | **Admin: publish & require the next version** | v2 published and required in one admin transaction. Passport → *Outdated · v1*. "The old acceptance is still on record; it just isn't enough any more." |
 | 5 | **Direct call (no SDK)** | The deposit is sent without the modal: it fails on-chain with `AccessPassOutdated`. Open the transaction in the explorer. |
-| 6 | **Deposit (through Stele)** → **Accept & Deposit** | The modal shows v2. Pass → *Valid · v2*; the deposit succeeds. |
-| 7 | **Script: wallet without a pass** and **Script: reuse your pass from another wallet** | Both fail on-chain: `AccessPassMissing`, `AccessPassMismatch`. "The frontend is optional. The program check is not." |
-| 8 | Scroll to **The integration: one call** | `require_current(&pass, &policy, &user)?` — the whole integration in the program. Optionally run the CLI line shown under it against the local validator. |
+| 6 | **Deposit (through Stele)** → **Accept & Deposit** | The modal shows v2. Passport → *Valid · v2*; the deposit succeeds. |
+| 7 | **Script: wallet that never accepted** and **Script: reuse your passport from another wallet** | Both fail on-chain: `AccessPassMissing`, `AccessPassMismatch`. "The frontend is optional. The program check is not." |
+| 8 | Scroll to **The integration: one call** | `require_current_passport(&passport, &policy, &user)?` — the whole integration in the program. Optionally run the CLI line shown under it against the local validator. |
 | 9 | **Open the receipt of your latest acceptance** | The pass's acceptance is an ordinary Stele Proof receipt: `/verify` says **VALID** for the exact v2 text. |
 
 **Limits to state if asked:** Devnet only; the demo wallet is a throwaway key; the vault records demo

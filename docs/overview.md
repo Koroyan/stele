@@ -58,7 +58,7 @@ company can tell.
 - **Verification** in the browser, on the command line and in code. See [Verification](verification.md).
 - **API, webhooks and SDK** to link acceptances to your users and react to them on your servers. See
   the [SDK & API reference](api.md).
-- **Stele Gate** (opt-in): policies, AccessPasses, `require_current()` for your Solana program, an
+- **Stele Gate** (opt-in): policies, per-wallet passports, `require_current_passport()` for your Solana program, an
   Accept & Continue modal, and dashboard pages to integrate and test it. See [Stele Gate](gate.md).
 
 ## Who it is for
