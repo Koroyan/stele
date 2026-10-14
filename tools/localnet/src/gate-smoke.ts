@@ -2,9 +2,10 @@
  * End-to-end check of Stele Gate through the live-demo API — every step a real transaction on the
  * API's cluster (localnet or devnet), against the Atlas vault demo program:
  *
- *   deposit without a pass → rejected · accept v1 → deposit allowed · admin publishes and requires
- *   v2 → deposit rejected (outdated) · accept v2 → deposit allowed · someone else's pass → rejected ·
- *   no pass → rejected · Proof receipt of the acceptance is available
+ *   deposit before accepting → rejected · accept v1 (recorded in the investor's passport) → deposit
+ *   allowed · admin publishes and requires v2 → deposit rejected (outdated) · accept v2 → deposit
+ *   allowed · someone else's passport → rejected · no passport → rejected · Proof receipt of the
+ *   acceptance is available
  *
  *   STELE_API_URL=http://localhost:4000 pnpm --filter @stele/localnet gate-smoke
  */
@@ -24,8 +25,8 @@ import {
 } from "@solana/kit";
 import {
   createRpc,
-  depositInstruction,
-  findAccessPassPda,
+  depositWithPassportInstruction,
+  findPassportPda,
   toBase58,
   utf8,
 } from "@stelehq/protocol";
@@ -69,7 +70,6 @@ const session = await call<{
   vault: string;
 }>("POST", "/v1/demo/sessions", { kind: "gate" });
 console.log(`policy ${session.policy}, vault ${session.vault}`);
-const document = address(session.document);
 const policy = address(session.policy);
 const vault = address(session.vault);
 
@@ -89,14 +89,17 @@ async function accept(wallet: KeyPairSigner) {
 }
 
 async function access(holder: Address) {
-  return call<{ status: string; requiredVersion: number; pass: { versionNumber: number } | null }>(
-    "GET",
-    `/v1/public/gate/access?policy=${policy}&holder=${holder}`,
-  );
+  return call<{
+    status: string;
+    requiredVersion: number;
+    storage: "passport" | "pass" | null;
+    passportEntry: { versionNumber: number } | null;
+    pass: { versionNumber: number } | null;
+  }>("GET", `/v1/public/gate/access?policy=${policy}&holder=${holder}`);
 }
 
 async function deposit(investor: KeyPairSigner, passOwner: Address) {
-  const [accessPass] = await findAccessPassPda(document, passOwner);
+  const [passport] = await findPassportPda(passOwner);
   const { value: blockhash } = await rpc.getLatestBlockhash().send();
   const message = pipe(
     createTransactionMessage({ version: 0 }),
@@ -105,11 +108,11 @@ async function deposit(investor: KeyPairSigner, passOwner: Address) {
     (m) =>
       appendTransactionMessageInstructions(
         [
-          depositInstruction({
+          depositWithPassportInstruction({
             investor: investor.address,
             vault,
             policy,
-            accessPass,
+            passport,
             amount: 5_000_000_000n,
           }),
         ],
@@ -139,13 +142,13 @@ expect("deposit before accepting (direct call)", !r.ok, r.failure?.name ?? "ALLO
 const first = await accept(investor);
 let a = await access(investor.address);
 expect(
-  "AccessPass after accepting v1",
-  a.status === "VALID",
-  `${a.status} v${a.pass?.versionNumber}`,
+  "passport entry after accepting v1",
+  a.status === "VALID" && a.storage === "passport" && a.passportEntry?.versionNumber === 1,
+  `${a.status} in ${a.storage} v${a.passportEntry?.versionNumber}`,
 );
 r = await deposit(investor, investor.address);
 expect(
-  "deposit with the v1 pass",
+  "deposit with the v1 entry",
   r.ok,
   r.ok ? `allowed (tx ${r.signature.slice(0, 12)}…)` : r.failure!.name,
 );
@@ -158,16 +161,16 @@ expect(
   `${a.status}, requires v${a.requiredVersion}`,
 );
 r = await deposit(investor, investor.address);
-expect("deposit with the outdated v1 pass", !r.ok, r.failure?.name ?? "ALLOWED");
+expect("deposit with the outdated v1 entry", !r.ok, r.failure?.name ?? "ALLOWED");
 
 await accept(investor);
 r = await deposit(investor, investor.address);
 expect("deposit after accepting v2", r.ok, r.ok ? "allowed" : r.failure!.name);
 
 r = await deposit(mallory, investor.address);
-expect("direct call with someone else's pass", !r.ok, r.failure?.name ?? "ALLOWED");
+expect("direct call with someone else's passport", !r.ok, r.failure?.name ?? "ALLOWED");
 r = await deposit(mallory, mallory.address);
-expect("direct call without a pass", !r.ok, r.failure?.name ?? "ALLOWED");
+expect("direct call without a passport", !r.ok, r.failure?.name ?? "ALLOWED");
 
 const receipt = await call<{ receipt: { acceptance?: { acceptanceId?: string } } }>(
   "GET",
