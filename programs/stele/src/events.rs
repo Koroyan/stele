@@ -316,3 +316,46 @@ pub struct PolicyChanged {
     pub previous_required_version: u32,
     pub created: bool,
 }
+
+/// Stele Gate: a passport entry was added or advanced by `record_passport_acceptance`.
+#[event]
+pub struct PassportUpdated {
+    pub holder: Pubkey,
+    pub passport: Pubkey,
+    pub organization: Pubkey,
+    pub document: Pubkey,
+    pub version: Pubkey,
+    pub version_hash: [u8; 32],
+    pub version_number: u32,
+    pub acceptance_id: [u8; 32],
+    pub accepted_at: i64,
+    pub slot: u64,
+    /// Who paid any new deposit in this acceptance (recorded as its owner).
+    pub deposit_payer: Pubkey,
+    /// True when this acceptance created the passport account.
+    pub passport_created: bool,
+    /// True when the document was new to the passport (false: a newer version replaced an entry).
+    pub entry_created: bool,
+}
+
+/// Stele Gate: the holder removed one document from their passport.
+#[event]
+pub struct PassportEntryRemoved {
+    pub holder: Pubkey,
+    pub passport: Pubkey,
+    pub document: Pubkey,
+    pub removed_by: Pubkey,
+    pub refund_to: Pubkey,
+    pub refunded: u64,
+}
+
+/// Stele Gate: the holder closed their passport.
+#[event]
+pub struct PassportClosed {
+    pub holder: Pubkey,
+    pub passport: Pubkey,
+    pub closed_by: Pubkey,
+    pub refund_to: Pubkey,
+    pub entries: u32,
+    pub refunded: u64,
+}

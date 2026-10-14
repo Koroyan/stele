@@ -34,3 +34,6 @@ pub const ACCESS_PASS_SEED: &[u8] = b"access-pass";
 
 /// Seed of a Stele Gate policy: `[POLICY_SEED, document]` (one policy per document).
 pub const POLICY_SEED: &[u8] = b"policy";
+
+/// Seed of a Stele Gate passport: `[PASSPORT_SEED, holder]` (one per wallet, every document).
+pub const PASSPORT_SEED: &[u8] = b"passport";

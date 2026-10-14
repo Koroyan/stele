@@ -197,4 +197,14 @@ pub enum SteleError {
     PolicyMismatch,
     #[msg("This wallet has already accepted this version")]
     AccessPassAlreadyCurrent,
+    #[msg("The passport does not belong to this holder or is malformed")]
+    PassportMismatch,
+    #[msg("The passport has no entry for this document")]
+    PassportEntryMissing,
+    #[msg("Only the holder or the deposit's payer can release a passport deposit")]
+    PassportUnauthorized,
+    #[msg("A deposit can only be refunded to the account that paid it")]
+    PassportRefundMismatch,
+    #[msg("Remove the entries other payers deposited for before closing the passport")]
+    PassportHasOtherDeposits,
 }

@@ -300,3 +300,16 @@ pub struct GatePolicy {
     pub required_version: u32,
     pub bump: u8,
 }
+
+/// Stele Gate passport header (PROTOCOL_SPEC.md §18.8): one account per wallet listing every
+/// document it accepted, as `(document, version_number, accepted_at, payer)` entries of 76 bytes
+/// sorted by document, stored after this 77-byte header (see `instructions::passport`). Only
+/// `record_passport_acceptance` adds or advances entries; every deposit returns to whoever paid it.
+#[account]
+pub struct Passport {
+    pub holder: Pubkey,
+    pub entry_count: u32,
+    pub bump: u8,
+    /// Who paid the header's deposit (refunded when the passport is closed).
+    pub base_payer: Pubkey,
+}
