@@ -2,7 +2,7 @@
 /**
  * Stele Gate in the dashboard: shared types, the section navigation and the policy transaction.
  * Policies live on-chain and are created or changed by the organization's own wallet; the API only
- * mirrors them. Nothing here grants access — the protected program checks the AccessPass itself.
+ * mirrors them. Nothing here grants access — the protected program checks the wallet's passport itself.
  */
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -120,7 +120,7 @@ export interface ProbeReport {
 const TABS = [
   { href: "/dashboard/gate", label: "Overview", exact: true },
   { href: "/dashboard/gate/policies", label: "Policies" },
-  { href: "/dashboard/gate/passes", label: "AccessPasses" },
+  { href: "/dashboard/gate/passes", label: "Accepted wallets" },
   { href: "/dashboard/gate/programs", label: "Program integration" },
   { href: "/dashboard/gate/testing", label: "Testing" },
 ];
@@ -129,7 +129,10 @@ const TABS = [
 export function GateTabs() {
   const pathname = usePathname();
   return (
-    <nav aria-label="Stele Gate" className="mt-5 flex gap-1 overflow-x-auto overflow-y-hidden border-b border-line">
+    <nav
+      aria-label="Stele Gate"
+      className="mt-5 flex gap-1 overflow-x-auto overflow-y-hidden border-b border-line"
+    >
       {TABS.map((t) => {
         const active = t.exact ? pathname === t.href : pathname.startsWith(t.href);
         return (
@@ -211,7 +214,7 @@ const GATE_STEPS = [
   {
     icon: <TicketIcon className="h-4 w-4" />,
     title: "Users accept once",
-    body: "A Stele window shows the exact text and the user signs with their wallet — free, Stele pays the fee. Their AccessPass on Solana records the version.",
+    body: "A Stele window shows the exact text and the user signs with their wallet — free, Stele pays the fee. Their passport on Solana records the version.",
   },
   {
     icon: <CodeIcon className="h-4 w-4" />,

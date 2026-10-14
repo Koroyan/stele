@@ -78,7 +78,7 @@ export default function GateTestingPage() {
               <Panel
                 className="mt-6"
                 title="Live checks"
-                description="No AccessPass → reject · current pass → success · outdated pass → reject · someone else's pass (direct call) → reject."
+                description="Never accepted → reject · current version → success · outdated version → reject · someone else's passport (direct call) → reject."
                 actions={
                   <div className="flex flex-wrap gap-2">
                     <Select
@@ -119,15 +119,15 @@ export default function GateTestingPage() {
                 </p>
                 <CodeBlock
                   language="rust"
-                  code={`// No pass: a direct call fails on-chain.
-assert_custom(&call_${program?.action ?? "deposit"}(&mut env, &user, &pass), 7602); // AccessPassMissing
-// Accept the required version, then it succeeds.
-assert_ok(&accept_gated(&mut env, &user, &terms, &params));
-assert_ok(&call_${program?.action ?? "deposit"}(&mut env, &user, &pass));
-// Require a newer version: the old pass fails.
-assert_custom(&call_${program?.action ?? "deposit"}(&mut env, &user, &pass), 7605); // AccessPassOutdated
-// Someone else's pass fails too.
-assert_custom(&call_${program?.action ?? "deposit"}(&mut env, &other, &pass), 7604); // AccessPassMismatch`}
+                  code={`// Never accepted: a direct call fails on-chain.
+assert_custom(&call_${program?.action ?? "deposit"}(&mut env, &user, &passport), 7602); // AccessPassMissing
+// Accept the required version (recorded in the user's passport), then it succeeds.
+assert_ok(&accept_into_passport(&mut env, &user, &terms, &params));
+assert_ok(&call_${program?.action ?? "deposit"}(&mut env, &user, &passport));
+// Require a newer version: the old entry fails.
+assert_custom(&call_${program?.action ?? "deposit"}(&mut env, &user, &passport), 7605); // AccessPassOutdated
+// Someone else's passport fails too.
+assert_custom(&call_${program?.action ?? "deposit"}(&mut env, &other, &passport), 7604); // AccessPassMismatch`}
                 />
               </Panel>
 

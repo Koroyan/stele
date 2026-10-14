@@ -40,6 +40,8 @@ export interface OrganizationSettings {
   sponsorLowBalanceLamports?: number;
   /** Stele products in use: Proof always; Gate when enabled (onboarding or Organization page). */
   products?: { gate?: boolean };
+  /** Where gated acceptances are written (default: the wallet's passport). */
+  gateStorage?: "passport" | "pass";
 }
 
 export interface OrgRow {

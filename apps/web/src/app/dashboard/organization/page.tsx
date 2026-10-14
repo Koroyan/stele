@@ -693,13 +693,13 @@ function Products({ canEdit }: { canEdit: boolean }) {
   return (
     <Panel
       title="Products"
-      description="Stele Proof is always on. Stele Gate adds policies, AccessPasses and program integration to this dashboard."
+      description="Stele Proof is always on. Stele Gate adds policies, accepted wallets and program integration to this dashboard."
     >
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-[13.5px] text-fg-muted">
           Stele Gate is{" "}
           <span className="font-medium text-fg">{gate ? "enabled" : "not enabled"}</span>. Turning
-          it off hides the Gate pages only: policies and passes on Solana stay as they are, and
+          it off hides the Gate pages only: policies and passports on Solana stay as they are, and
           programs keep enforcing them.
         </p>
         <Button

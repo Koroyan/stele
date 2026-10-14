@@ -39,7 +39,7 @@ await stele.gate({
 
 const CARGO = `[dependencies]
 anchor-lang = "1.2"
-stele-gate = "1"   # crates.io/crates/stele-gate`;
+stele-gate = "1.1"   # crates.io/crates/stele-gate`;
 
 function onchainCode(policy: string, action: string) {
   return `use anchor_lang::prelude::*;
@@ -50,17 +50,17 @@ pub const POLICY: Pubkey = pubkey!("${policy}");
 #[derive(Accounts)]
 pub struct Protected<'info> {
     pub user: Signer<'info>,
-    /// CHECK: pinned; verified by require_current
+    /// CHECK: pinned; verified by require_current_passport
     #[account(address = POLICY)]
     pub policy: UncheckedAccount<'info>,
-    /// CHECK: verified by require_current
-    pub access_pass: UncheckedAccount<'info>,
+    /// CHECK: the user's Stele passport; verified by require_current_passport
+    pub passport: UncheckedAccount<'info>,
     // … your accounts
 }
 
 pub fn ${action}(ctx: Context<Protected>) -> Result<()> {
-    stele_gate::require_current(
-        &ctx.accounts.access_pass,
+    stele_gate::require_current_passport(
+        &ctx.accounts.passport,
         &ctx.accounts.policy,
         &ctx.accounts.user,
     )?;
@@ -158,7 +158,7 @@ export default function GateProgramsPage() {
     <>
       <PageHeader
         title="Program integration"
-        description="Connect a Solana program to a Stele policy: the SDK handles acceptance in your frontend, and one require_current() call in your program enforces it."
+        description="Connect a Solana program to a Stele policy: the SDK handles acceptance in your frontend, and one require_current_passport() call in your program enforces it."
       />
       {!enabled ? (
         <EnableGate />
@@ -252,7 +252,7 @@ export default function GateProgramsPage() {
                     <div className="mt-4 space-y-3">
                       <Alert tone="warning">
                         v{doc.versionCount} is published but not required. Requiring it makes older
-                        passes insufficient.
+                        acceptances insufficient.
                       </Alert>
                       <SigningAs />
                       <Button
@@ -292,7 +292,7 @@ export default function GateProgramsPage() {
             <Panel
               className="mt-5"
               title="2. Add the check to your program"
-              description="This is what enforces the terms: a direct call without a current AccessPass fails on-chain, whatever client sent it."
+              description="This is what enforces the terms: a direct call without a current acceptance in the wallet's passport fails on-chain, whatever client sent it."
             >
               <p className="text-[13.5px] font-medium text-fg">Cargo.toml</p>
               <div className="mt-2">
@@ -333,7 +333,7 @@ export default function GateProgramsPage() {
             <Panel
               className="mt-5"
               title="3. Add Accept & Continue to your app"
-              description="Wrap the transaction you already send. The Stele window appears only when the wallet's pass is missing or outdated; otherwise your action runs right away."
+              description="Wrap the transaction you already send. The Stele window appears only when the wallet's acceptance is missing or outdated; otherwise your action runs right away."
             >
               <CodeBlock code={"npm install @stelehq/sdk"} language="bash" />
               <div className="mt-3">
@@ -408,7 +408,7 @@ export default function GateProgramsPage() {
             <Panel
               className="mt-5"
               title="5. Test"
-              description="Missing pass → reject · current pass → success · old pass → reject · direct call with someone else's pass → reject."
+              description="Never accepted → reject · current version → success · old version → reject · direct call with someone else's passport → reject."
             >
               <Button onClick={() => void runTest()} loading={busy} disabled={!programId}>
                 Run the checks

@@ -1,5 +1,8 @@
 "use client";
-/** AccessPasses of this organization's Gate policies (an index of the on-chain accounts). */
+/**
+ * Wallets that accepted this organization's gated documents: passport entries and access passes
+ * (an index of the on-chain accounts).
+ */
 import Link from "next/link";
 import { useState } from "react";
 import { Alert, Badge, Select } from "@stele/ui";
@@ -17,6 +20,8 @@ import { useApi } from "@/lib/use-api";
 interface PassRow {
   address: string;
   holder: string;
+  storage: "passport" | "pass";
+  depositPayer: string | null;
   document: { id: string; address: string; slug: string };
   versionNumber: number;
   versionHash: string | null;
@@ -50,8 +55,8 @@ export default function GatePassesPage() {
   return (
     <>
       <PageHeader
-        title="AccessPasses"
-        description="One pass per wallet and document, created by a verified acceptance and advanced by each newer one. A pass satisfies a policy while it names the required version or a later one."
+        title="Accepted wallets"
+        description="One entry per wallet and document — in the wallet's passport, or an access pass — created by a verified acceptance and advanced by each newer one. It satisfies a policy while it names the required version or a later one."
       />
       {!enabled ? (
         <EnableGate />
@@ -60,8 +65,8 @@ export default function GatePassesPage() {
           <GateTabs />
           <Panel
             className="mt-6"
-            title="Passes"
-            description="Read from the index of on-chain AccessPassUpdated events; your program reads the accounts on Solana."
+            title="Wallets"
+            description="Read from the index of on-chain PassportUpdated and AccessPassUpdated events; your program reads the accounts on Solana."
             actions={
               <div className="flex flex-wrap gap-2">
                 <Select
@@ -100,7 +105,7 @@ export default function GatePassesPage() {
               <LoadingRows />
             ) : (passes.data?.passes.length ?? 0) === 0 ? (
               <p className="px-6 py-6 text-[13px] text-fg-muted">
-                No AccessPass yet. A pass is created the first time a wallet accepts a document that
+                No wallet yet. An entry is recorded the first time a wallet accepts a document that
                 has a policy —{" "}
                 <Link href="/dashboard/gate/policies" className="text-accent">
                   Policies
@@ -111,6 +116,7 @@ export default function GatePassesPage() {
               <Table
                 head={[
                   "Wallet",
+                  "Stored in",
                   "Document",
                   "Accepted",
                   "Required",
@@ -122,8 +128,13 @@ export default function GatePassesPage() {
                 ]}
               >
                 {passes.data!.passes.map((p) => (
-                  <tr key={p.address}>
+                  <tr key={`${p.address}:${p.document.id}`}>
                     <Td mono>{shortAddress(p.holder, 5, 5)}</Td>
+                    <Td>
+                      <span title={p.address}>
+                        {p.storage === "passport" ? "Passport" : "Access pass"}
+                      </span>
+                    </Td>
                     <Td>{p.document.slug}</Td>
                     <Td>v{p.versionNumber}</Td>
                     <Td>v{p.requiredVersion}</Td>

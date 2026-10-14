@@ -53,7 +53,7 @@ const PROOF_NAV: NavItem[] = [
 const GATE_NAV: NavItem[] = [
   { href: "/dashboard/gate", label: "Gate overview", icon: GateIcon, exact: true },
   { href: "/dashboard/gate/policies", label: "Policies", icon: LayersIcon },
-  { href: "/dashboard/gate/passes", label: "AccessPasses", icon: TicketIcon },
+  { href: "/dashboard/gate/passes", label: "Accepted wallets", icon: TicketIcon },
   { href: "/dashboard/gate/programs", label: "Program integration", icon: CodeIcon },
   { href: "/dashboard/gate/testing", label: "Testing", icon: PlayIcon },
 ];

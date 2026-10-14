@@ -36,7 +36,7 @@ export function ProbeResults({ report }: { report: ProbeReport }) {
       <p className="text-[12px] leading-relaxed text-fg-subtle">
         {report.scope === "protected_action"
           ? "Simulated against the protected instruction on "
-          : "Evaluated with the require_current rule against the real policy and passes on "}
+          : "Evaluated with the require_current_passport rule against the real policy and passports on "}
         {report.network} at {formatDateTime(report.simulatedAt)}.{" "}
         {report.scope === "policy_requirement" &&
           "Stele cannot call your instruction for you: run the same four scenarios in your program's own tests."}

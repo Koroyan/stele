@@ -1,5 +1,5 @@
 "use client";
-/** Stele Gate overview: the protected program, the policy it requires, passes and recent results. */
+/** Stele Gate overview: the protected program, the policy it requires, accepted wallets and recent results. */
 import Link from "next/link";
 import { Alert, ArrowRightIcon, Badge, Card, CheckIcon, buttonClasses, cn } from "@stele/ui";
 import {
@@ -184,7 +184,7 @@ export default function GateOverviewPage() {
                         (activity.data?.summary.rejectedOutdated ?? 0) >
                       0,
                     title: "Test the bypass",
-                    hint: "Check that a wallet without a current AccessPass is refused on-chain.",
+                    hint: "Check that a wallet without a current acceptance is refused on-chain.",
                     href: "/dashboard/gate/testing",
                   },
                 ]}
@@ -237,10 +237,10 @@ export default function GateOverviewPage() {
                 <Fact
                   label="Current version"
                   value={policyDoc?.policy ? `v${policyDoc.policy.requiredVersion}` : "—"}
-                  caption="The version a pass must name (or a later one)"
+                  caption="The version a wallet must have accepted (or a later one)"
                 />
                 <Fact
-                  label="AccessPasses"
+                  label="Accepted wallets"
                   value={totals.total.toLocaleString()}
                   caption={`${totals.current} satisfy the policy · ${totals.outdated} outdated`}
                 />
@@ -314,7 +314,7 @@ export default function GateOverviewPage() {
               <Panel className="mt-6" title="Latest acceptances" bodyClassName="px-0 py-0">
                 {overview.data.recentPasses.length === 0 ? (
                   <p className="px-6 py-6 text-[13px] text-fg-muted">
-                    No AccessPass yet. They appear when a wallet accepts a Gate policy.
+                    No acceptance yet. They appear when a wallet accepts a Gate policy.
                   </p>
                 ) : (
                   <Table
