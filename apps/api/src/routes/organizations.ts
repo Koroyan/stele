@@ -164,6 +164,8 @@ export function organizationRoutes(deps: Deps): FastifyPluginAsyncZod {
             sponsorLowBalanceLamports: z.number().int().min(0).max(1_000_000_000_000).optional(),
             evidenceMode: z.enum(["DIRECT_ONCHAIN", "MERKLE_BATCHED"]).optional(),
             products: z.object({ gate: z.boolean() }).optional(),
+            /** Where gated acceptances are written: the wallet's passport, or one pass per document. */
+            gateStorage: z.enum(["passport", "pass"]).optional(),
           }),
         },
       },
