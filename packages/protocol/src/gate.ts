@@ -160,9 +160,13 @@ export const GATE_ERRORS = [
   [7600, "InvalidPolicy", "The policy is not a Stele policy at its canonical address"],
   [7601, "UserNotSigner", "The user did not sign the transaction"],
   [7602, "AccessPassMissing", "The user has not accepted the required terms"],
-  [7603, "AccessPassInvalid", "The account is not a Stele access pass at its canonical address"],
-  [7604, "AccessPassMismatch", "The access pass belongs to another wallet or document"],
-  [7605, "AccessPassOutdated", "The access pass names an older version than the policy requires"],
+  [
+    7603,
+    "AccessPassInvalid",
+    "The account is not a Stele passport or access pass at its canonical address",
+  ],
+  [7604, "AccessPassMismatch", "The passport or access pass belongs to another wallet or document"],
+  [7605, "AccessPassOutdated", "The accepted version is older than the policy requires"],
   [
     7606,
     "FingerprintMismatch",

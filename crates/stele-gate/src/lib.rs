@@ -113,13 +113,13 @@ pub enum GateError {
     InvalidPolicy = 7600,
     /// The user did not sign the transaction.
     UserNotSigner = 7601,
-    /// The user has never accepted the policy's document (no access pass).
+    /// The user has never accepted the policy's document (no passport entry or access pass).
     AccessPassMissing = 7602,
-    /// The account is not a Stele access pass at its canonical address.
+    /// The account is not a Stele passport or access pass at its canonical address.
     AccessPassInvalid = 7603,
-    /// The pass belongs to another wallet or another document.
+    /// The passport or pass belongs to another wallet or another document.
     AccessPassMismatch = 7604,
-    /// The pass names an older version than the policy requires.
+    /// The accepted version is older than the policy requires.
     AccessPassOutdated = 7605,
     /// The pass names the required version number with a different fingerprint.
     FingerprintMismatch = 7606,
