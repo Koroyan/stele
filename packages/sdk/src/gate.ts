@@ -24,11 +24,16 @@ import {
   decodeAccessPass,
   decodeDocument,
   decodeGatePolicy,
+  decodePassport,
   evaluateAccess,
+  evaluatePassport,
   findAccessPassPda,
+  findPassportPda,
   type AccessPassAccount,
   type AccessStatus,
   type GatePolicyAccount,
+  type PassportAccount,
+  type PassportEntry,
 } from "@stelehq/protocol";
 import { address } from "@solana/kit";
 import { chainFromUrls } from "@stelehq/verifier";
@@ -44,9 +49,19 @@ export interface AccessCheck {
   policy: string;
   policyAccount: GatePolicyAccount;
   holder: string;
-  /** The access-pass account the protected program reads. */
+  /** The wallet's per-document AccessPass address (Gate v2: `require_current`). */
   accessPass: string;
   pass: AccessPassAccount | null;
+  /** The wallet's passport address (Gate v3: `require_current_passport`) and its entry. */
+  passport: string;
+  passportEntry: PassportEntry | null;
+  /** Which account satisfies (or comes closest to satisfying) the policy, if any. */
+  storage: "pass" | "passport" | null;
+  /**
+   * The account to pass to your protected instruction: the passport when it satisfies the policy
+   * (or when nothing does yet), otherwise the AccessPass.
+   */
+  gateAccount: string;
   /** The version number the policy requires (a later accepted version also satisfies it). */
   requiredVersion: number;
   /** The policy's document, hash-verified against its on-chain fingerprint (what the modal shows). */
@@ -191,27 +206,48 @@ export class SteleGate {
       address(holder),
       programAddress,
     );
-    const [acc] = await chain.getAccounts([accessPass], "confirmed");
-    // Only the Stele program can own an account at this address; anything else is "no pass".
+    const [passport] = await findPassportPda(address(holder), programAddress);
+    const [acc, passportAcc] = await chain.getAccounts([accessPass, passport], "confirmed");
+    // Only the Stele program can own an account at these addresses; anything else is "none".
     const pass =
       acc && acc.owner === network.programId && acc.data.length > 0
         ? decodeAccessPass(acc.data)
         : null;
-    const e = evaluateAccess({
+    let passportAccount: PassportAccount | null = null;
+    if (passportAcc && passportAcc.owner === network.programId && passportAcc.data.length > 0) {
+      try {
+        passportAccount = decodePassport(passportAcc.data);
+      } catch {
+        passportAccount = null;
+      }
+    }
+    const byPass = evaluateAccess({
       policy: address(policy),
       policyAccount,
       holder: address(holder),
       accessPass,
       pass,
     });
+    const byPassport = evaluatePassport({
+      policyAccount,
+      holder: address(holder),
+      passport: passportAccount,
+    });
+    const rank = { MISSING: 0, OUTDATED: 1, VALID: 2 } as const;
+    const passportFirst = rank[byPassport.status] >= rank[byPass.status];
+    const status = passportFirst ? byPassport.status : byPass.status;
     return {
-      status: e.status,
+      status,
       policy,
       policyAccount,
       holder,
       accessPass,
       pass,
-      requiredVersion: e.requiredVersion,
+      passport,
+      passportEntry: byPassport.entry,
+      storage: status === "MISSING" ? null : passportFirst ? "passport" : "pass",
+      gateAccount: passportFirst ? passport : accessPass,
+      requiredVersion: byPass.requiredVersion,
       document,
     };
   }
@@ -251,7 +287,7 @@ export class SteleGate {
       if (access.status === "VALID") return { acceptance, access };
       if (Date.now() > deadline)
         throw new Error(
-          "The acceptance was recorded, but the AccessPass is not visible on Solana yet. Try again in a moment.",
+          "The acceptance was recorded, but it is not visible on Solana yet. Try again in a moment.",
         );
       await new Promise((r) => setTimeout(r, 1_000));
     }
