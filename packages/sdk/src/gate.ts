@@ -13,11 +13,12 @@
  * });
  * ```
  *
- * The SDK is the user experience: it reads the policy and the wallet's AccessPass from Solana, shows
- * the embedded modal when the pass is missing or outdated, records the acceptance (which creates or
- * advances the pass on-chain), waits until the pass satisfies the policy, and then runs the original
- * action — in a second transaction (acceptance and action are not atomic). Enforcement is NOT here:
- * the protected program calls `stele_gate::require_current`, so a client that skips this SDK is
+ * The SDK is the user experience: it reads the policy and the wallet's passport (or access pass)
+ * from Solana, shows the embedded modal when the acceptance is missing or outdated, records the
+ * acceptance (which adds or advances the passport entry on-chain), waits until it satisfies the
+ * policy, and then runs the original action — in a second transaction (acceptance and action are
+ * not atomic). Enforcement is NOT here: the protected program calls
+ * `stele_gate::require_current_passport`, so a client that skips this SDK is
  * rejected on-chain.
  */
 import {

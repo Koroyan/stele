@@ -231,7 +231,10 @@ export function gateModal(opts: { theme?: "auto" | "dark" | "light" } = {}): Gat
         function renderReview(error?: string) {
           busy = false;
           close.removeAttribute("disabled");
-          const outdated = access.status === "OUTDATED" && access.pass;
+          // The version this wallet accepted before: its passport entry, or its access pass.
+          const acceptedBefore =
+            access.passportEntry?.versionNumber ?? access.pass?.versionNumber ?? null;
+          const outdated = access.status === "OUTDATED" && acceptedBefore !== null;
           const agree = h("input", { type: "checkbox", id: "stele-agree" }) as HTMLInputElement;
           const button = h(
             "button",
@@ -274,7 +277,7 @@ export function gateModal(opts: { theme?: "auto" | "dark" | "light" } = {}): Gat
                     "div",
                     { class: "updated", role: "note" },
                     h("strong", {}, "This policy was updated. "),
-                    `You accepted version ${access.pass!.versionNumber}; version ${access.requiredVersion} or later is required now.`,
+                    `You accepted version ${acceptedBefore}; version ${access.requiredVersion} or later is required now.`,
                     doc.content.changeSummary ? ` What changed: ${doc.content.changeSummary}` : "",
                   )
                 : null,
