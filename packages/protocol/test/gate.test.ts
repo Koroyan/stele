@@ -18,6 +18,7 @@ import {
   createPolicyInstruction,
   decodeAccessPass,
   decodeDepositedFromLogs,
+  decodePassportDepositedFromLogs,
   decodeGatePolicy,
   decodeRecordAcceptanceArgs,
   depositInstruction,
@@ -248,6 +249,35 @@ describe("instructions", () => {
     ).toEqual([
       expect.objectContaining({ investor: ALICE, termsVersionNumber: 2, amount: 5_000_000_000n }),
     ]);
+  });
+
+  it("decodes PassportDeposited events from logs, and only those", () => {
+    const data = new BorshWriter()
+      .raw(anchorDiscriminator("event", "PassportDeposited"))
+      .address(V1)
+      .address(ALICE)
+      .u64(5_000_000_000)
+      .u64(10_000_000_000)
+      .u64(2)
+      .u32(3)
+      .i64(1_790_000_000)
+      .toBytes();
+    const logs = [
+      "Program log: Instruction: DepositWithPassport",
+      `Program data: ${toBase64(data)}`,
+    ];
+    expect(decodePassportDepositedFromLogs(logs)).toEqual([
+      {
+        vault: V1,
+        investor: ALICE,
+        amount: 5_000_000_000n,
+        totalDeposited: 10_000_000_000n,
+        depositCount: 2n,
+        termsVersionNumber: 3,
+        acceptedAt: 1_790_000_000n,
+      },
+    ]);
+    expect(decodeDepositedFromLogs(logs)).toEqual([]);
   });
 });
 

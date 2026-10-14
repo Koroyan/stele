@@ -352,6 +352,41 @@ export function decodeDepositedFromLogs(logs: readonly string[]): DepositedEvent
   return out;
 }
 
+export interface PassportDepositedEvent {
+  vault: Address;
+  investor: Address;
+  amount: bigint;
+  totalDeposited: bigint;
+  depositCount: bigint;
+  /** The version of the offering terms the investor's passport names. */
+  termsVersionNumber: number;
+  /** When the investor accepted that version (Unix seconds). */
+  acceptedAt: bigint;
+}
+
+/** Decodes the demo vault's `PassportDeposited` events (`deposit_with_passport`) from logs. */
+export function decodePassportDepositedFromLogs(logs: readonly string[]): PassportDepositedEvent[] {
+  const disc = anchorDiscriminator("event", "PassportDeposited");
+  const out: PassportDepositedEvent[] = [];
+  for (const line of logs) {
+    if (!line.startsWith("Program data: ")) continue;
+    const data = fromBase64(line.slice("Program data: ".length));
+    if (data.length < 8 || !bytesEqual(data.subarray(0, 8), disc)) continue;
+    const r = new BorshReader(data);
+    r.bytes(8);
+    out.push({
+      vault: r.address(),
+      investor: r.address(),
+      amount: r.u64(),
+      totalDeposited: r.u64(),
+      depositCount: r.u64(),
+      termsVersionNumber: r.u32(),
+      acceptedAt: r.i64(),
+    });
+  }
+  return out;
+}
+
 /** Explains a failed protected action: a `stele-gate` error, or the demo vault's own error. */
 export function explainGateFailure(
   programAddress: Address | null,
