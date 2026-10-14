@@ -200,26 +200,28 @@ and W07 apply only to signers registered before native passkeys, whose Ed25519 k
 | R22 | Whoever runs enrollment registers a software key for a user who never enrolled | Not preventable by signatures (synced passkeys carry no attestation); guarantees are stated for enrolled keys only; later key changes need the current key or a labeled recovery; enrollments are public. |
 | R23 | Evidence cannot be read years later | Receipts carry text, signatures and proofs; verification needs an archival Solana RPC. |
 
-### Stele Gate (`require_current`)
+### Stele Gate (`require_current_passport`, `require_current`)
 
 | ID | Scenario | Primary defense |
 |---|---|---|
-| G01 | A script or the CLI calls the protected instruction directly, skipping the terms | `require_current` runs inside the protected program: no pass, no action (`AccessPassMissing`). |
-| G02 | Someone presents another wallet's pass | The pass's holder must be the transaction's signer, at the address derived from that signer. |
-| G03 | A forged pass account | Owner must be the Stele program, with the pass type and its canonical address; only Stele writes it, and only after a verified signature. |
-| G04 | A policy the attacker created | The protected program pins its policy's address; `require_current` checks the policy's owner, type and address. |
-| G05 | The relayer assigns a pass to a wallet that never signed | The holder must equal the signer Solana verified; the relayer cannot sign for users. |
+| G01 | A script or the CLI calls the protected instruction directly, skipping the terms | The check runs inside the protected program: no acceptance, no action (`AccessPassMissing`). |
+| G02 | Someone presents another wallet's passport or pass | Its holder must be the transaction's signer, at the address derived from that signer. |
+| G03 | A forged passport or pass account | Owner must be the Stele program, with the account type, a length matching its entry count and its canonical address; only Stele writes it, and only after a verified signature. |
+| G04 | A policy the attacker created | The protected program pins its policy's address; the check verifies the policy's owner, type and address. |
+| G05 | The relayer writes an entry for a wallet that never signed | The program derives the passport from the signer Solana verified (there is no holder argument); the relayer cannot sign for users. |
 | G06 | A gated acceptance is replayed or altered | Exact message reconstruction, single-use nonce, validity window, current version only. |
 | G07 | Recording through another program | Signature-carrying instructions are top-level only. |
-| G08 | Acting under v1 after the organization requires v2 | Older passes fail with `AccessPassOutdated` until the holder accepts v2. |
-| G09 | A pass names the required number with other text | Equal version numbers must have equal fingerprints. |
-| G10 | A pass for another document | Document and organization must be the policy's. |
+| G08 | Acting under v1 after the organization requires v2 | Older acceptances fail with `AccessPassOutdated` until the holder accepts v2. |
+| G09 | An acceptance names the required number with other text | Version numbers are immutable per document and only the current version can be accepted; access passes additionally compare fingerprints. |
+| G10 | An acceptance of another document | Passport entries are looked up by the policy's document; a pass's document and organization must be the policy's. |
 | G11 | The victim's wallet named without its signature | `UserNotSigner`. |
 | G12 | The requirement changes between acceptance and action | Fails safe (`AccessPassOutdated`); the SDK re-checks and shows the new version. Not atomic — stated publicly. |
 | G13 | The organization lowers the requirement | Only its role holders can, never while frozen; every change is a public `PolicyChanged` event with the previous value. |
-| G14 | Mass new wallets drain pass rent | Rate-limited relay, optional server-issued acceptance sessions, allowed domains, balance alerts. |
+| G14 | Mass new wallets drain the relayer through deposits | Rate-limited relay, optional server-issued acceptance sessions, allowed domains, balance alerts; passport deposits stay refundable to the relayer that paid them. |
 | G15 | A protected instruction forgets the check or accepts any policy | Documented MUST rules, integration wizard, live checks and test templates. Stele cannot inspect your code. |
 | G16 | The public demo's relay is abused | Exactly one demo deposit for the session's own vault and policy; per-session, per-IP and daily caps; off on mainnet. |
+| G17 | A deposit's payer removes an entry it paid for | Allowed by design (the payer reclaims its deposit): the holder loses Gate access for that document until it accepts again, the acceptance and its receipt remain verifiable, and every removal is a public `PassportEntryRemoved` event. Refunds go only to the recorded payer. |
+| G18 | Someone bloats a victim's passport | Entries are added only from the holder's own verified signature; each costs its payer a deposit; the check is a binary search (≈10,800 compute units at 10,000 entries). |
 
 ## Residual risks
 
