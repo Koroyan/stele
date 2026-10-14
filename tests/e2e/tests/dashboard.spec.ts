@@ -84,7 +84,7 @@ test("Stele Gate can be switched on, and its pages open from the sidebar", async
   await expect(page.getByRole("heading", { name: "Stele Gate", exact: true })).toBeVisible();
   for (const [link, heading] of [
     ["Policies", "Policies"],
-    ["AccessPasses", "AccessPasses"],
+    ["Accepted wallets", "Accepted wallets"],
     ["Program integration", "Program integration"],
     ["Testing", "Testing"],
   ] as const) {
@@ -94,7 +94,7 @@ test("Stele Gate can be switched on, and its pages open from the sidebar", async
   }
   await expect(page.getByText("Register your Solana program")).toHaveCount(0);
   await sidebar.getByRole("link", { name: "Program integration", exact: true }).click();
-  await expect(page.getByText("1. Register your Solana program")).toBeVisible();
+  await expect(page.getByText("1. Choose the policy your program will require")).toBeVisible();
 
   // Leave the organization as it was.
   if (!wasEnabled) {

@@ -8,8 +8,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 // The transaction log (announced to screen readers), newest entry first.
 const log = (page: Page) => page.locator('ul[aria-live="polite"] > li').first();
-const pass = (page: Page) =>
-  page.locator("p", { hasText: /^Your AccessPass$/ }).locator("xpath=..");
+const pass = (page: Page) => page.locator("p", { hasText: /^Your passport$/ }).locator("xpath=..");
 const next = (page: Page) =>
   page.getByRole("button", { name: /^(Next step|See the summary)/ }).click();
 
@@ -57,7 +56,7 @@ test.describe("Stele Gate demo", () => {
     await expect(page.getByText("5,000 USDC in · 1 deposit")).toBeVisible();
     await next(page);
 
-    // 3. The issuer requires v2: the v1 pass no longer satisfies the policy. A finished step
+    // 3. The issuer requires v2: the v1 entry no longer satisfies the policy. A finished step
     //    offers no second click.
     await page.getByRole("button", { name: "Publish & require v2 (as Atlas)" }).click();
     await expect(page.getByText("Version 2 is now required")).toBeVisible({ timeout: 60_000 });
@@ -80,15 +79,15 @@ test.describe("Stele Gate demo", () => {
     await expect(pass(page)).toContainText("Valid · v2", { timeout: 30_000 });
     await next(page);
 
-    // 6. Another wallet presenting this pass is refused.
+    // 6. Another wallet presenting this passport is refused.
     await page.getByRole("button", { name: "Deposit from another wallet" }).click();
-    await expect(page.getByText("that AccessPass belongs to someone else").first()).toBeVisible({
+    await expect(page.getByText("that passport belongs to someone else").first()).toBeVisible({
       timeout: 60_000,
     });
     await expect(log(page)).toContainText("Rejected · AccessPassMismatch");
     await next(page);
 
-    // Summary: the acceptance behind the pass is an ordinary, verifiable Proof receipt.
+    // Summary: the acceptance behind the passport entry is an ordinary, verifiable Proof receipt.
     await expect(
       page.getByRole("heading", { name: "The frontend is optional. The program check is not." }),
     ).toBeVisible();
@@ -97,7 +96,7 @@ test.describe("Stele Gate demo", () => {
     await expect(page.getByText(/^Valid evidence/)).toBeVisible({ timeout: 60_000 });
   });
 
-  test("free play: closing the terms runs nothing; a wallet without a pass is refused", async ({
+  test("free play: closing the terms runs nothing; a wallet that never accepted is refused", async ({
     page,
   }) => {
     await page.goto("/demo");
@@ -105,7 +104,7 @@ test.describe("Stele Gate demo", () => {
     await expect(page.getByText("Step 1 of 6")).toBeVisible({ timeout: 60_000 });
 
     await page.getByText("Free play — every control, in any order").click();
-    await page.getByRole("button", { name: "Script: wallet without a pass" }).click();
+    await page.getByRole("button", { name: "Script: wallet that never accepted" }).click();
     await expect(log(page)).toContainText("Rejected · AccessPassMissing", { timeout: 60_000 });
 
     await page.getByRole("button", { name: "Deposit (through Stele)" }).click();
