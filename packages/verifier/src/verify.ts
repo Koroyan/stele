@@ -28,6 +28,7 @@ import {
   decodeRecordAcceptanceArgs,
   ED25519_PROGRAM_ADDRESS,
   findAccessPassPda,
+  findPassportPda,
   findConfigPda,
   findDocumentPda,
   findDomainRecordPda,
@@ -780,16 +781,36 @@ export async function verifyDocumentVersion(
 
 // ---- public API: acceptance --------------------------------------------------------------------
 
+/** The passport account named by a `record_passport_acceptance` (keyed by its normalized view). */
+const PASSPORT_OF = new WeakMap<DecodedInstruction, string>();
+
+/**
+ * `record_passport_acceptance` lists `rent_payer` second and the passport and system program
+ * before the sysvar; its view here uses `record_acceptance`'s order
+ * `[relayer, config, organization, document, version, shard, sysvar]` so every check below reads
+ * the same indices. The passport account is kept aside for the address check.
+ */
+function acceptanceView(ix: DecodedInstruction): DecodedInstruction {
+  if (identifyInstruction(ix.data) !== "record_passport_acceptance") return ix;
+  const a = ix.accounts;
+  const view = { ...ix, accounts: [a[0]!, a[2]!, a[3]!, a[4]!, a[5]!, a[6]!, a[9]!] };
+  PASSPORT_OF.set(view, a[7]!);
+  return view;
+}
+
 function findAcceptanceInstructions(programId: string, instructions: DecodedInstruction[]) {
   return instructions
-    .filter(
-      (ix) =>
-        ix.programId === programId &&
-        // record_gated_acceptance records the same acceptance and also advances a Gate AccessPass.
-        (identifyInstruction(ix.data) === "record_acceptance" ||
-          identifyInstruction(ix.data) === "record_gated_acceptance"),
-    )
-    .map((ix) => ({ ix, previous: instructions[ix.index - 1] ?? null }));
+    .filter((ix) => {
+      if (ix.programId !== programId) return false;
+      const name = identifyInstruction(ix.data);
+      // The gated and passport variants record the same acceptance and also write Gate state.
+      return (
+        name === "record_acceptance" ||
+        name === "record_gated_acceptance" ||
+        (name === "record_passport_acceptance" && ix.accounts.length === 10)
+      );
+    })
+    .map((ix) => ({ ix: acceptanceView(ix), previous: instructions[ix.index - 1] ?? null }));
 }
 
 /** stele/2: a record_passkey_acceptance with its precompile, arguments and event. */
@@ -1081,7 +1102,9 @@ export async function verifyAcceptance(
       "Transaction structure",
       identifyInstruction(chosen.ix.data) === "record_gated_acceptance"
         ? "A canonical Ed25519 verification immediately precedes a top-level record_gated_acceptance instruction (it also created or advanced the signer's Stele Gate AccessPass)."
-        : "A canonical Ed25519 verification immediately precedes a top-level record_acceptance instruction.",
+        : identifyInstruction(chosen.ix.data) === "record_passport_acceptance"
+          ? "A canonical Ed25519 verification immediately precedes a top-level record_passport_acceptance instruction (it also added or advanced the document in the signer's Stele passport)."
+          : "A canonical Ed25519 verification immediately precedes a top-level record_acceptance instruction.",
     );
 
     // 3. Signature (re-verified locally — the runtime's verdict is not taken on trust).
@@ -1152,6 +1175,11 @@ export async function verifyAcceptance(
     const [, configAddr, orgAddr, docAddr, versionAddr, shardAddr] = ix.accounts;
     const sysvar = ix.accounts[gated ? 9 : 6];
     let gateAccountsOk = true;
+    const passportAccount = PASSPORT_OF.get(ix);
+    if (passportAccount !== undefined) {
+      const [expectedPassport] = await findPassportPda(toAddress(signer), toAddress(ctx.programId));
+      gateAccountsOk = passportAccount === expectedPassport;
+    }
     if (gated) {
       const [expectedPass] = await findAccessPassPda(
         toAddress(docAddr!),
@@ -1166,7 +1194,9 @@ export async function verifyAcceptance(
       "Instruction accounts",
       gated
         ? "Configuration and instructions-sysvar accounts are the canonical ones; the AccessPass is the signer's, at its canonical address."
-        : "Configuration and instructions-sysvar accounts are the canonical ones.",
+        : passportAccount !== undefined
+          ? "Configuration and instructions-sysvar accounts are the canonical ones; the passport is the signer's, at its canonical address."
+          : "Configuration and instructions-sysvar accounts are the canonical ones.",
       "Instruction references unexpected configuration, sysvar or access-pass accounts.",
     );
     b.expect(
