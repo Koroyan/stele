@@ -291,4 +291,32 @@ pub mod stele {
     pub fn set_policy_requirement(ctx: Context<SetPolicyRequirement>) -> Result<()> {
         instructions::gate::set_policy_requirement(ctx)
     }
+
+    // ---- Stele Gate passports -------------------------------------------------------------------
+
+    pub fn record_passport_acceptance(
+        ctx: Context<RecordPassportAcceptance>,
+        nonce_index: u32,
+        nonce_tag: [u8; 8],
+        issued_at: i64,
+        expires_at: i64,
+        passport_bump: u8,
+    ) -> Result<()> {
+        instructions::passport::record_passport_acceptance(
+            ctx,
+            nonce_index,
+            nonce_tag,
+            issued_at,
+            expires_at,
+            passport_bump,
+        )
+    }
+
+    pub fn remove_passport_entry(ctx: Context<ManagePassport>, document: Pubkey) -> Result<()> {
+        instructions::passport::remove_passport_entry(ctx, document)
+    }
+
+    pub fn close_passport(ctx: Context<ManagePassport>) -> Result<()> {
+        instructions::passport::close_passport(ctx)
+    }
 }
