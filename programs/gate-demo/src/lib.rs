@@ -10,7 +10,7 @@
 //! exists to show — and test — program-level enforcement, not to hold funds.
 
 use anchor_lang::prelude::*;
-use stele_gate::{require_current, STELE_PROGRAM_ID};
+use stele_gate::{require_current, require_current_passport, STELE_PROGRAM_ID};
 
 declare_id!("A6DBoANAavtbG2ARK6PihqzMjhtbcZUbLnTMAWn339uR");
 
@@ -44,6 +44,39 @@ pub mod stele_gate_demo {
         vault.created_at = Clock::get()?.unix_timestamp;
         vault.bump = ctx.bumps.vault;
         vault.name = name;
+        Ok(())
+    }
+
+    /// The same deposit, admitted by the investor's Stele passport (one account per wallet for every
+    /// document) instead of a per-document AccessPass.
+    pub fn deposit_with_passport(ctx: Context<DepositWithPassport>, amount: u64) -> Result<()> {
+        let granted = require_current_passport(
+            &ctx.accounts.passport,
+            &ctx.accounts.policy,
+            &ctx.accounts.investor,
+        )?;
+        require!(
+            amount > 0 && amount <= MAX_DEPOSIT,
+            VaultError::InvalidAmount
+        );
+        let vault = &mut ctx.accounts.vault;
+        vault.total_deposited = vault
+            .total_deposited
+            .checked_add(amount)
+            .ok_or(VaultError::Overflow)?;
+        vault.deposit_count = vault
+            .deposit_count
+            .checked_add(1)
+            .ok_or(VaultError::Overflow)?;
+        emit!(PassportDeposited {
+            vault: vault.key(),
+            investor: ctx.accounts.investor.key(),
+            amount,
+            total_deposited: vault.total_deposited,
+            deposit_count: vault.deposit_count,
+            terms_version_number: granted.version_number,
+            accepted_at: granted.accepted_at,
+        });
         Ok(())
     }
 
@@ -112,6 +145,18 @@ pub struct Deposit<'info> {
     pub access_pass: UncheckedAccount<'info>,
 }
 
+#[derive(Accounts)]
+pub struct DepositWithPassport<'info> {
+    pub investor: Signer<'info>,
+    #[account(mut, seeds = [VAULT_SEED, vault.policy.as_ref()], bump = vault.bump)]
+    pub vault: Account<'info, Vault>,
+    /// CHECK: pinned to the vault's policy; verified by `stele_gate::require_current_passport`.
+    #[account(address = vault.policy @ VaultError::WrongPolicy)]
+    pub policy: UncheckedAccount<'info>,
+    /// CHECK: verified by `stele_gate::require_current_passport` (owner, type, address, wallet, entry).
+    pub passport: UncheckedAccount<'info>,
+}
+
 #[account]
 #[derive(InitSpace)]
 pub struct Vault {
@@ -140,6 +185,17 @@ pub struct Deposited {
     pub terms_fingerprint: [u8; 32],
     pub acceptance_id: [u8; 32],
     pub slot: u64,
+}
+
+#[event]
+pub struct PassportDeposited {
+    pub vault: Pubkey,
+    pub investor: Pubkey,
+    pub amount: u64,
+    pub total_deposited: u64,
+    pub deposit_count: u64,
+    pub terms_version_number: u32,
+    pub accepted_at: i64,
 }
 
 #[error_code]
