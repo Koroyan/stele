@@ -1,13 +1,12 @@
 //! # Stele Gate for Solana programs
 //!
-//! One call in your protected instruction: the signer must hold a Stele AccessPass that satisfies
-//! your Stele policy — they accepted the policy's document at the required version or later
-//! (PROTOCOL_SPEC.md §18).
+//! One call in your protected instruction: the signer must have accepted your Stele policy's
+//! document at the required version or later (PROTOCOL_SPEC.md §18).
 //!
 //! ```ignore
 //! pub fn deposit(ctx: Context<Deposit>, amount: u64) -> Result<()> {
-//!     stele_gate::require_current(
-//!         &ctx.accounts.access_pass,
+//!     stele_gate::require_current_passport(
+//!         &ctx.accounts.passport, // stele_gate::passport_address(investor).0
 //!         &ctx.accounts.policy,   // pinned: #[account(address = vault.policy)]
 //!         &ctx.accounts.investor, // a Signer
 //!     )?;
@@ -15,8 +14,13 @@
 //! }
 //! ```
 //!
+//! Acceptances are stored in the wallet's **passport** — one Stele account per wallet, an entry per
+//! document (§18.8) — or, for organizations that chose per-document storage, in an **access pass**
+//! per (document, wallet) checked with [`require_current`]. Several documents:
+//! [`require_passport_policies`] (one passport, N policies) or [`require_policies`].
+//!
 //! A frontend checkbox can be skipped by any custom client; this check runs inside your program,
-//! so a direct call without a valid pass fails on-chain. Your program must pin the policy's
+//! so a direct call without a valid acceptance fails on-chain. Your program must pin the policy's
 //! address (store it, or make it a constant): otherwise a caller could present a policy of their
 //! own. Stele is not in the execution path — no CPI, no proxy, no shared signer.
 //!
@@ -414,6 +418,46 @@ pub fn require_policies(
         .collect()
 }
 
+/// [`require_policies`] with the user's passport: every policy in `required` must be satisfied by
+/// an entry of the one `passport`. `policies` are the policy accounts the caller passed, in any
+/// order — typically `ctx.remaining_accounts` — so N documents need N + 1 accounts, not 2N.
+///
+/// `required` is YOUR list (constants or addresses in your program's state). Fails with
+/// [`GateError::InvalidPolicy`] if a required policy is missing from `policies`, otherwise with the
+/// first unmet requirement. On success returns one [`PassportAccess`] per required policy, in the
+/// order of `required`.
+///
+/// ```ignore
+/// pub const REQUIRED: [Pubkey; 3] = [TERMS_POLICY, PRIVACY_POLICY, RISK_POLICY];
+///
+/// pub fn deposit(ctx: Context<Deposit>, amount: u64) -> Result<()> {
+///     stele_gate::require_passport_policies(
+///         &REQUIRED,
+///         ctx.remaining_accounts,  // the policies
+///         &ctx.accounts.passport,
+///         &ctx.accounts.investor,
+///     )?;
+///     // … the protected action
+/// }
+/// ```
+pub fn require_passport_policies(
+    required: &[Pubkey],
+    policies: &[AccountInfo],
+    passport: &AccountInfo,
+    user: &AccountInfo,
+) -> Result<Vec<PassportAccess>, ProgramError> {
+    required
+        .iter()
+        .map(|wanted| {
+            let policy = policies
+                .iter()
+                .find(|p| p.key == wanted)
+                .ok_or(GateError::InvalidPolicy)?;
+            require_current_passport(passport, policy, user)
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -668,6 +712,84 @@ mod tests {
         assert_eq!(
             require_policies(&required, &accounts[..5], &user),
             Err(ProgramError::Custom(GateError::InvalidPolicy as u32))
+        );
+    }
+
+    /// `holder`'s passport with the given (document, version) entries, sorted as the program keeps
+    /// them.
+    fn passport(holder: Pubkey, mut entries: Vec<(Pubkey, u32)>) -> Fake {
+        entries.sort_by_key(|(doc, _)| doc.to_bytes());
+        let (key, bump) = passport_address(&holder);
+        let mut data = vec![0u8; PASSPORT_HEADER_LEN];
+        data[..8].copy_from_slice(&PASSPORT_DISCRIMINATOR);
+        data[8..40].copy_from_slice(holder.as_ref());
+        data[40..44].copy_from_slice(&(entries.len() as u32).to_le_bytes());
+        data[44] = bump;
+        data[45..77].copy_from_slice(holder.as_ref());
+        for (doc, version) in entries {
+            data.extend_from_slice(doc.as_ref());
+            data.extend_from_slice(&version.to_le_bytes());
+            data.extend_from_slice(&7i64.to_le_bytes());
+            data.extend_from_slice(holder.as_ref());
+        }
+        Fake {
+            key,
+            lamports: 1,
+            data,
+        }
+    }
+
+    #[test]
+    fn require_passport_policies_reads_one_passport_for_every_policy() {
+        let holder = Pubkey::new_from_array([3; 32]);
+        let (terms_doc, privacy_doc, risk_doc) = (
+            Pubkey::new_from_array([20; 32]),
+            Pubkey::new_from_array([21; 32]),
+            Pubkey::new_from_array([22; 32]),
+        );
+        let (mut terms, _) = policy_and_pass(terms_doc, holder, 2, 0);
+        let (mut privacy, _) = policy_and_pass(privacy_doc, holder, 1, 0);
+        let (mut risk, _) = policy_and_pass(risk_doc, holder, 4, 0);
+        let mut pp = passport(
+            holder,
+            vec![(risk_doc, 1), (terms_doc, 2), (privacy_doc, 3)],
+        );
+        let required = [terms.key, privacy.key];
+        let user_key = holder;
+        let mut user_lamports = 0;
+        let mut user_data: Vec<u8> = vec![];
+        let system = Pubkey::default();
+        let user = AccountInfo::new(
+            &user_key,
+            true,
+            false,
+            &mut user_lamports,
+            &mut user_data,
+            &system,
+            false,
+        );
+        let risk_key = risk.key;
+        let policies = [
+            info(&mut privacy, false),
+            info(&mut risk, false), // extra, not required: ignored
+            info(&mut terms, false),
+        ];
+        let passport = info(&mut pp, false);
+
+        let granted = require_passport_policies(&required, &policies, &passport, &user).unwrap();
+        assert_eq!(granted.len(), 2);
+        assert_eq!(granted[0].document, terms_doc);
+        assert_eq!(granted[1].version_number, 3);
+
+        // A required policy the caller left out is refused.
+        assert_eq!(
+            require_passport_policies(&required, &policies[..1], &passport, &user),
+            Err(ProgramError::Custom(GateError::InvalidPolicy as u32))
+        );
+        // An outdated entry for a required policy is refused.
+        assert_eq!(
+            require_passport_policies(&[risk_key], &policies, &passport, &user),
+            Err(ProgramError::Custom(GateError::AccessPassOutdated as u32))
         );
     }
 }
