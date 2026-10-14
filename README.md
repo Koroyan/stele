@@ -7,7 +7,7 @@ Stele has two products under one brand:
 | | For | What it does |
 |---|---|---|
 | **Stele Proof** | Websites, SaaS, apps, onboarding, consent | Proves which exact version of a document a user accepted — a passkey or wallet signature over its on-chain fingerprint, and a receipt anyone can verify |
-| **Stele Gate** | Solana programs: RWA vaults, token offerings, permissioned credit | Proof plus enforcement: your program calls `stele_gate::require_current` and refuses a protected action until the signing wallet has accepted the version your policy requires |
+| **Stele Gate** | Solana programs: RWA vaults, token offerings, permissioned credit | Proof plus enforcement: your program calls `stele_gate::require_current_passport` and refuses a protected action until the signing wallet has accepted the version your policy requires |
 
 ## The problem
 
@@ -66,19 +66,22 @@ Solana is Stele's **neutral witness** and **key registry**.
 5. **Cost at consumer scale.** About 0.00001 SOL per directly recorded acceptance, and about
    5 lamports per acceptance in Merkle batches of 1,024 ([measured costs](docs/cost-analysis.md)).
 
-Proof creates no per-user account. Gate is the opt-in exception: a per-wallet AccessPass that
+Proof creates no per-user account. Gate is the opt-in exception: one **passport** per wallet that
 another program can read in its own transaction.
 
 ## What Stele Gate does
 
 - The organization creates a **policy** for a document: "a protected action requires version ≥ N".
   Publishing a new version changes nothing until the organization requires it.
-- When a wallet accepts (a normal Stele acceptance, relayed and paid by Stele), the program creates
-  or advances its **AccessPass** — `["access-pass", document, wallet]` — naming the accepted version,
-  its fingerprint and the receipt.
-- The organization's own program calls **`stele_gate::require_current(&pass, &policy, &user)?`**
-  before the protected action. A missing, outdated, borrowed or forged pass fails **on-chain**, so a
-  script or the CLI cannot skip the terms. Stele is not in the protected transaction: no CPI, no
+- When a wallet accepts (a normal Stele acceptance, relayed and paid by Stele), the program adds or
+  advances the document's entry in the wallet's **passport** — `["passport", wallet]`, one account
+  for every document the wallet accepts. Its small deposit (≈0.002 SOL, then ≈0.0005 per further
+  document) belongs to whoever paid it and is refundable.
+- The organization's own program calls
+  **`stele_gate::require_current_passport(&passport, &policy, &user)?`** before the protected
+  action — no fee, ≈10k compute units even with 10,000 documents in the passport. A missing,
+  outdated, borrowed or forged entry fails **on-chain**, so a script or the CLI cannot skip the
+  terms. Stele is not in the protected transaction: no CPI, no
   proxy, no shared signer.
 - The SDK's `stele.gate({ policy, action })` shows the terms only when needed and runs the action
   after the acceptance (**Accept & Continue**: two transactions, not atomic).
@@ -103,15 +106,15 @@ the old receipt still prove v1, tamper with it, attempt operator forgeries again
 and verify again with Stele switched off.
 
 The Gate story (3 minutes, `/demo` → **Stele Gate**): the Atlas Real Estate Vault refuses a deposit
-without an AccessPass, accepts it after Accept & Deposit, refuses it again once v2 is required, and
-rejects direct calls — no pass, someone else's pass — on-chain.
+without an acceptance, accepts it after Accept & Deposit, refuses it again once v2 is required, and
+rejects direct calls — never accepted, someone else's passport — on-chain.
 
 ## Protocol versions
 
 `stele/1` (wallets, PRF-protected keys, Ed25519) is unchanged and remains supported forever;
 `stele/2` adds native passkeys, `stele-receipt/2` and Merkle-batched evidence
-([PROTOCOL_SPEC.md §17](PROTOCOL_SPEC.md)); Stele Gate adds policies, AccessPasses and
-`require_current` (§18) without changing either. Nothing old is reinterpreted: old messages, receipts and
+([PROTOCOL_SPEC.md §17](PROTOCOL_SPEC.md)); Stele Gate adds policies, passports, access passes and
+`require_current_passport` (§18) without changing either. Nothing old is reinterpreted: old messages, receipts and
 accounts keep their meaning, and their test suites run unchanged.
 
 ## How it works
@@ -143,8 +146,8 @@ provide legal advice.
 
 | | |
 |---|---|
-| **Solana program** (`programs/stele`, Anchor) | Organizations with owners, roles, multisig support, time-locked recovery, freezing and key-compromise reports; verified domains; immutable, hash-chained document versions; on-chain-verified, replay-protected acceptances (Ed25519 and native P-256 passkeys via secp256r1 introspection); on-chain passkey enrollments with rotation and organization recovery; Merkle batch anchors; fee sponsorship; proofs; Gate policies and AccessPasses |
-| **Gate check** (`crates/stele-gate`) and **demo vault** (`programs/gate-demo`) | `require_current` for any Solana program (read-only, no CPI); the Atlas Real Estate Vault that uses it |
+| **Solana program** (`programs/stele`, Anchor) | Organizations with owners, roles, multisig support, time-locked recovery, freezing and key-compromise reports; verified domains; immutable, hash-chained document versions; on-chain-verified, replay-protected acceptances (Ed25519 and native P-256 passkeys via secp256r1 introspection); on-chain passkey enrollments with rotation and organization recovery; Merkle batch anchors; fee sponsorship; proofs; Gate policies, passports and access passes |
+| **Gate check** (`crates/stele-gate`) and **demo vault** (`programs/gate-demo`) | `require_current_passport` for any Solana program (read-only, no CPI); the Atlas Real Estate Vault that uses it |
 | **Protocol libraries** (`crates/*`, `@stelehq/protocol`) | Canonicalization, fingerprints, acceptance messages, account and instruction codecs — Rust and TypeScript, checked against shared test vectors |
 | **Verifier** (`@stelehq/verifier`) | Library and `stele-verify` CLI; works with Stele switched off; multi-RPC consensus; receipts v1 and v2, direct and batched evidence; verdicts `VALID`, `VALID_WITH_WARNINGS`, `INVALID`, `INCONCLUSIVE` |
 | **SDK** (`@stelehq/sdk`) | Verified document loading, acceptance flow (wallets, native passkeys, PRF passkeys), embeddable widget with a published SRI hash, `<TermsAcceptance/>` React component, Gate client and Accept & Continue modal (`createSteleGate`), server client and webhook verification |
@@ -156,10 +159,10 @@ provide legal advice.
 ## Repository layout
 
 ```
-programs/stele/        Solana program (Anchor) and LiteSVM tests (incl. tests/gate.rs)
+programs/stele/        Solana program (Anchor) and LiteSVM tests (incl. tests/gate.rs, tests/passport.rs)
 programs/gate-demo/    Atlas Real Estate Vault — demo program protected by Stele Gate
 crates/                stele-core (shared Rust used by the program), stele-canonical,
-                       stele-gate (require_current for protected programs)
+                       stele-gate (require_current_passport for protected programs)
 packages/protocol      @stelehq/protocol — TypeScript protocol implementation
 packages/verifier      @stelehq/verifier — independent verifier and CLI
 packages/sdk           @stelehq/sdk — browser, React and server SDK
@@ -250,7 +253,7 @@ local validator; the program runs on Solana Devnet. Visitors sign with a native 
 default), a Solana wallet, or — for signers registered before native passkeys — a PRF-protected Stele
 key. Users never pay fees: Stele or the organization (through a sponsored nonce shard) does. Beyond
 documents, the same machinery records proofs of purchases, refunds, consents and more
-(`record_proof`). Stele Gate (policies, AccessPasses, `require_current`, the demo vault, the SDK
+(`record_proof`). Stele Gate (policies, passports, `require_current_passport`, the demo vault, the SDK
 modal and the dashboard) is implemented and tested on a local validator, and both programs run on
 Devnet (Stele upgraded and the demo vault `A6DBoANAavtbG2ARK6PihqzMjhtbcZUbLnTMAWn339uR` deployed on
 2026-10-07, byte-identical to the tested build). Before mainnet use: an independent security audit of the program and protocol,
