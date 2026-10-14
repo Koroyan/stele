@@ -386,14 +386,24 @@ export async function indexAcceptanceTransaction(
       if (recorded) out.push(recorded);
       continue;
     }
-    if (name !== "record_acceptance" && name !== "record_gated_acceptance") continue;
+    if (
+      name !== "record_acceptance" &&
+      name !== "record_gated_acceptance" &&
+      name !== "record_passport_acceptance"
+    )
+      continue;
     const prev = decoded.instructions[ix.index - 1];
     if (!prev || prev.programId !== ED25519_PROGRAM_ADDRESS) continue;
     const ed = parseCanonicalEd25519Data(prev.data);
     if (!verifyEd25519(ed.signature, ed.message, ed.publicKey)) continue;
     const message = parseAcceptanceMessage(fromUtf8(ed.message));
     const args = decodeRecordAcceptanceArgs(ix.data);
-    const [, , orgAddr, docAddr, versionAddr, shardAddr] = ix.accounts;
+    // record_passport_acceptance lists its rent payer second; the rest follows record_acceptance.
+    const accounts =
+      name === "record_passport_acceptance"
+        ? [ix.accounts[0], ...ix.accounts.slice(2)]
+        : ix.accounts;
+    const [, , orgAddr, docAddr, versionAddr, shardAddr] = accounts;
     const doc = await syncDocument(db, chain, docAddr!);
     if (!doc) continue;
     const id = toHex(
@@ -445,7 +455,7 @@ export async function indexAcceptanceTransaction(
       .update(nonceShards)
       .set({ nextIndex: sql`greatest(${nonceShards.nextIndex}, ${args.nonceIndex + 1})` })
       .where(eq(nonceShards.address, shardAddr!));
-    if (name === "record_gated_acceptance") {
+    if (name === "record_gated_acceptance" || name === "record_passport_acceptance") {
       events ??= decodeEventsFromLogs(feeSource.logs, chain.programAddress);
       await indexAccessPass(db, events, {
         organizationId: doc.organizationId,
@@ -890,40 +900,69 @@ async function indexAccessPass(
   i: { organizationId: string; documentId: string; acceptanceId: string; signature: string },
 ): Promise<void> {
   for (const e of events) {
-    if (e.name !== "AccessPassUpdated") continue;
-    const p = e.data;
-    if (toHex(p.acceptanceId) !== i.acceptanceId) continue;
-    const row = {
-      organizationId: i.organizationId,
-      documentId: i.documentId,
-      address: p.accessPass,
-      holder: p.holder,
-      versionAddress: p.version,
-      versionNumber: p.versionNumber,
-      versionHash: toHex(p.versionHash),
-      acceptanceId: i.acceptanceId,
-      acceptanceCount: p.acceptanceCount,
-      acceptedAt: new Date(Number(p.acceptedAt) * 1000),
-      firstAcceptedAt: new Date(Number(p.acceptedAt) * 1000),
-      slot: Number(p.slot),
-      txSignature: i.signature,
-    };
+    let row;
+    if (e.name === "AccessPassUpdated") {
+      const p = e.data;
+      if (toHex(p.acceptanceId) !== i.acceptanceId) continue;
+      row = {
+        organizationId: i.organizationId,
+        documentId: i.documentId,
+        address: p.accessPass,
+        storage: "pass",
+        depositPayer: null,
+        holder: p.holder,
+        versionAddress: p.version,
+        versionNumber: p.versionNumber,
+        versionHash: toHex(p.versionHash),
+        acceptanceId: i.acceptanceId,
+        acceptanceCount: p.acceptanceCount,
+        acceptedAt: new Date(Number(p.acceptedAt) * 1000),
+        firstAcceptedAt: new Date(Number(p.acceptedAt) * 1000),
+        slot: Number(p.slot),
+        txSignature: i.signature,
+      };
+    } else if (e.name === "PassportUpdated") {
+      // Gate v3: the document's entry in the holder's passport.
+      const p = e.data;
+      if (toHex(p.acceptanceId) !== i.acceptanceId) continue;
+      row = {
+        organizationId: i.organizationId,
+        documentId: i.documentId,
+        address: p.passport,
+        storage: "passport",
+        depositPayer: p.depositPayer,
+        holder: p.holder,
+        versionAddress: p.version,
+        versionNumber: p.versionNumber,
+        versionHash: toHex(p.versionHash),
+        acceptanceId: i.acceptanceId,
+        acceptanceCount: 1,
+        acceptedAt: new Date(Number(p.acceptedAt) * 1000),
+        firstAcceptedAt: new Date(Number(p.acceptedAt) * 1000),
+        slot: Number(p.slot),
+        txSignature: i.signature,
+      };
+    } else continue;
     await db
       .insert(accessPasses)
       .values(row)
       .onConflictDoUpdate({
-        target: accessPasses.address,
+        target: [accessPasses.documentId, accessPasses.holder],
         // Events can be replayed out of order by a rebuild: only a newer slot moves the pass.
         set: {
           versionAddress: sql`case when excluded.slot >= ${accessPasses.slot} then excluded.version_address else ${accessPasses.versionAddress} end`,
           versionNumber: sql`case when excluded.slot >= ${accessPasses.slot} then excluded.version_number else ${accessPasses.versionNumber} end`,
           versionHash: sql`case when excluded.slot >= ${accessPasses.slot} then excluded.version_hash else ${accessPasses.versionHash} end`,
           acceptanceId: sql`case when excluded.slot >= ${accessPasses.slot} then excluded.acceptance_id else ${accessPasses.acceptanceId} end`,
-          acceptanceCount: sql`greatest(${accessPasses.acceptanceCount}, excluded.acceptance_count)`,
+          // A passport event carries no count: a newer acceptance adds one.
+          acceptanceCount: sql`case when excluded.storage = 'passport' and excluded.slot > ${accessPasses.slot} then ${accessPasses.acceptanceCount} + 1 else greatest(${accessPasses.acceptanceCount}, excluded.acceptance_count) end`,
           acceptedAt: sql`greatest(${accessPasses.acceptedAt}, excluded.accepted_at)`,
           firstAcceptedAt: sql`least(${accessPasses.firstAcceptedAt}, excluded.first_accepted_at)`,
           txSignature: sql`case when excluded.slot >= ${accessPasses.slot} then excluded.tx_signature else ${accessPasses.txSignature} end`,
           slot: sql`greatest(${accessPasses.slot}, excluded.slot)`,
+          address: sql`case when excluded.slot >= ${accessPasses.slot} then excluded.address else ${accessPasses.address} end`,
+          storage: sql`case when excluded.slot >= ${accessPasses.slot} then excluded.storage else ${accessPasses.storage} end`,
+          depositPayer: sql`case when excluded.slot >= ${accessPasses.slot} then excluded.deposit_payer else ${accessPasses.depositPayer} end`,
           updatedAt: new Date(),
         },
       });

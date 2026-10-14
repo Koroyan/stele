@@ -8,14 +8,21 @@
  */
 import {
   acceptances,
+  accessPasses,
   and,
+  documents,
   documentVersions,
   eq,
   indexerState,
   isNull,
   organizations,
 } from "@stele/db";
-import { fromBase64, identifyInstruction, type InstructionName } from "@stelehq/protocol";
+import {
+  BorshReader,
+  fromBase64,
+  identifyInstruction,
+  type InstructionName,
+} from "@stelehq/protocol";
 import { decodeWireTransaction } from "@stelehq/verifier";
 import type { Deps } from "./deps.js";
 import {
@@ -99,9 +106,35 @@ async function processTransaction(deps: Deps, signature: string): Promise<void> 
     else if (
       name === "record_acceptance" ||
       name === "record_gated_acceptance" ||
+      name === "record_passport_acceptance" ||
       name === "record_passkey_acceptance"
     )
       sawAcceptance = true;
+    else if (name === "remove_passport_entry") {
+      // The entry is gone on-chain (its deposit went back to its payer): drop the mirror row.
+      const r = new BorshReader(ix.data);
+      r.bytes(8);
+      const document = r.address();
+      const [doc] = await deps.db
+        .select({ id: documents.id })
+        .from(documents)
+        .where(eq(documents.address, document));
+      if (doc)
+        await deps.db
+          .delete(accessPasses)
+          .where(
+            and(
+              eq(accessPasses.address, ix.accounts[1]!),
+              eq(accessPasses.documentId, doc.id),
+              eq(accessPasses.storage, "passport"),
+            ),
+          );
+    } else if (name === "close_passport")
+      await deps.db
+        .delete(accessPasses)
+        .where(
+          and(eq(accessPasses.address, ix.accounts[1]!), eq(accessPasses.storage, "passport")),
+        );
     else if (name === "create_policy" || name === "set_policy_requirement")
       await syncPolicy(deps.db, deps.chain, ix.accounts[6]!);
     else if (ENROLLMENT_ACCOUNT[name] !== undefined) {
