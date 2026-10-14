@@ -114,11 +114,15 @@ test.describe("public site", () => {
 
     await tabs.getByRole("link", { name: "SDK", exact: true }).click();
     await expect(page.getByRole("heading", { name: "SDK reference" })).toBeVisible();
-    await expect(page.getByText("createSteleGate(options)").first()).toBeVisible();
+    await expect(
+      page.getByText("createSteleGate(options)").filter({ visible: true }).first(),
+    ).toBeVisible();
 
     await tabs.getByRole("link", { name: "On-chain", exact: true }).click();
     await expect(page.getByRole("heading", { name: "On-chain reference" })).toBeVisible();
-    await expect(page.getByText("AccessPassMissing").first()).toBeVisible();
+    await expect(
+      page.getByText("AccessPassMissing").filter({ visible: true }).first(),
+    ).toBeVisible();
 
     // The explorer is built from the API's OpenAPI document and sends real requests.
     await tabs.getByRole("link", { name: "API", exact: true }).click();
