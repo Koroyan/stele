@@ -36,16 +36,22 @@ pub const STELE_PROGRAM_ID: Pubkey = Pubkey::new_from_array([
 pub const ACCESS_PASS_SEED: &[u8] = b"access-pass";
 /// Seed of a policy: `[POLICY_SEED, document]` under [`STELE_PROGRAM_ID`].
 pub const POLICY_SEED: &[u8] = b"policy";
+/// Seed of a passport: `[PASSPORT_SEED, holder]` under [`STELE_PROGRAM_ID`].
+pub const PASSPORT_SEED: &[u8] = b"passport";
 
 /// Anchor discriminators of the Stele accounts read here.
 pub const ACCESS_PASS_DISCRIMINATOR: [u8; 8] = [24, 47, 32, 42, 150, 120, 87, 169];
 pub const POLICY_DISCRIMINATOR: [u8; 8] = [3, 77, 45, 55, 30, 166, 143, 147];
+pub const PASSPORT_DISCRIMINATOR: [u8; 8] = [18, 61, 245, 239, 6, 15, 18, 34];
 /// Kept for programs that read Stele documents (e.g. to check a policy's document exists).
 pub const DOCUMENT_DISCRIMINATOR: [u8; 8] = [226, 212, 133, 177, 48, 5, 171, 243];
 
 /// Byte lengths of the accounts (discriminator included).
 pub const ACCESS_PASS_LEN: usize = 233;
 pub const POLICY_LEN: usize = 157;
+/// Passport header and entry sizes (discriminator included in the header).
+pub const PASSPORT_HEADER_LEN: usize = 77;
+pub const PASSPORT_ENTRY_LEN: usize = 76;
 
 // Normative layouts (PROTOCOL_SPEC.md §18.1); offsets include the discriminator.
 mod layout {
@@ -80,6 +86,18 @@ pub struct GrantedAccess {
     /// The acceptance identifier (the Proof receipt of this acceptance).
     pub acceptance_id: [u8; 32],
     /// When the holder accepted (Unix seconds).
+    pub accepted_at: i64,
+}
+
+/// The passport entry that satisfied the policy.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct PassportAccess {
+    pub organization: Pubkey,
+    pub document: Pubkey,
+    /// The accepted version number (≥ `required_version`).
+    pub version_number: u32,
+    pub required_version: u32,
+    /// When the holder accepted that version (Unix seconds).
     pub accepted_at: i64,
 }
 
@@ -239,6 +257,100 @@ pub fn require_current(
     })
 }
 
+/// The passport address of `holder` (one per wallet, every document it accepted).
+pub fn passport_address(holder: &Pubkey) -> (Pubkey, u8) {
+    Pubkey::find_program_address(&[PASSPORT_SEED, holder.as_ref()], &STELE_PROGRAM_ID)
+}
+
+/// Like [`require_current`], with the user's Stele passport instead of a per-document access pass:
+/// `user` signed the transaction and their passport (the Stele account at `[passport, user]`) has
+/// an entry for the policy's document at the required version or later.
+///
+/// The passport is searched in place (binary search over its sorted entries), so the cost does not
+/// grow with the number of documents the user accepted elsewhere.
+///
+/// ```ignore
+/// stele_gate::require_current_passport(
+///     &ctx.accounts.passport,  // stele_gate::passport_address(investor).0
+///     &ctx.accounts.policy,    // pinned: #[account(address = vault.policy)]
+///     &ctx.accounts.investor,  // a Signer
+/// )?;
+/// ```
+pub fn require_current_passport(
+    passport: &AccountInfo,
+    policy: &AccountInfo,
+    user: &AccountInfo,
+) -> Result<PassportAccess, ProgramError> {
+    let p = policy.try_borrow_data()?;
+    if *policy.owner != STELE_PROGRAM_ID || p.len() < POLICY_LEN || p[..8] != POLICY_DISCRIMINATOR {
+        return Err(GateError::InvalidPolicy.into());
+    }
+    let document = read_pubkey(&p, layout::POLICY_DOCUMENT);
+    if !is_canonical(
+        policy.key,
+        &[POLICY_SEED, document.as_ref()],
+        p[layout::POLICY_BUMP],
+    ) {
+        return Err(GateError::InvalidPolicy.into());
+    }
+    let organization = read_pubkey(&p, layout::POLICY_ORGANIZATION);
+    let required_version = read_u32(&p, layout::POLICY_REQUIRED_VERSION);
+
+    if !user.is_signer {
+        return Err(GateError::UserNotSigner.into());
+    }
+
+    let d = passport.try_borrow_data()?;
+    if *passport.owner != STELE_PROGRAM_ID {
+        let (expected, _) = passport_address(user.key);
+        return Err(if *passport.key == expected {
+            GateError::AccessPassMissing
+        } else {
+            GateError::AccessPassInvalid
+        }
+        .into());
+    }
+    if d.len() < PASSPORT_HEADER_LEN || d[..8] != PASSPORT_DISCRIMINATOR {
+        return Err(GateError::AccessPassInvalid.into());
+    }
+    if read_pubkey(&d, 8) != *user.key {
+        return Err(GateError::AccessPassMismatch.into());
+    }
+    if !is_canonical(passport.key, &[PASSPORT_SEED, user.key.as_ref()], d[44]) {
+        return Err(GateError::AccessPassInvalid.into());
+    }
+    let count = read_u32(&d, 40) as usize;
+    if d.len() != PASSPORT_HEADER_LEN + count * PASSPORT_ENTRY_LEN {
+        return Err(GateError::AccessPassInvalid.into());
+    }
+    // Binary search over the entries, sorted by document.
+    let key = document.to_bytes();
+    let (mut lo, mut hi) = (0usize, count);
+    let entry = loop {
+        if lo >= hi {
+            return Err(GateError::AccessPassMissing.into());
+        }
+        let mid = lo + (hi - lo) / 2;
+        let at = PASSPORT_HEADER_LEN + mid * PASSPORT_ENTRY_LEN;
+        match d[at..at + 32].cmp(&key[..]) {
+            core::cmp::Ordering::Less => lo = mid + 1,
+            core::cmp::Ordering::Greater => hi = mid,
+            core::cmp::Ordering::Equal => break at,
+        }
+    };
+    let version_number = read_u32(&d, entry + 32);
+    if version_number < required_version {
+        return Err(GateError::AccessPassOutdated.into());
+    }
+    Ok(PassportAccess {
+        organization,
+        document,
+        version_number,
+        required_version,
+        accepted_at: read_i64(&d, entry + 36),
+    })
+}
+
 /// One action that requires several documents (for example Terms of Service, a Privacy Policy and a
 /// Risk Disclosure — one Stele policy each): `user` must hold a current pass for every policy.
 /// Fails with the first unmet requirement; on success returns one [`GrantedAccess`] per policy,
@@ -326,6 +438,19 @@ mod tests {
         assert_eq!(POLICY_LEN, 8 + stele::state::GatePolicy::INIT_SPACE);
         assert_eq!(ACCESS_PASS_SEED, stele::constants::ACCESS_PASS_SEED);
         assert_eq!(POLICY_SEED, stele::constants::POLICY_SEED);
+        assert_eq!(
+            PASSPORT_DISCRIMINATOR,
+            stele::state::Passport::DISCRIMINATOR
+        );
+        assert_eq!(PASSPORT_SEED, stele::constants::PASSPORT_SEED);
+        assert_eq!(
+            PASSPORT_HEADER_LEN,
+            stele::instructions::passport::PASSPORT_HEADER_LEN
+        );
+        assert_eq!(
+            PASSPORT_ENTRY_LEN,
+            stele::instructions::passport::PASSPORT_ENTRY_LEN
+        );
     }
 
     #[test]
@@ -423,7 +548,12 @@ mod tests {
     }
 
     /// A policy requiring `version` of `doc`, and `holder`'s pass naming `pass_version`.
-    fn policy_and_pass(doc: Pubkey, holder: Pubkey, version: u32, pass_version: u32) -> (Fake, Fake) {
+    fn policy_and_pass(
+        doc: Pubkey,
+        holder: Pubkey,
+        version: u32,
+        pass_version: u32,
+    ) -> (Fake, Fake) {
         use anchor_lang::prelude::Pubkey as P;
         let org = P::new_from_array([1; 32]);
         let hash = [9u8; 32];
@@ -460,13 +590,29 @@ mod tests {
         .try_serialize(&mut pass)
         .unwrap();
         (
-            Fake { key: policy_key, lamports: 1, data: policy },
-            Fake { key: pass_key, lamports: 1, data: pass },
+            Fake {
+                key: policy_key,
+                lamports: 1,
+                data: policy,
+            },
+            Fake {
+                key: pass_key,
+                lamports: 1,
+                data: pass,
+            },
         )
     }
 
     fn info(f: &mut Fake, signer: bool) -> AccountInfo<'_> {
-        AccountInfo::new(&f.key, signer, false, &mut f.lamports, &mut f.data, &STELE_PROGRAM_ID, false)
+        AccountInfo::new(
+            &f.key,
+            signer,
+            false,
+            &mut f.lamports,
+            &mut f.data,
+            &STELE_PROGRAM_ID,
+            false,
+        )
     }
 
     #[test]
@@ -484,7 +630,13 @@ mod tests {
         let mut user_data: Vec<u8> = vec![];
         let system = Pubkey::default();
         let user = AccountInfo::new(
-            &user_key, true, false, &mut user_lamports, &mut user_data, &system, false,
+            &user_key,
+            true,
+            false,
+            &mut user_lamports,
+            &mut user_data,
+            &system,
+            false,
         );
         let accounts = [
             info(&mut privacy, false),
