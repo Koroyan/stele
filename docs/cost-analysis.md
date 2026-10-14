@@ -69,7 +69,29 @@ Account-bound native passkeys add 2,456,880 lamports **once per account** (not p
 
 ## Stele Gate
 
-Measured the same way on 2026-10-07 (the live-demo flow of `pnpm --filter @stele/localnet gate-smoke`).
+Gated acceptances are written into the wallet's **passport** (one account per wallet, an entry per
+document; [PROTOCOL_SPEC.md §18.8](../PROTOCOL_SPEC.md)). Measured on the real program binaries in
+LiteSVM (`programs/stele/tests/passport.rs`, `bench_*`), for 1 to 1,000,000 investors and up to
+10,000 documents in one passport; the numbers do not change with the number of investors.
+
+| Transaction | Fee (lamports) | Who pays | Compute units | Transaction bytes |
+|---|---|---|---|---|
+| Gated acceptance that creates the passport | 10,000 + 1,955,760 deposit (refundable) | Stele's relayer | ≈43,100–44,500 | ≈1,108 (927 with a lookup table) |
+| Gated acceptance of a further document | 10,000 + 528,960 deposit (refundable) | Stele's relayer | ≈44,000 (46,402 max with 10,000 documents) | ≈1,108 |
+| Gated acceptance of a newer version | 10,000, no new deposit | Stele's relayer | ≈36,500 | ≈1,108 |
+| Demo vault `deposit_with_passport`, including `require_current_passport` | 5,000 per signature | the investor | 9,155 (≈10,800 with 10,000 documents) | — |
+
+| State | Size | Deposit | Who pays |
+|---|---|---|---|
+| Passport | 77 bytes + 76 per document | 1,955,760 lamports for the first document, 528,960 for each further one | whoever records the entry (Stele's relayer today); refunded to that payer when the entry is removed |
+
+Compared with one AccessPass per document (below), the first document costs 22% less and every
+further document 79% less, and the deposit is no longer locked forever.
+
+### Per-document access passes
+
+Organizations can keep the earlier storage (organization setting `gateStorage: "pass"`). Measured on
+2026-10-07 (the live-demo flow of `pnpm --filter @stele/localnet gate-smoke` at that time).
 
 | Transaction | Fee (lamports) | Who pays | Compute units | Transaction bytes |
 |---|---|---|---|---|
@@ -81,7 +103,7 @@ Measured the same way on 2026-10-07 (the live-demo flow of `pnpm --filter @stele
 
 | State | Size | Rent-exempt deposit | Who pays |
 |---|---|---|---|
-| `AccessPass` | 233 bytes | 2,512,560 lamports (0.00251 SOL) | Stele's relayer, once per wallet and document |
+| `AccessPass` | 233 bytes | 2,512,560 lamports (0.00251 SOL), never refunded | Stele's relayer, once per wallet and document |
 | `GatePolicy` | 157 bytes | 1,983,600 lamports (0.00198 SOL) | the organization, once per document |
 
 `require_current` reads two accounts and writes nothing; the deposit's 9,406 units cover the whole
