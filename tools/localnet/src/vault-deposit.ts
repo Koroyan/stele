@@ -2,7 +2,7 @@
  * A direct call to the Atlas vault's deposit() — no frontend, no SDK, no Stele API: the transaction
  * goes straight to the RPC, signed and paid by a local keypair, and is submitted even if it will
  * fail, so the result is a real transaction on-chain. It succeeds only if that wallet holds a
- * current Stele AccessPass. LOCALNET and DEVNET only.
+ * current entry in its Stele passport. LOCALNET and DEVNET only.
  *
  *   STELE_RPC_URL=<rpc> pnpm --filter @stele/localnet vault-deposit -- \
  *     --policy <policy address> [--keypair <wallet.json>] [--amount 5000]
@@ -31,10 +31,10 @@ import {
   confirmSignature,
   createRpc,
   decodeGatePolicy,
-  depositInstruction,
+  depositWithPassportInstruction,
   explainGateFailure,
   fetchAccountData,
-  findAccessPassPda,
+  findPassportPda,
   findVaultPda,
 } from "@stelehq/protocol";
 import { RPC_URL, airdrop } from "./chain.js";
@@ -71,7 +71,7 @@ if (!values.keypair) await airdrop(rpc, wallet.address, 1);
 const policy = address(values.policy);
 const policyAccount = decodeGatePolicy((await fetchAccountData(rpc, policy))!);
 const [vault] = await findVaultPda(policy);
-const [accessPass] = await findAccessPassPda(policyAccount.document, wallet.address);
+const [passport] = await findPassportPda(wallet.address);
 const amount = BigInt(Math.round(Number(values.amount) * 1_000_000));
 
 console.log(`$ deposit(${values.amount} USDC) from ${wallet.address}`);
@@ -83,7 +83,15 @@ const message = pipe(
   (m) => setTransactionMessageLifetimeUsingBlockhash(blockhash, m),
   (m) =>
     appendTransactionMessageInstructions(
-      [depositInstruction({ investor: wallet.address, vault, policy, accessPass, amount })],
+      [
+        depositWithPassportInstruction({
+          investor: wallet.address,
+          vault,
+          policy,
+          passport,
+          amount,
+        }),
+      ],
       m,
     ),
 );

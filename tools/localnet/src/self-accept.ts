@@ -1,8 +1,9 @@
 /**
  * Accept a Stele Gate document WITHOUT Stele — no Stele API, no Stele relayer. The wallet rebuilds
- * the exact acceptance message from Solana, signs it, and submits `record_gated_acceptance` itself,
- * paying the network fee and the pass rent. This is how acceptances keep working if Stele's servers
- * ever disappear: everything needed is on Solana and in the open-source @stelehq/protocol package.
+ * the exact acceptance message from Solana, signs it, and submits `record_passport_acceptance`
+ * itself, paying the network fee and its own (refundable) passport deposit. This is how acceptances
+ * keep working if Stele's servers ever disappear: everything needed is on Solana and in the
+ * open-source @stelehq/protocol package.
  *
  * It needs a nonce shard of the organization that this wallet may use: one whose relayer is the
  * wallet itself, or the zero key (anyone). The organization opens one, once, with its owner key:
@@ -28,18 +29,19 @@ import {
   buildEd25519Instruction,
   createNonceShardInstruction,
   createRpc,
-  decodeAccessPass,
+  decodePassport,
   decodeDocument,
   decodeGatePolicy,
   decodeNonceShard,
   describeProgramError,
   fetchAccountData,
-  findAccessPassPda,
+  findPassportPda,
   findConfigPda,
   findNonceShardPda,
   freeNonces,
   getClusterUnixTimestamp,
-  recordGatedAcceptanceInstruction,
+  passportEntry,
+  recordPassportAcceptanceInstruction,
   setShardRelayerInstruction,
   signSendAndConfirm,
   utf8,
@@ -156,7 +158,7 @@ console.log("");
 
 // 4. Sign it, and submit it yourself — this wallet is the fee payer ("relayer").
 const signature = ed25519.sign(utf8(built.message), secretKey.slice(0, 32));
-const [accessPass] = await findAccessPassPda(policy.document, wallet.address);
+const [passport, passportBump] = await findPassportPda(wallet.address);
 const [config] = await findConfigPda();
 const { value: latestBlockhash } = await rpc.getLatestBlockhash({ commitment: "confirmed" }).send();
 const message = buildAcceptanceTransactionMessage({
@@ -167,15 +169,17 @@ const message = buildAcceptanceTransactionMessage({
     signature,
     utf8(built.message),
   ),
-  recordInstruction: recordGatedAcceptanceInstruction({
+  // The wallet is its own relayer and pays its own passport deposit (refundable).
+  recordInstruction: recordPassportAcceptanceInstruction({
     relayer: wallet,
+    rentPayer: wallet,
     config,
     organization: policy.organization,
     document: policy.document,
     version,
     nonceShard: shard.address,
-    holder: wallet.address,
-    accessPass,
+    passport,
+    passportBump,
     nonceIndex,
     nonceTag,
     issuedAt,
@@ -184,9 +188,12 @@ const message = buildAcceptanceTransactionMessage({
 });
 try {
   const tx = await signSendAndConfirm(rpc, message, { commitment: "confirmed" });
-  const pass = decodeAccessPass((await fetchAccountData(rpc, accessPass))!);
+  const entry = passportEntry(
+    decodePassport((await fetchAccountData(rpc, passport))!),
+    policy.document,
+  );
   console.log(`✓ Accepted without Stele · tx ${tx}`);
-  console.log(`  AccessPass ${accessPass} now names version ${pass.versionNumber}`);
+  console.log(`  Passport ${passport} now names version ${entry?.versionNumber} of the document`);
 } catch (e) {
   // Name the program's reason (e.g. AccessPassAlreadyCurrent) from the transaction's logs.
   const logs = e instanceof TransactionFailedError ? e.logs : [];
