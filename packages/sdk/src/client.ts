@@ -461,6 +461,9 @@ export class SteleClient {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ clientBinding: access.clientBinding }),
+        // The client binding proves the signer. Ambient dashboard cookies would turn this into a
+        // cookie-authenticated request that the API's CSRF check refuses (403).
+        credentials: "omit",
       },
     );
     if (!res.ok) throw new Error(`The PDF receipt could not be produced (HTTP ${res.status}).`);
