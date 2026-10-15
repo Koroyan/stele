@@ -34,6 +34,8 @@ import {
   fromHex,
   acceptanceId,
   decodeDocument,
+  decodePassport,
+  passportEntry,
   fromBase64Url,
   isP256KeyId,
   messageHash,
@@ -222,6 +224,25 @@ export async function allocateFreeNonce(
   );
 }
 
+/**
+ * True when `signer` is a wallet whose Stele passport lacks the current version of a gated
+ * document stored in passports (no passport, no entry, or an older entry).
+ */
+async function gatedPassportMissesVersion(
+  deps: Deps,
+  org: { settings: { gateStorage?: "passport" | "pass" } },
+  doc: { gated: boolean; address: string; versionCount: number },
+  signer: string,
+): Promise<boolean> {
+  if (!doc.gated || (org.settings.gateStorage ?? "passport") !== "passport") return false;
+  if (isP256KeyId(signer)) return false; // passkeys open no Gate
+  const [passport] = await findPassportPda(address(signer), deps.chain.programAddress);
+  const data = await fetchAccountData(deps.chain.rpc, passport);
+  if (!data) return true;
+  const entry = passportEntry(decodePassport(data), address(doc.address));
+  return !entry || entry.versionNumber < doc.versionCount;
+}
+
 export async function issueChallenge(
   deps: Deps,
   input: IssueChallengeInput,
@@ -345,7 +366,12 @@ export async function issueChallenge(
           ),
         )
         .limit(1);
-  if (previous || inFlight) {
+  // Gate v3: a wallet that accepted this version before its organization moved to passports (or
+  // before the document was gated) has no passport entry yet, so protected programs refuse it.
+  // Recording the acceptance again is then what writes the entry — not a duplicate.
+  const passportNeedsEntry =
+    previous && !inFlight && (await gatedPassportMissesVersion(deps, org, doc, input.signer));
+  if ((previous || inFlight) && !passportNeedsEntry) {
     throw new ApiError(
       409,
       "already_accepted",
