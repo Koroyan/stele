@@ -5,7 +5,8 @@
  *   deposit before accepting → rejected · accept v1 (recorded in the investor's passport) → deposit
  *   allowed · admin publishes and requires v2 → deposit rejected (outdated) · accept v2 → deposit
  *   allowed · someone else's passport → rejected · no passport → rejected · Proof receipt of the
- *   acceptance is available
+ *   acceptance is available · the holder removes its entry, accepts the same version again and the
+ *   entry is back (a third acceptance is refused) — this last step needs an airdrop (localnet)
  *
  *   STELE_API_URL=http://localhost:4000 pnpm --filter @stele/localnet gate-smoke
  */
@@ -16,9 +17,11 @@ import {
   createTransactionMessage,
   generateKeyPairSigner,
   getBase64EncodedWireTransaction,
+  lamports,
   partiallySignTransaction,
   pipe,
   setTransactionMessageFeePayer,
+  setTransactionMessageFeePayerSigner,
   setTransactionMessageLifetimeUsingBlockhash,
   type Address,
   type KeyPairSigner,
@@ -27,6 +30,8 @@ import {
   createRpc,
   depositWithPassportInstruction,
   findPassportPda,
+  removePassportEntryInstruction,
+  signSendAndConfirm,
   toBase58,
   utf8,
 } from "@stelehq/protocol";
@@ -191,6 +196,63 @@ expect(
   !!receipt.receipt,
   `acceptance ${first.acceptanceId.slice(0, 12)}…`,
 );
+
+// The holder removes its entry, then accepts the same (current) version again: the API must allow
+// it — the passport lacks the version — and the program writes the entry back.
+const funded = await rpc
+  .requestAirdrop(investor.address, lamports(1_000_000_000n))
+  .send()
+  .then(async () => {
+    for (let i = 0; i < 30; i++) {
+      const { value } = await rpc.getBalance(investor.address).send();
+      if (value > 0n) return true;
+      await new Promise((r) => setTimeout(r, 1000));
+    }
+    return false;
+  })
+  .catch(() => false);
+if (!funded) {
+  console.log("– remove and re-accept: skipped (no airdrop on this cluster)");
+} else {
+  const [passport] = await findPassportPda(investor.address);
+  const { value: blockhash } = await rpc.getLatestBlockhash().send();
+  await signSendAndConfirm(
+    rpc,
+    pipe(
+      createTransactionMessage({ version: 0 }),
+      (m) => setTransactionMessageFeePayerSigner(investor, m),
+      (m) => setTransactionMessageLifetimeUsingBlockhash(blockhash, m),
+      (m) =>
+        appendTransactionMessageInstructions(
+          [
+            removePassportEntryInstruction({
+              authority: investor,
+              passport,
+              refundTo: address(status.relayer),
+              document: address(session.document),
+            }),
+          ],
+          m,
+        ),
+    ),
+    { commitment: "confirmed" },
+  );
+  a = await access(investor.address);
+  expect("the holder removes its entry", a.status === "MISSING", a.status);
+  const again = await accept(investor)
+    .then(() => "recorded")
+    .catch((e: Error) => e.message);
+  a = await access(investor.address);
+  expect(
+    "accepting the same version again writes the entry back",
+    again === "recorded" && a.status === "VALID" && a.passportEntry?.versionNumber === 2,
+    `${again}; ${a.status} v${a.passportEntry?.versionNumber}`,
+  );
+  const third = await accept(investor)
+    .then(() => "recorded")
+    .catch((e: Error) => e.message);
+  expect("a third acceptance is refused", third.includes("409"), third);
+}
 
 if (failures > 0) {
   console.error(`${failures} check(s) failed`);
