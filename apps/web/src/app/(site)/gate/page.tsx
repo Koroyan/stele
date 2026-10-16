@@ -10,6 +10,7 @@ import { GateSteps } from "@/components/story/gate-steps";
 import { PolicyUpdate } from "@/components/story/policy-update";
 import { Comparison, ProductLinks } from "@/components/story/products";
 import { RwaExample } from "@/components/story/rwa-example";
+import { VerifiedBadgePreview } from "@/components/story/verified-badge-preview";
 
 export const metadata: Metadata = {
   title: "Stele Gate",
@@ -171,12 +172,13 @@ export default function GatePage() {
             <dl className="mt-4 divide-y divide-line text-[14px]">
               {[
                 [
-                  "First acceptance (creates the pass)",
-                  "10,000 lamports fee (Stele, or the organization if it sponsors fees) + ≈0.0025 SOL pass rent paid by Stele",
+                  "First acceptance (creates the passport)",
+                  "10,000 lamports fee (Stele, or the organization if it sponsors fees) + ≈0.002 SOL refundable deposit",
                 ],
+                ["Each further document", "10,000 lamports + ≈0.0005 SOL refundable deposit"],
                 [
                   "Later acceptances (new versions)",
-                  "10,000 lamports; the pass is updated in place",
+                  "10,000 lamports; the entry is updated in place",
                 ],
                 [
                   "The demo deposit, including the passport check",
@@ -190,6 +192,39 @@ export default function GatePage() {
                 </div>
               ))}
             </dl>
+          </div>
+        </div>
+      </Section>
+
+      <Section className="border-t border-line">
+        <div className="grid items-center gap-10 lg:grid-cols-2">
+          <div>
+            <Eyebrow>Stele Verified</Eyebrow>
+            <h2 className="mt-3 text-[30px] font-semibold leading-[1.15] tracking-[-0.025em] text-fg">
+              Show your users that the check is real.
+            </h2>
+            <div className="mt-6 space-y-4 text-[15px] leading-relaxed text-fg-muted">
+              <p>
+                Stele runs your deployed program in simulation: a wallet that never accepted must be
+                refused, one that accepted must be let through. It re-checks after every upgrade.
+              </p>
+              <p>
+                The badge on your site opens the evidence — and a button that repeats the checks in
+                the visitor&apos;s own browser, against Solana.
+              </p>
+            </div>
+            <Link
+              href="/docs/gate#stele-verified"
+              className="mt-6 inline-flex items-center gap-1.5 text-[14px] font-medium text-accent hover:underline"
+            >
+              How verification works <ArrowRightIcon className="h-4 w-4" />
+            </Link>
+          </div>
+          <div className="flex flex-col items-center gap-4 rounded-2xl border border-line bg-surface p-8">
+            <VerifiedBadgePreview />
+            <p className="text-center text-[13px] text-fg-subtle">
+              Live status · opens the evidence · “Not valid on this site” anywhere else
+            </p>
           </div>
         </div>
       </Section>
