@@ -25,6 +25,7 @@ export const WEBHOOK_EVENTS = [
   "agreement.accepted",
   "agreement.finalized",
   "document.version_published",
+  "gate.program_verification_changed",
   "organization.domain_verified",
   "organization.member_changed",
   "proof.recorded",
