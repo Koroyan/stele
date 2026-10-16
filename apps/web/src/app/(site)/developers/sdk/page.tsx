@@ -124,6 +124,19 @@ function groups(origin: string): RefGroup[] {
             "The wallet's status without prompting — for your interface (badges, disabled buttons). The same data is at GET /v1/public/gate/access.",
         },
         {
+          name: "mountVerifiedBadge(target, { program })",
+          kind: "function",
+          signature: `mountVerifiedBadge(target: string | Element, {
+  program: string;                  // your protected program
+  apiBaseUrl?: string;              // default https://stele.site/api
+  theme?: "auto" | "light" | "dark";
+}): { state, refresh(), destroy() }
+// React: <SteleVerifiedBadge program="…" /> · script: <span data-stele-verified="…"></span>`,
+          description:
+            "The Stele Verified badge: the live verification of your program (re-checked after every upgrade), opening the public evidence. Outside your organization's verified domains it reads “Not valid on this site”. Set up the verification in the dashboard (Gate → Verification).",
+          example: `mountVerifiedBadge("#stele-badge", { program: "YOUR_PROGRAM_ID" });`,
+        },
+        {
           name: "GateCancelledError · AccessRequiredError · StaleTermsError",
           kind: "errors",
           description: (

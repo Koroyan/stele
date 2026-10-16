@@ -41,6 +41,21 @@ account per wallet (`findPassportPda(wallet)` in `@stelehq/protocol`). `stele.ch
 reports the wallet's status from its passport or, for organizations on per-document storage, its
 access pass.
 
+### The Stele Verified badge
+
+Once Stele has verified your deployed program (dashboard → Gate → Verification), show it:
+
+```ts
+import { mountVerifiedBadge } from "@stelehq/sdk";
+
+mountVerifiedBadge("#stele-badge", { program: "YOUR_PROGRAM_ID" });
+// React: import { SteleVerifiedBadge } from "@stelehq/sdk/react";
+```
+
+The badge shows the live verification (re-checked after every program upgrade) and opens the public
+evidence, where visitors can re-run the checks in their own browser. Outside your organization's
+verified domains it reads "Not valid on this site".
+
 ## Stele Proof: accept any document
 
 ```ts
