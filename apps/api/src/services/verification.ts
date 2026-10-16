@@ -545,7 +545,7 @@ export interface VerifiedView {
   verifiedSince: string | null;
   organization: { name: string; address: string; domains: string[] };
   policy: string;
-  document: { title: string; slug: string; requiredVersion: number };
+  document: { address: string; title: string; slug: string; requiredVersion: number };
   /** The deployed code that was checked. */
   code: ProgramFacts | null;
   ownership: (ProgramOwnership & { current: boolean }) | null;
@@ -591,7 +591,12 @@ export async function verifiedView(deps: Deps, program: string): Promise<Verifie
     verifiedSince: v?.verifiedSince ?? null,
     organization: { name: o.name, address: o.address, domains },
     policy: g.address,
-    document: { title: version?.title ?? d.slug, slug: d.slug, requiredVersion: g.requiredVersion },
+    document: {
+      address: d.address,
+      title: version?.title ?? d.slug,
+      slug: d.slug,
+      requiredVersion: g.requiredVersion,
+    },
     code: v?.program ?? null,
     ownership: p.ownership
       ? { ...p.ownership, current: p.ownership.authority === v?.program.upgradeAuthority }
