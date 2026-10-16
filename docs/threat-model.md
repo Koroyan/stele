@@ -222,6 +222,10 @@ and W07 apply only to signers registered before native passkeys, whose Ed25519 k
 | G16 | The public demo's relay is abused | Exactly one demo deposit for the session's own vault and policy; per-session, per-IP and daily caps; off on mainnet. |
 | G17 | A deposit's payer removes an entry it paid for | Allowed by design (the payer reclaims its deposit): the holder loses Gate access for that document until it accepts again, the acceptance and its receipt remain verifiable, and every removal is a public `PassportEntryRemoved` event. Refunds go only to the recorded payer. |
 | G18 | Someone bloats a victim's passport | Entries are added only from the holder's own verified signature; each costs its payer a deposit; the check is a binary search (≈10,800 compute units at 10,000 entries). |
+| G19 | A program shows a Stele Verified badge it does not deserve | The badge reflects simulations of the deployed program, not the organization's claims: a wallet that never accepted must be refused by the Stele check of that organization's own policy. A refusal for another reason, or another policy, fails. Several organizations may register the same address; only the one whose policy it enforces passes. |
+| G20 | The program is upgraded to drop the check after verification | The code fingerprint, deployment slot and upgrade authority are read every minute; any change re-runs the probes and the badge follows. A single-key authority is shown as such; between two checks a malicious upgrade is possible — the evidence page says so. |
+| G21 | The badge is copied to another site | The live badge refuses to vouch outside the organization's verified domains; the evidence page names those domains and warns when the visitor came from elsewhere. A static image can still be copied: the page, not the image, is the evidence. |
+| G22 | Stele's verdict itself is wrong or dishonest | The evidence page publishes the instruction and the accepted wallet it used, and re-runs the same simulations from the visitor's browser against Solana. |
 
 ## Residual risks
 

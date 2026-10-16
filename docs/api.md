@@ -1586,6 +1586,7 @@ endpoint** (HTTPS, public address) and choose its events; the signing secret is 
 |---|---|
 | `agreement.accepted` | `acceptanceId`, `transactionSignature`, `slot`, `commitment`, `signer` (base58 or `p256:…`), `signerType` (`wallet` / `passkey_p256` / `passkey`), `protocol`, `fee`, `document`, `documentSlug`, `version`, `versionNumber`, `externalUserRef`, `receiptUrl`; batched mode adds `evidenceMode` and the leaf's `evidence` |
 | `agreement.finalized` | `acceptanceId`, `transactionSignature`, `slot`, `commitment` (`finalized`) |
+| `gate.program_verification_changed` | `program`, `status` (`verified`, `failed`, `incomplete`), `previousStatus`, `reason`, `codeHash` |
 | `document.version_published` | `document`, `version`, `versionNumber`, `versionLabel`, `fingerprint`, `contentHash`, `transactionSignature`, `publisher` |
 | `organization.domain_verified` | `domain`, `attestationTransaction`, `expiresAt` |
 | `organization.member_changed` | `member`, `memberAccount`, `roles` (`admin`, `publisher`), `active`, `compromisedSince`, `change` (`added`, `updated`, `revoked`, `compromise_reported`) |
