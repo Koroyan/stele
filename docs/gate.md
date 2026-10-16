@@ -156,6 +156,53 @@ Your tests should cover at least:
 The dashboard's **Gate → Testing** runs the same scenarios live against your policy, and against
 the demo vault's `deposit` by simulation.
 
+## Stele Verified
+
+Your users cannot read your program, so give them proof instead: a **Stele Verified** badge on your
+site that opens public evidence that your program really waits for the current terms.
+
+```html
+<script src="https://stele.site/sdk/v1/stele.js" defer></script>
+<span data-stele-verified="YOUR_PROGRAM_ID"></span>
+```
+
+(React: `<SteleVerifiedBadge program="YOUR_PROGRAM_ID" />` from `@stelehq/sdk/react`; README:
+`https://stele.site/api/v1/public/verified/YOUR_PROGRAM_ID/badge.svg`.)
+
+**How Stele checks it.** In the dashboard (**Gate → Verification**) you describe how your protected
+instruction is called: its data and its accounts, with the user, their passport and your policy as
+placeholders. Stele then simulates that instruction against your **deployed** program — nothing is
+signed or sent — in three scenarios:
+
+| Scenario | A verified program |
+|---|---|
+| A wallet that never accepted the terms | is refused by the Stele check (`AccessPassMissing`) |
+| A wallet that accepted the required version | is not refused by the Stele check |
+| A wallet presenting someone else's acceptance | is refused by the Stele check |
+
+A program passes only if the Stele check of **your** policy is what decides — a refusal for another
+reason, or another organization's policy, fails. The deployed code is fingerprinted (sha256), and
+Stele re-runs the probes whenever the program is upgraded or its upgrade authority changes (checked
+every minute), and at least every six hours. A status change is sent as the
+`gate.program_verification_changed` webhook.
+
+**Ownership.** Your program's upgrade authority signs a memo `stele-verify <program> <organization>`
+— from the dashboard with the connected wallet, or from a multisig (paste the transaction
+signature). An immutable program has no authority: it cannot change, which is stronger still.
+
+**What a visitor sees** at `stele.site/verified/<program>`: what was checked and when, the terms and
+version, the code fingerprint, who can change the program (nobody, a multisig or a single key), the
+ownership proof — and a **Re-check in my browser** button that runs the same three simulations from
+the visitor's browser against Solana, so nobody has to trust Stele's word.
+
+**Copies of the badge.** The live badge reads "Not valid on this site" outside your verified
+domains, and the evidence page warns when the visitor came from another site. A static image can be
+copied anywhere, so the page always states which websites the verification belongs to.
+
+**What it does not prove.** That a website sends the user to this program (their wallet shows the
+program they sign for — the page tells them to compare), who controls a wallet, or anything about
+the program besides this check. It is not an audit.
+
 ## Good to know
 
 ### "Accept & Continue" is two transactions
