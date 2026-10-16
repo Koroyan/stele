@@ -34,5 +34,6 @@ export * from "./batch";
 export * from "./time";
 export * from "./transaction";
 export * from "./validate";
+export * from "./verified";
 export * from "./version";
 export * from "./webauthn";
