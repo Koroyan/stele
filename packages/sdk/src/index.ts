@@ -13,6 +13,7 @@
  * person controlling the key. The user never pays the network fee.
  */
 export * from "./accept";
+export * from "./badge";
 export * from "./client";
 export * from "./embed";
 export * from "./gate";

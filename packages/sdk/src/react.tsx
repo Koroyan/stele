@@ -19,6 +19,7 @@
  */
 import { useEffect, useRef, type CSSProperties } from "react";
 import type { AcceptanceResult, MessageSigner } from "./accept";
+import { mountVerifiedBadge, type VerifiedBadgeOptions } from "./badge";
 import { mount, type EmbedOptions } from "./embed";
 
 export interface TermsAcceptanceProps {
@@ -93,4 +94,24 @@ export function TermsAcceptance(props: TermsAcceptanceProps) {
   ]);
 
   return <div ref={ref} className={props.className} style={props.style} />;
+}
+
+/**
+ * `<SteleVerifiedBadge/>`: the live Stele Verified badge for a protected program.
+ *
+ * ```tsx
+ * <SteleVerifiedBadge program="YOUR_PROGRAM_ID" />
+ * ```
+ */
+export function SteleVerifiedBadge(
+  props: VerifiedBadgeOptions & { className?: string; style?: CSSProperties },
+) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const { program, apiBaseUrl, appUrl, theme } = props;
+  useEffect(() => {
+    if (!ref.current) return;
+    const handle = mountVerifiedBadge(ref.current, { program, apiBaseUrl, appUrl, theme });
+    return () => handle.destroy();
+  }, [program, apiBaseUrl, appUrl, theme]);
+  return <span ref={ref} className={props.className} style={props.style} />;
 }
