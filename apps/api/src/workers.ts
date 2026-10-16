@@ -27,6 +27,7 @@ import { checkDomainControl } from "./lib/dns.js";
 import { syncOrganization } from "./lib/sync.js";
 import { dispatchDueWebhooks, enqueueWebhook } from "./lib/webhooks.js";
 import { anchorPendingBatches } from "./services/batches.js";
+import { monitorVerifiedPrograms } from "./services/verification.js";
 
 type Stop = () => Promise<void>;
 
@@ -197,6 +198,10 @@ export function startWorkers(deps: Deps): Stop {
       await anchorPendingBatches(deps);
     }),
     loop("domain-renewal", 6 * 3_600_000, deps, () => renewDomains(deps)),
+    // Stele Verified: re-check a program after every upgrade (cheap header read each minute).
+    loop("program-verification", 60_000, deps, async () => {
+      await monitorVerifiedPrograms(deps);
+    }),
   ];
   return async () => {
     await Promise.all(stops.map((s) => s()));
