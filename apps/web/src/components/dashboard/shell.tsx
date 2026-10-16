@@ -56,6 +56,7 @@ const GATE_NAV: NavItem[] = [
   { href: "/dashboard/gate/passes", label: "Accepted wallets", icon: TicketIcon },
   { href: "/dashboard/gate/programs", label: "Program integration", icon: CodeIcon },
   { href: "/dashboard/gate/testing", label: "Testing", icon: PlayIcon },
+  { href: "/dashboard/gate/verification", label: "Verification", icon: ShieldIcon },
 ];
 
 const ORG_NAV: NavItem[] = [

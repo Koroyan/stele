@@ -65,6 +65,9 @@ export interface GateOverview {
     mode: string;
     policyDocumentId: string;
     isDemo: boolean;
+    probeTemplate: ProbeTemplate | null;
+    verification: ProgramVerification | null;
+    ownership: { authority: string; signature: string; provenAt: string } | null;
     createdAt: string;
   }[];
   recentPasses: {
@@ -102,6 +105,38 @@ export interface ProgramActivity {
   };
 }
 
+/** How the protected instruction is called (Stele Verified). */
+export interface ProbeTemplate {
+  data: string;
+  accounts: {
+    role: "user" | "passport" | "accessPass" | "policy" | "address";
+    address?: string;
+    signer: boolean;
+    writable: boolean;
+  }[];
+}
+
+export interface ProgramVerification {
+  status: "verified" | "failed" | "incomplete";
+  checks: {
+    id: string;
+    outcome: "passed" | "failed" | "skipped";
+    error: string | null;
+    detail: string;
+  }[];
+  checkedAt: string;
+  verifiedSince: string | null;
+  program: {
+    codeHash: string | null;
+    deployedSlot: number | null;
+    upgradeAuthority: string | null;
+    authorityKind: "immutable" | "program" | "key";
+  };
+  requiredVersion: number;
+  holder?: string | null;
+  reason: string | null;
+}
+
 export interface ProbeReport {
   program: string;
   scope: "protected_action" | "policy_requirement";
@@ -123,6 +158,7 @@ const TABS = [
   { href: "/dashboard/gate/passes", label: "Accepted wallets" },
   { href: "/dashboard/gate/programs", label: "Program integration" },
   { href: "/dashboard/gate/testing", label: "Testing" },
+  { href: "/dashboard/gate/verification", label: "Verification" },
 ];
 
 /** The Gate section's own tabs (also linked from the sidebar). */
