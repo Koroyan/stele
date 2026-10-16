@@ -5,14 +5,13 @@
 import { createHash } from "node:crypto";
 import { AccountRole, address, getAddressEncoder } from "@solana/kit";
 import { describe, expect, it } from "vitest";
-import { toBase58, utf8 } from "@stelehq/protocol";
+import { probeInstruction, toBase58, utf8 } from "@stelehq/protocol";
 import { badgeSvg } from "../src/lib/badge-svg.js";
 import {
   codeHashOf,
   gateErrorOf,
   memoSignedBy,
   ownershipMemo,
-  probeInstruction,
   programDataFacts,
   validateTemplate,
 } from "../src/services/verification.js";

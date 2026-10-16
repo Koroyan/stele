@@ -1074,6 +1074,8 @@ export interface ProgramVerification {
   };
   /** The policy version the probes required. */
   requiredVersion: number;
+  /** The wallet whose acceptance the "let through" probe used (anyone can re-run it). */
+  holder?: string | null;
   reason: string | null;
 }
 

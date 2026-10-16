@@ -17,20 +17,16 @@
  * the program and the organization.
  */
 import { createHash } from "node:crypto";
-import {
-  AccountRole,
-  address,
-  getAddressDecoder,
-  isOffCurveAddress,
-  type Address,
-  type Instruction,
-} from "@solana/kit";
+import { address, getAddressDecoder, isOffCurveAddress, type Address } from "@solana/kit";
 import {
   findAccessPassPda,
   findPassportPda,
   fromBase58,
   fromBase64,
-  fromHex,
+  probeInstruction,
+  probePassed,
+  steleCheckRefusal,
+  type ProbeFill,
   readAccess,
 } from "@stelehq/protocol";
 import {
@@ -131,48 +127,11 @@ export async function inspectProgram(
 
 // ---- probes ----------------------------------------------------------------------------------------------
 
-/** The Stele Gate checks' errors — from the stele-gate crate, or an inlined copy (Anchor names). */
-const GATE_ERRORS = new Set([
-  "InvalidPolicy",
-  "UserNotSigner",
-  "AccessPassMissing",
-  "AccessPassInvalid",
-  "AccessPassMismatch",
-  "AccessPassOutdated",
-  "FingerprintMismatch",
-]);
-
 /** The Stele check that refused a simulation, or null when no Stele check refused it. */
 export function gateErrorOf(sim: Simulation): string | null {
   if (sim.ok || !sim.failure) return null;
   if (sim.failure.source === "stele-gate") return sim.failure.name;
-  const anchor = sim.logs.map((l) => /Error Code: (\w+)\./.exec(l)?.[1]).find(Boolean);
-  return anchor && GATE_ERRORS.has(anchor) ? anchor : null;
-}
-
-export interface ProbeFill {
-  user: Address;
-  passport: Address;
-  accessPass: Address;
-  policy: Address;
-}
-
-/** Builds the protected instruction for one scenario. */
-export function probeInstruction(program: Address, t: ProbeTemplate, fill: ProbeFill): Instruction {
-  return {
-    programAddress: program,
-    accounts: t.accounts.map((a) => ({
-      address: a.role === "address" ? address(a.address!) : fill[a.role],
-      role: a.signer
-        ? a.writable
-          ? AccountRole.WRITABLE_SIGNER
-          : AccountRole.READONLY_SIGNER
-        : a.writable
-          ? AccountRole.WRITABLE
-          : AccountRole.READONLY,
-    })),
-    data: fromHex(t.data),
-  };
+  return steleCheckRefusal(sim.logs);
 }
 
 /** Structural checks a template must pass before anything is simulated. */
@@ -277,7 +236,7 @@ export async function verifyProtectedProgram(
     const gate = gateErrorOf(sim);
     checks.push({
       id: "refuses_without_acceptance",
-      outcome: gate === "AccessPassMissing" ? "passed" : "failed",
+      outcome: probePassed("refuses_without_acceptance", gate) ? "passed" : "failed",
       error: gate ?? sim.failure?.name ?? null,
       detail:
         gate === "AccessPassMissing"
@@ -300,7 +259,7 @@ export async function verifyProtectedProgram(
     const gate = gateErrorOf(sim);
     checks.push({
       id: "allows_with_acceptance",
-      outcome: gate === null ? "passed" : "failed",
+      outcome: probePassed("allows_with_acceptance", gate) ? "passed" : "failed",
       error: gate ?? sim.failure?.name ?? null,
       detail:
         gate !== null
@@ -325,8 +284,7 @@ export async function verifyProtectedProgram(
       accessPass: holder.accessPass,
     });
     const gate = gateErrorOf(sim);
-    const refused =
-      gate === "AccessPassMismatch" || gate === "AccessPassInvalid" || gate === "AccessPassMissing";
+    const refused = probePassed("refuses_borrowed_passport", gate);
     checks.push({
       id: "refuses_borrowed_passport",
       outcome: refused ? "passed" : "failed",
@@ -347,6 +305,7 @@ export async function verifyProtectedProgram(
     checkedAt: new Date().toISOString(),
     program: facts,
     requiredVersion: i.requiredVersion,
+    holder: holderAddress,
     reason: failed?.detail ?? skipped?.detail ?? null,
   };
 }
@@ -592,6 +551,8 @@ export interface VerifiedView {
   ownership: (ProgramOwnership & { current: boolean }) | null;
   checks: ProbeCheck[];
   reason: string | null;
+  /** Everything needed to re-run the probes without Stele: the instruction and the accepted wallet. */
+  recheck: { template: ProbeTemplate; holder: string | null } | null;
 }
 
 /** What anyone may see about a program's verification (the badge and stele.site/verified/…). */
@@ -637,6 +598,7 @@ export async function verifiedView(deps: Deps, program: string): Promise<Verifie
       : null,
     checks: v?.checks ?? [],
     reason: v?.reason ?? null,
+    recheck: p.probeTemplate ? { template: p.probeTemplate, holder: v?.holder ?? null } : null,
   };
 }
 
