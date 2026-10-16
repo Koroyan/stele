@@ -19,7 +19,35 @@ import {
   removeProgram,
   runProbes,
 } from "../services/gate.js";
+import {
+  ownershipMemo,
+  programAndOrg,
+  proveOwnership,
+  saveProbeTemplate,
+  verifiedView,
+  verifyRegisteredProgram,
+} from "../services/verification.js";
+import { badgeSvg } from "../lib/badge-svg.js";
 import { base58Address, orgParams, uuid } from "./schemas.js";
+
+const probeTemplate = z.object({
+  data: z
+    .string()
+    .max(2048)
+    .regex(/^([0-9a-fA-F]{2})*$/, "hex bytes"),
+  accounts: z
+    .array(
+      z.object({
+        role: z.enum(["user", "passport", "accessPass", "policy", "address"]),
+        address: base58Address.optional(),
+        signer: z.boolean(),
+        writable: z.boolean(),
+      }),
+    )
+    .min(2)
+    .max(32),
+});
+const programParams = orgParams.extend({ programId: uuid });
 
 export function gateRoutes(deps: Deps): FastifyPluginAsyncZod {
   return async (app) => {
@@ -32,6 +60,39 @@ export function gateRoutes(deps: Deps): FastifyPluginAsyncZod {
         config: { rateLimit: { max: 120, timeWindow: "1 minute" } },
       },
       async (req) => accessStatus(deps, req.query),
+    );
+
+    /** Stele Verified: what anyone may see about a program's verification. */
+    app.get(
+      "/v1/public/verified/:program",
+      {
+        schema: { params: z.object({ program: base58Address }) },
+        config: { rateLimit: { max: 120, timeWindow: "1 minute" } },
+      },
+      async (req, reply) => {
+        reply.header("cache-control", "public, max-age=30");
+        return verifiedView(deps, req.params.program);
+      },
+    );
+
+    /** The badge as an image, for READMEs and pages without JavaScript. */
+    app.get(
+      "/v1/public/verified/:program/badge.svg",
+      {
+        schema: {
+          params: z.object({ program: base58Address }),
+          querystring: z.object({ theme: z.enum(["dark", "light"]).default("dark") }),
+        },
+        config: { rateLimit: { max: 240, timeWindow: "1 minute" } },
+      },
+      async (req, reply) => {
+        const view = await verifiedView(deps, req.params.program).catch(() => null);
+        reply
+          .type("image/svg+xml; charset=utf-8")
+          .header("cache-control", "public, max-age=60")
+          .header("content-security-policy", "default-src 'none'; style-src 'unsafe-inline'");
+        return badgeSvg(view?.status ?? "unverified", req.query.theme);
+      },
     );
 
     app.get("/v1/organizations/:orgId/gate", { schema: { params: orgParams } }, async (req) => {
@@ -128,6 +189,93 @@ export function gateRoutes(deps: Deps): FastifyPluginAsyncZod {
       async (req) => {
         const access = await requireOrgRole(deps, req, req.params.orgId, "member");
         return programActivity(deps, access.organizationId, req.params.programId);
+      },
+    );
+
+    /** How the protected instruction is called, for the verification probes. */
+    app.put(
+      "/v1/organizations/:orgId/gate/programs/:programId/probe",
+      { schema: { params: programParams, body: probeTemplate } },
+      async (req) => {
+        const user = requireUser(req);
+        const access = await requireOrgRole(deps, req, req.params.orgId, "admin");
+        await saveProbeTemplate(deps, access.organizationId, req.params.programId, req.body);
+        await appendAudit(deps.db, {
+          organizationId: access.organizationId,
+          actorType: "user",
+          actorId: user.id,
+          action: "gate.program_probe_saved",
+          targetType: "program",
+          targetId: req.params.programId,
+          ipHash: hashIp(req.ip, deps.config.IP_HASH_SECRET),
+        });
+        return { ok: true };
+      },
+    );
+
+    /** Runs the verification probes now (the monitor also re-runs them after every upgrade). */
+    app.post(
+      "/v1/organizations/:orgId/gate/programs/:programId/verify",
+      {
+        schema: { params: programParams },
+        config: { rateLimit: { max: 6, timeWindow: "1 minute" } },
+      },
+      async (req) => {
+        const access = await requireOrgRole(deps, req, req.params.orgId, "member");
+        return {
+          verification: await verifyRegisteredProgram(
+            deps,
+            req.params.programId,
+            access.organizationId,
+          ),
+        };
+      },
+    );
+
+    /** The memo the program's upgrade authority signs to prove ownership. */
+    app.get(
+      "/v1/organizations/:orgId/gate/programs/:programId/ownership",
+      { schema: { params: programParams } },
+      async (req) => {
+        const access = await requireOrgRole(deps, req, req.params.orgId, "member");
+        const { programAddress, organization } = await programAndOrg(
+          deps,
+          access.organizationId,
+          req.params.programId,
+        );
+        return { memo: ownershipMemo(programAddress, organization) };
+      },
+    );
+
+    app.post(
+      "/v1/organizations/:orgId/gate/programs/:programId/ownership",
+      {
+        schema: {
+          params: programParams,
+          body: z.object({ signature: z.string().regex(/^[1-9A-HJ-NP-Za-km-z]{64,90}$/) }),
+        },
+        config: { rateLimit: { max: 12, timeWindow: "1 minute" } },
+      },
+      async (req) => {
+        const user = requireUser(req);
+        const access = await requireOrgRole(deps, req, req.params.orgId, "admin");
+        const ownership = await proveOwnership(
+          deps,
+          access.organizationId,
+          req.params.programId,
+          req.body.signature,
+        );
+        await appendAudit(deps.db, {
+          organizationId: access.organizationId,
+          actorType: "user",
+          actorId: user.id,
+          action: "gate.program_ownership_proven",
+          targetType: "program",
+          targetId: req.params.programId,
+          metadata: { authority: ownership.authority, signature: ownership.signature },
+          ipHash: hashIp(req.ip, deps.config.IP_HASH_SECRET),
+        });
+        return { ownership };
       },
     );
 

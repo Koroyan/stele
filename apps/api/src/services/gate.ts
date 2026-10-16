@@ -309,6 +309,9 @@ export async function gateOverview(deps: Deps, organizationId: string) {
       mode: p.mode,
       policyDocumentId: p.policyDocumentId,
       isDemo: p.programAddress === GATE_DEMO_PROGRAM_ADDRESS,
+      probeTemplate: p.probeTemplate,
+      verification: p.verification,
+      ownership: p.ownership,
       createdAt: p.createdAt,
     })),
     recentPasses: recent.map((p) => {
