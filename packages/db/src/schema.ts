@@ -1040,6 +1040,49 @@ export const accessPasses = pgTable(
 );
 
 /** Solana programs an organization protects with Stele Gate (registry for the dashboard). */
+/** Who a probe account stands for; "address" is a fixed account. */
+export type ProbeAccountRole = "user" | "passport" | "accessPass" | "policy" | "address";
+
+/** The protected instruction, with placeholders the verification fills per scenario. */
+export interface ProbeTemplate {
+  /** Instruction data, hex. */
+  data: string;
+  accounts: { role: ProbeAccountRole; address?: string; signer: boolean; writable: boolean }[];
+}
+
+export interface ProbeCheck {
+  id: "refuses_without_acceptance" | "allows_with_acceptance" | "refuses_borrowed_passport";
+  outcome: "passed" | "failed" | "skipped";
+  /** The error the program returned, if any (e.g. AccessPassMissing). */
+  error: string | null;
+  detail: string;
+}
+
+export interface ProgramVerification {
+  status: "verified" | "failed" | "incomplete";
+  checks: ProbeCheck[];
+  checkedAt: string;
+  /** When the current run of "verified" started (kept across re-checks of the same binary). */
+  verifiedSince: string | null;
+  program: {
+    /** sha256 of the deployed code (trailing zero padding removed). */
+    codeHash: string | null;
+    deployedSlot: number | null;
+    upgradeAuthority: string | null;
+    /** immutable · program (a PDA, e.g. a multisig) · key (a single wallet) */
+    authorityKind: "immutable" | "program" | "key";
+  };
+  /** The policy version the probes required. */
+  requiredVersion: number;
+  reason: string | null;
+}
+
+export interface ProgramOwnership {
+  authority: string;
+  signature: string;
+  provenAt: string;
+}
+
 export const gatePrograms = pgTable(
   "gate_programs",
   {
@@ -1056,6 +1099,12 @@ export const gatePrograms = pgTable(
       .references(() => documents.id, { onDelete: "cascade" }),
     /** "check" (stele-gate verify_access) or "strict" (check_access CPI). */
     mode: text("mode").notNull(),
+    /** How to call the protected instruction, for the verification probes (Stele Verified). */
+    probeTemplate: jsonb("probe_template").$type<ProbeTemplate | null>(),
+    /** The latest verification of the deployed program (re-run after every upgrade). */
+    verification: jsonb("verification").$type<ProgramVerification | null>(),
+    /** Proof that the program's upgrade authority links it to this organization. */
+    ownership: jsonb("ownership").$type<ProgramOwnership | null>(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },

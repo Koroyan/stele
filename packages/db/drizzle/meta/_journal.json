@@ -78,6 +78,13 @@
       "when": 1792017893992,
       "tag": "0010_gate_passports",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1792191197436,
+      "tag": "0011_gate_program_verification",
+      "breakpoints": true
     }
   ]
 }
