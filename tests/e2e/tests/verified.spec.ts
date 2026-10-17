@@ -9,7 +9,7 @@ import { ed25519 } from "@noble/curves/ed25519.js";
 import { expect, test } from "@playwright/test";
 import { GATE_DEMO_PROGRAM_ADDRESS, toBase58, utf8 } from "@stelehq/protocol";
 import { REPO_ROOT, keypair, seedState } from "../fixtures/localnet";
-import { connectThroughDialog, installTestWallet } from "../fixtures/wallet";
+import { connectThroughDialog, signInToDashboard, installTestWallet } from "../fixtures/wallet";
 
 const state = seedState();
 test.skip(!state, "requires a seeded localnet (pnpm localnet:seed)");
@@ -55,7 +55,7 @@ test("an organization verifies its program; anyone can check the evidence and th
   await page.goto("/dashboard");
   await page.getByRole("button", { name: "Connect wallet" }).click();
   await connectThroughDialog(page);
-  await page.getByRole("button", { name: "Sign in with this wallet" }).click();
+  await signInToDashboard(page);
   await expect(page.getByRole("heading", { name: "Overview" })).toBeVisible({ timeout: 30_000 });
   const sidebar = page.getByRole("navigation", { name: "Dashboard" });
   await sidebar.getByRole("link", { name: "Organization", exact: true }).click();

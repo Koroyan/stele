@@ -5,7 +5,7 @@
  */
 import { expect, test } from "@playwright/test";
 import { keypair, seedState } from "../fixtures/localnet";
-import { connectThroughDialog, installTestWallet } from "../fixtures/wallet";
+import { connectThroughDialog, signInToDashboard, installTestWallet } from "../fixtures/wallet";
 
 const state = seedState();
 test.skip(!state, "requires a seeded localnet (pnpm localnet:seed)");
@@ -38,7 +38,7 @@ test("an owner buys credits with SOL paid on-chain to the treasury", async ({ pa
   await page.goto("/dashboard/billing");
   await page.getByRole("button", { name: "Connect wallet" }).click();
   await connectThroughDialog(page);
-  await page.getByRole("button", { name: "Sign in with this wallet" }).click();
+  await signInToDashboard(page);
   await expect(page.getByRole("heading", { name: "Billing" })).toBeVisible({ timeout: 30_000 });
   await expect(page.getByText("Free recordings used")).toBeVisible();
   await expect(page.getByText(billing.treasury).first()).toBeVisible();

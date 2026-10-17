@@ -5,7 +5,7 @@
  *
  * Every signature request is recorded so tests can assert exactly what the user was asked to sign.
  */
-import type { Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 import { ed25519 } from "@noble/curves/ed25519.js";
 import { toBase58 } from "@stelehq/protocol";
 
@@ -192,4 +192,21 @@ export async function connectThroughDialog(
   walletName = "Stele Test Wallet",
 ): Promise<void> {
   await page.getByRole("dialog").getByRole("button", { name: walletName }).click();
+}
+
+/**
+ * Signs in to the dashboard with the connected wallet. When this deployment publishes Stele's own
+ * Terms of Service, a wallet that has not accepted the current version accepts it first (a real
+ * Stele acceptance, signed by the test wallet).
+ */
+export async function signInToDashboard(page: Page): Promise<void> {
+  await page.getByRole("button", { name: "Sign in with this wallet" }).click();
+  const gate = page.getByRole("heading", { name: /Stele's Terms of Service/ });
+  const shell = page.getByRole("navigation", { name: "Dashboard" });
+  await expect(gate.or(shell).first()).toBeVisible({ timeout: 30_000 });
+  if (await gate.isVisible()) {
+    await page.getByRole("checkbox", { name: /I have read and accept/ }).check();
+    await page.getByRole("button", { name: "Accept with my wallet" }).click();
+    await expect(shell).toBeVisible({ timeout: 60_000 });
+  }
 }

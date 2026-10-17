@@ -4,7 +4,7 @@
  */
 import { expect, test } from "@playwright/test";
 import { keypair, seedState } from "../fixtures/localnet";
-import { connectThroughDialog, installTestWallet } from "../fixtures/wallet";
+import { connectThroughDialog, signInToDashboard, installTestWallet } from "../fixtures/wallet";
 
 const state = seedState();
 test.skip(!state, "requires a seeded localnet (pnpm localnet:seed)");
@@ -18,11 +18,11 @@ test("the owner signs in and publishes a new version with a wallet-signed transa
   await expect(page).toHaveURL(/\/login/);
   await page.getByRole("button", { name: "Connect wallet" }).click();
   await connectThroughDialog(page);
-  await page.getByRole("button", { name: "Sign in with this wallet" }).click();
+  await signInToDashboard(page);
   await expect(page.getByRole("heading", { name: "Overview" })).toBeVisible({ timeout: 30_000 });
 
   // The sign-in message names this site and states that it authorizes nothing else.
-  const signIn = wallet.signedMessages.at(-1)!;
+  const signIn = wallet.signedMessages.find((m) => m.includes("wants you to sign in"))!;
   expect(signIn).toMatch(/^localhost:3000 wants you to sign in with your Solana account:/);
   expect(signIn).toContain("does not accept any agreement and does not authorize any transaction");
 
@@ -67,7 +67,7 @@ test("Stele Gate can be switched on, and its pages open from the sidebar", async
   await page.goto("/dashboard");
   await page.getByRole("button", { name: "Connect wallet" }).click();
   await connectThroughDialog(page);
-  await page.getByRole("button", { name: "Sign in with this wallet" }).click();
+  await signInToDashboard(page);
   await expect(page.getByRole("heading", { name: "Overview" })).toBeVisible({ timeout: 30_000 });
 
   const sidebar = page.getByRole("navigation", { name: "Dashboard" });
