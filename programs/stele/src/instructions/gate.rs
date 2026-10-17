@@ -16,7 +16,7 @@ use crate::authority::{authorize, DOCUMENT_CREATOR_ROLES};
 use crate::constants::{ACCESS_PASS_SEED, CONFIG_SEED, MEMBER_SEED, POLICY_SEED};
 use crate::error::SteleError;
 use crate::events::{AccessPassUpdated, PolicyChanged};
-use crate::instructions::acceptance::{record_signed_acceptance, AcceptanceAccounts};
+use crate::instructions::acceptance::{record_signed_acceptance, AcceptanceAccounts, Reimburse};
 use crate::state::{
     AccessPass, Document, DocumentVersion, GatePolicy, Member, NonceShard, Organization,
     ProtocolConfig,
@@ -229,6 +229,7 @@ pub fn record_gated_acceptance(
         nonce_tag,
         issued_at,
         expires_at,
+        Reimburse::Now,
     )?;
     // The pass belongs to whoever signed the acceptance, never to an account the relayer names.
     require_keys_eq!(

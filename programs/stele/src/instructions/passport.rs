@@ -31,7 +31,8 @@ use anchor_lang::system_program;
 use crate::constants::{CONFIG_SEED, PASSPORT_SEED};
 use crate::error::SteleError;
 use crate::events::{PassportClosed, PassportEntryRemoved, PassportUpdated};
-use crate::instructions::acceptance::{record_signed_acceptance, AcceptanceAccounts};
+use crate::instructions::acceptance::{record_signed_acceptance, AcceptanceAccounts, Reimburse};
+use crate::instructions::sponsor::{reimburse, SPONSORED_SIGNATURES};
 use crate::state::{Document, DocumentVersion, NonceShard, Organization, Passport, ProtocolConfig};
 
 pub const PASSPORT_HOLDER: usize = 8;
@@ -177,6 +178,9 @@ pub fn record_passport_acceptance(
         nonce_tag,
         issued_at,
         expires_at,
+        // The passport's deposit is paid by system-program CPIs below; a sponsored shard reimburses
+        // the relayer only after them.
+        Reimburse::Later,
     )?;
     // The passport is the signer's: its address is derived from the verified signer, never from
     // an account the relayer names. The caller supplies the bump (no on-chain search); a wrong
@@ -282,6 +286,17 @@ pub fn record_passport_acceptance(
             true
         }
     };
+
+    // Fee sponsorship, after every CPI of this instruction (see `Reimburse::Later`).
+    reimburse(
+        &a.nonce_shard.to_account_info(),
+        &a.relayer.to_account_info(),
+        &a.instructions_sysvar.to_account_info(),
+        &recorded.shard_relayer,
+        recorded.acceptance_id,
+        recorded.recorded_at,
+        SPONSORED_SIGNATURES,
+    )?;
 
     emit!(PassportUpdated {
         holder,

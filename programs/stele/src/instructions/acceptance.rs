@@ -94,6 +94,7 @@ pub fn record_acceptance(
         nonce_tag,
         issued_at,
         expires_at,
+        Reimburse::Now,
     )?;
     Ok(())
 }
@@ -117,6 +118,19 @@ pub(crate) struct RecordedAcceptance {
     pub signer: Pubkey,
     pub recorded_at: i64,
     pub slot: u64,
+    /// The shard's designated relayer (for a deferred sponsorship reimbursement).
+    pub shard_relayer: Pubkey,
+}
+
+/// When the sponsored shard reimburses the relayer.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Reimburse {
+    /// Inside `record_signed_acceptance`.
+    Now,
+    /// By the caller, after its own system-program CPIs: the runtime refuses a CPI that leaves out
+    /// an account whose lamports the caller changed (here the shard), so the reimbursement — a
+    /// direct lamport move — must come after them.
+    Later,
 }
 
 /// Verifies and records one signed acceptance (PROTOCOL_SPEC.md §8): every check of
@@ -127,6 +141,7 @@ pub(crate) fn record_signed_acceptance(
     nonce_tag: [u8; 8],
     issued_at: i64,
     expires_at: i64,
+    when: Reimburse,
 ) -> Result<RecordedAcceptance> {
     let clock = Clock::get()?;
     let now = clock.unix_timestamp;
@@ -239,19 +254,22 @@ pub(crate) fn record_signed_acceptance(
     drop(shard);
 
     // Fee sponsorship, if the organization enabled it on this shard (never affects the record).
-    reimburse(
-        &accounts.nonce_shard.to_account_info(),
-        &accounts.relayer.to_account_info(),
-        &accounts.instructions_sysvar.to_account_info(),
-        &shard_relayer,
-        id,
-        now,
-        SPONSORED_SIGNATURES,
-    )?;
+    if when == Reimburse::Now {
+        reimburse(
+            &accounts.nonce_shard.to_account_info(),
+            &accounts.relayer.to_account_info(),
+            &accounts.instructions_sysvar.to_account_info(),
+            &shard_relayer,
+            id,
+            now,
+            SPONSORED_SIGNATURES,
+        )?;
+    }
     Ok(RecordedAcceptance {
         acceptance_id: id,
         signer: Pubkey::new_from_array(verified.signer),
         recorded_at: now,
         slot: clock.slot,
+        shard_relayer,
     })
 }
