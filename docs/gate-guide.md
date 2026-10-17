@@ -300,8 +300,8 @@ works: fill `user`, `policy` and `passport` (step 3's address) and press **Test*
 1. Dashboard → **Gate → Program integration**: register your program's address and instruction.
    The Gate overview then lists your program's real transactions — allowed and refused, with
    reasons.
-2. Dashboard → **Gate → Verification**: describe how the instruction is called and click **Save
-   and verify**. Stele simulates it against your deployed program (a wallet that never accepted
+2. Dashboard → **Gate → Verification**: upload your program's IDL (Playground: **Export IDL**),
+   check the instruction and its accounts, and click **Save and run the check**. Stele simulates it against your deployed program (a wallet that never accepted
    must be refused, one that accepted must not be, someone else's acceptance must be refused), then
    re-checks after every upgrade. Prove ownership with your upgrade authority and add the
    **Stele Verified** badge to your site — see [Stele Verified](gate.md#stele-verified).

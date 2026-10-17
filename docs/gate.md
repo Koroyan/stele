@@ -169,9 +169,12 @@ site that opens public evidence that your program really waits for the current t
 (React: `<SteleVerifiedBadge program="YOUR_PROGRAM_ID" />` from `@stelehq/sdk/react`; README:
 `https://stele.site/api/v1/public/verified/YOUR_PROGRAM_ID/badge.svg`.)
 
-**How Stele checks it.** In the dashboard (**Gate → Verification**) you describe how your protected
-instruction is called: its data and its accounts, with the user, their passport and your policy as
-placeholders. Stele then simulates that instruction against your **deployed** program — nothing is
+**How Stele checks it.** In the dashboard (**Gate → Verification**) you show Stele how your
+protected instruction is called: upload your program's Anchor IDL (`target/idl/<program>.json`, or
+**Export IDL** in Solana Playground) and pick the instruction — the user, their passport and your
+policy are recognised by name, fixed accounts and PDAs derived from known accounts are filled in,
+and arguments are typed values. Without an IDL, give the data (hex) and the accounts by hand. The
+user, the passport and the policy are placeholders Stele fills in per scenario. Stele then simulates that instruction against your **deployed** program — nothing is
 signed or sent — in three scenarios:
 
 | Scenario | A verified program |
