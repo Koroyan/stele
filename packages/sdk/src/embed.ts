@@ -202,6 +202,18 @@ const isPasskey = (t: SignerType | undefined) => t === "passkey" || t === "passk
  * create native passkeys (stele/2); proofs keep the PRF-protected Stele key (stele/1), the only
  * passkey signer the proof instruction verifies today.
  */
+/** The organization no longer knows this passkey signer (e.g. it was reset or revoked). */
+function isUnknownPasskeySigner(e: unknown, signer: MessageSigner): boolean {
+  return (
+    isPasskey(signer.signerType) &&
+    e instanceof SteleApiError &&
+    e.status === 404 &&
+    /signer/i.test(e.message)
+  );
+}
+const UNKNOWN_PASSKEY_SIGNER =
+  "This passkey is no longer registered with this organization. Create a passkey (or use your wallet) to sign.";
+
 class SignerPicker {
   signer: MessageSigner | null;
   wallets: AvailableWallet[] = [];
@@ -807,17 +819,10 @@ export function mount(target: string | Element, options: EmbedOptions): EmbedHan
       options.onAccepted?.(result);
       emit("stele:accepted", result);
     } catch (e) {
-      if (
-        isPasskey(signer.signerType) &&
-        e instanceof SteleApiError &&
-        e.status === 404 &&
-        /signer/i.test(e.message)
-      ) {
-        // The organization no longer knows this passkey signer (e.g. it was reset or revoked):
-        // forget it on this device and let the visitor create or pick another one.
+      if (isUnknownPasskeySigner(e, signer)) {
+        // Forget it on this device and let the visitor create or pick another signer.
         state.picker?.forgetSigner(signer);
-        state.error =
-          "This passkey is no longer registered with this organization. Create a passkey (or use your wallet) to sign.";
+        state.error = UNKNOWN_PASSKEY_SIGNER;
       } else {
         state.error =
           isUserRejection(e) || isPasskeyCancel(e)
@@ -1076,10 +1081,15 @@ export function mountProof(target: string | Element, options: ProofEmbedOptions)
       options.onConfirmed?.(result);
       emit("stele:confirmed", result);
     } catch (e) {
-      state.error =
-        isUserRejection(e) || isPasskeyCancel(e)
-          ? "Signing was cancelled. Nothing was recorded."
-          : fail(e).message;
+      if (isUnknownPasskeySigner(e, signer)) {
+        state.picker?.forgetSigner(signer);
+        state.error = UNKNOWN_PASSKEY_SIGNER;
+      } else {
+        state.error =
+          isUserRejection(e) || isPasskeyCancel(e)
+            ? "Signing was cancelled. Nothing was recorded."
+            : fail(e).message;
+      }
     } finally {
       state.busy = null;
       renderAction();
