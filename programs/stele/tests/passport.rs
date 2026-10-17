@@ -706,6 +706,44 @@ fn every_deposit_returns_to_whoever_paid_it() {
 }
 
 #[test]
+fn a_sponsored_shard_reimburses_the_relayer_for_passport_acceptances() {
+    // The API's company-pays mode on an organization that sponsors fees: the relayer submits,
+    // pays the passport deposit, and the sponsored shard reimburses its network fee.
+    let mut s = Setup::new();
+    let t = s.document("offering-terms");
+    let owner = s.owner.insecure_clone();
+    assert_ok(
+        &s.env
+            .enable_sponsorship(&owner, &t.org, &t.shard, 50_000, 1_000_000),
+    );
+    let funder = s.env.funded();
+    s.env.deposit(&funder, &t.shard, 1_000_000_000);
+    let relayer = s.env.relayer.insecure_clone();
+    let user = s.env.funded();
+    let pp = passport_pda(&user.pubkey());
+    let shard_before = s.env.lamports(&t.shard);
+    let user_before = s.env.lamports(&user.pubkey());
+
+    // First document (creates the passport), then a newer version (rewrites it in place).
+    let a = s.next();
+    assert_ok(&accept_into_passport(&mut s.env, &user, &relayer, &t, &a).0);
+    let reimbursed = shard_before - s.env.lamports(&t.shard);
+    assert!(reimbursed > 0, "the sponsored shard reimbursed the relayer");
+    assert_eq!(entries(&s.env, &user.pubkey())[0].3, relayer.pubkey());
+    assert_eq!(
+        s.env.lamports(&user.pubkey()),
+        user_before,
+        "the user paid nothing"
+    );
+    assert_ok(&deposit(&mut s.env, &user, &t, &pp).0);
+
+    let second = s.document("risk-disclosure");
+    let a = s.next();
+    assert_ok(&accept_into_passport(&mut s.env, &user, &relayer, &second, &a).0);
+    assert_eq!(entries(&s.env, &user.pubkey()).len(), 2);
+}
+
+#[test]
 fn a_company_paid_passport_closes_back_to_the_company() {
     let mut s = Setup::new();
     let t = s.document("offering-terms");
