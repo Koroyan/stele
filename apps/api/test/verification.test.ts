@@ -15,7 +15,7 @@ import {
   programDataFacts,
   validateTemplate,
 } from "../src/services/verification.js";
-import type { Simulation } from "../src/services/gate.js";
+import { explainFailure, type Simulation } from "../src/services/gate.js";
 
 const PROGRAM = address("A6DBoANAavtbG2ARK6PihqzMjhtbcZUbLnTMAWn339uR");
 const AUTHORITY = "C6q9uiQsmxy5E2hx3hjv1i36i98vXvtBF35Hfq54GJ4p";
@@ -232,5 +232,38 @@ describe("badge image", () => {
     for (const s of ["failed", "incomplete", "unverified"] as const)
       expect(badgeSvg(s)).not.toContain("Stele Verified");
     expect(badgeSvg("failed")).toContain("Not verified");
+  });
+});
+
+describe("failure names", () => {
+  const STELE = address("6sTKscWmUtBQRMpNCiEpurCJxpjx7GK5rzk7e265kpwV");
+  // An organization's own program (the demo vault's errors are known to Stele).
+  const APP = address("As4FYk85WLoFtRg4wVAcAzBWqqqd8Ty4cuzps7eCDfME");
+  const failed = (code: number) =>
+    `Program ${APP} failed: custom program error: 0x${code.toString(16)}`;
+
+  it("names a program's error from Anchor's log", () => {
+    const f = explainFailure(STELE, {}, [
+      "Program log: AnchorError occurred. Error Code: InvalidPolicy. Error Number: 6000. Error Message: The policy is not the pinned Stele policy.",
+      failed(6000),
+    ]);
+    expect(f).toMatchObject({
+      code: 6000,
+      source: "program",
+      name: "InvalidPolicy",
+      message: "The policy is not the pinned Stele policy",
+    });
+  });
+
+  it("names Anchor's own errors: a missing instruction", () => {
+    const f = explainFailure(STELE, {}, [
+      "Program log: AnchorError occurred. Error Code: InstructionFallbackNotFound. Error Number: 101. Error Message: Fallback functions are not supported.",
+      failed(101),
+    ]);
+    expect(f.name).toBe("InstructionFallbackNotFound");
+  });
+
+  it("keeps the code when nothing names it", () => {
+    expect(explainFailure(STELE, {}, [failed(6001)]).name).toBe("Custom(6001)");
   });
 });
