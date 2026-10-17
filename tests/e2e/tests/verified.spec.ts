@@ -1,18 +1,20 @@
 /**
- * Stele Verified, end to end in the browser: an organization describes its protected instruction in
- * the dashboard and Stele verifies the deployed program (the Atlas demo vault on the local
+ * Stele Verified, end to end in the browser: an organization uploads its program's IDL in the
+ * dashboard and Stele verifies the deployed program (the Atlas demo vault on the local
  * validator); the public evidence page shows it and re-runs the probes in the visitor's browser;
  * the badge reads the live status.
  */
+import { resolve } from "node:path";
 import { ed25519 } from "@noble/curves/ed25519.js";
 import { expect, test } from "@playwright/test";
 import { GATE_DEMO_PROGRAM_ADDRESS, toBase58, utf8 } from "@stelehq/protocol";
-import { keypair, seedState } from "../fixtures/localnet";
+import { REPO_ROOT, keypair, seedState } from "../fixtures/localnet";
 import { connectThroughDialog, installTestWallet } from "../fixtures/wallet";
 
 const state = seedState();
 test.skip(!state, "requires a seeded localnet (pnpm localnet:seed)");
 
+const IDL = resolve(REPO_ROOT, "apps/web/public/examples/stele_gate_demo.idl.json");
 const API = process.env.API_URL ?? "http://localhost:4000";
 const ORIGIN = "http://localhost:3000";
 
@@ -104,20 +106,22 @@ test("an organization verifies its program; anyone can check the evidence and th
   );
   expect(registered).toBe(200);
 
-  // Describe the protected instruction: deposit_with_passport(amount = 1) with the vault fixed.
+  // Describe the protected instruction from the program's IDL: deposit_with_passport (the
+  // registered action) is preselected, the accounts are recognised by name, and the vault — a PDA
+  // of the policy — is derived.
   await sidebar.getByRole("link", { name: "Verification", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Verification", exact: true })).toBeVisible();
-  await page.getByLabel("Instruction name").fill("deposit_with_passport");
-  await page.getByLabel(/^Arguments/).fill("0100000000000000");
-  await page.getByRole("button", { name: "Add account" }).click();
-  await page.getByLabel("Account 3 address").fill(s.vault);
-  await page.locator("label", { hasText: "writable" }).nth(3).locator("input").check();
-  // Move the vault (account 3) up to position 1: user, vault, policy, passport.
-  await page.getByRole("button", { name: "Move up" }).nth(3).click();
-  await page.getByRole("button", { name: "Move up" }).nth(2).click();
-  await page.getByRole("button", { name: "Save and verify" }).click();
+  await page.getByLabel("IDL file").setInputFiles(IDL);
+  await expect(page.getByLabel("Which instruction does the protected action?")).toHaveValue(
+    "deposit_with_passport",
+  );
+  await expect(page.getByLabel("investor: what is it?")).toHaveValue("user");
+  await expect(page.getByLabel("passport: what is it?")).toHaveValue("passport");
+  await expect(page.getByLabel("vault address")).toHaveValue(s.vault);
+  await page.getByRole("button", { name: "Save and run the check" }).click();
   await expect(page.getByText("Verified", { exact: true })).toBeVisible({ timeout: 90_000 });
-  await expect(page.getByText("A wallet that never accepted is refused")).toBeVisible();
+  await expect(page.getByText("Your program is Stele Verified.")).toBeVisible();
+  await expect(page.getByText("A wallet that never accepted your terms is refused")).toBeVisible();
   await expect(page.getByText("AccessPassMissing").first()).toBeVisible();
 
   // The public evidence, as a visitor sees it — then re-checked from this browser.
