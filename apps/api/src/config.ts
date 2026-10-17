@@ -63,6 +63,22 @@ const schema = z.object({
   /** Credit packs on sale, as `credits:SOL` pairs. */
   STELE_CREDIT_PACKS: z.string().default("10000:0.5,100000:4,1000000:30"),
 
+  /**
+   * Stele's own organization: it publishes Stele's Terms of Service and Privacy Policy (legal/,
+   * `pnpm --filter @stele/localnet platform`). Set = dashboard users must accept the current Terms.
+   */
+  STELE_PLATFORM_ORGANIZATION: z.string().optional(),
+  /** Wallets of Stele's staff: they read the contact inbox in the dashboard. */
+  STELE_PLATFORM_ADMINS: csv.default([]),
+
+  /** The AI assistant (OpenAI-compatible chat completions). Unset key = assistant off. */
+  OPENAI_API_KEY: z.string().optional(),
+  OPENAI_BASE_URL: z.string().url().default("https://api.openai.com/v1"),
+  OPENAI_MODEL: z.string().default("gpt-5-mini"),
+  /** Assistant answers per day (everyone) and per IP address per hour. */
+  STELE_ASSISTANT_DAILY_LIMIT: z.coerce.number().int().min(0).default(2_000),
+  STELE_ASSISTANT_PER_IP_HOUR: z.coerce.number().int().min(0).default(30),
+
   /** 32-byte key (base64) for AES-256-GCM encryption of webhook secrets. */
   ENCRYPTION_KEY: z.string().min(1),
   /** Internal PDF renderer (apps/pdf-renderer). Unset: PDF receipts are unavailable (503). */
@@ -175,6 +191,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   }
   if (c.SOLANA_CLUSTER === "mainnet" && (c.STELE_DEMO_OWNER_KEYPAIR || c.STELE_DEMO_ORGANIZATION))
     throw new Error("invalid configuration: the live demo is not available on mainnet");
+  if (c.STELE_PLATFORM_ORGANIZATION && !isAddress(c.STELE_PLATFORM_ORGANIZATION))
+    throw new Error("invalid configuration: STELE_PLATFORM_ORGANIZATION is not a Solana address");
+  if (c.STELE_PLATFORM_ADMINS.some((a) => !isAddress(a)))
+    throw new Error("invalid configuration: STELE_PLATFORM_ADMINS must be Solana addresses");
   const treasury = c.STELE_TREASURY_ADDRESS?.trim() || null;
   if (treasury !== null && !isAddress(treasury))
     throw new Error("invalid configuration: STELE_TREASURY_ADDRESS is not a Solana address");
