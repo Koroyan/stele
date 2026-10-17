@@ -243,6 +243,26 @@ CI builds the program with `cargo build-sbf` and publishes its SHA-256 as a buil
 | `STELE_NETWORKS` | web (runtime) | Networks offered by the switcher: `cluster=url` pairs (see [Environments](#one-deployment-per-network-one-switcher)) |
 | `STELE_REPO_ROOT` | web (runtime) | Where the documentation Markdown is read from (default: the standalone root) |
 | `STELE_MIGRATIONS_DIR` | API, `db:migrate` | Overrides where SQL migrations are read from (default: shipped with the build) |
+| `STELE_PLATFORM_ORGANIZATION` | API | Stele's own organization, which publishes `legal/` (Terms, Privacy Policy). Set: dashboard users accept the current Terms first |
+| `STELE_PLATFORM_ADMINS` | API | Wallets of Stele's team: they see Dashboard → Inbox (contact form) |
+| `STELE_CONTACT_PER_IP_HOUR` | API | Contact form messages per IP address per hour (default 5) |
+| `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_MODEL` | API | The AI assistant (any OpenAI-compatible endpoint). No key: the assistant is hidden |
+| `STELE_ASSISTANT_DAILY_LIMIT`, `STELE_ASSISTANT_PER_IP_HOUR` | API | Assistant answers per day (everyone) and per IP address per hour; counters live in the API process |
+
+### Stele's own Terms and Privacy Policy
+
+Stele publishes its legal documents with Stele. The source is `legal/` (`manifest.json` names each
+document, its title and version label). To create the organization or publish a changed document:
+
+```bash
+# devnet: a dedicated, funded key for Stele's own organization (keep it like any organization key)
+STELE_RPC_URL=https://api.devnet.solana.com STELE_APP_URL=https://stele.site \
+  pnpm --filter @stele/localnet platform -- --owner ~/.config/stele-devnet/platform-owner.json
+```
+
+A changed document needs a new `versionLabel` in the manifest; the script publishes it as a new
+version, and every dashboard user is asked to accept it on their next visit. Set the printed
+`STELE_PLATFORM_ORGANIZATION` in the server's `.env` once, then restart the API.
 
 ### Content storage
 
