@@ -31,6 +31,7 @@ export const DOC_GROUPS = [
   "Verification",
   "Protocol",
   "Security",
+  "Legal",
 ] as const;
 export type DocGroup = (typeof DOC_GROUPS)[number];
 
@@ -177,6 +178,22 @@ export const DOCS: DocEntry[] = [
     title: "Security policy",
     group: "Security",
     summary: "Reporting vulnerabilities and our disclosure process.",
+  },
+  // Stele's own legal documents. Their canonical pages, /terms and /privacy, show the version
+  // published with Stele and verified against Solana; these files are the source of each version.
+  {
+    slug: "terms-of-service",
+    file: "legal/terms-of-service.md",
+    title: "Terms of Service",
+    group: "Legal",
+    summary: "The agreement for using Stele, published and accepted with Stele itself.",
+  },
+  {
+    slug: "privacy-policy",
+    file: "legal/privacy-policy.md",
+    title: "Privacy Policy",
+    group: "Legal",
+    summary: "What personal data Stele processes, why, and your rights.",
   },
 ];
 

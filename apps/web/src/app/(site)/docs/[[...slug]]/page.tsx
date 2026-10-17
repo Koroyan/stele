@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import {
   ArrowRightIcon,
@@ -210,6 +210,9 @@ export default async function DocsPage({ params }: { params: Promise<Params> }) 
     );
   }
 
+  // Stele's own legal documents live on their verified pages.
+  if (key === "terms-of-service") redirect("/terms");
+  if (key === "privacy-policy") redirect("/privacy");
   const [doc, context] = await Promise.all([loadDoc(key), docContext()]);
   if (!doc) notFound();
   const toc = outline(doc.markdown);
