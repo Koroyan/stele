@@ -30,7 +30,13 @@ export function receiptPdfRoutes(deps: Deps): FastifyPluginAsyncZod {
   ) {
     const result = await verifiedReceipt(deps, acceptanceId);
     if (result.status === "invalid")
-      throw new ApiError(422, "verification_failed", `Evidence verdict: ${result.report.verdict}`);
+      throw new ApiError(
+        422,
+        "verification_failed",
+        result.report.verdict === "INCONCLUSIVE"
+          ? "This acceptance cannot be checked against Solana right now: the network's RPC node no longer keeps its transaction (a local validator keeps only recent history) or did not answer. Stele certifies only evidence it has just verified; the JSON receipt still carries all of it."
+          : `The evidence did not verify (${result.report.verdict}): no certificate is issued.`,
+      );
     return receiptPdf(deps, result.body.receipt, await audit(result.challengeId));
   }
 
