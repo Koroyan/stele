@@ -140,7 +140,13 @@ export function parseIdl(input: string | object): ParsedIdl {
   return {
     name:
       typeof meta.name === "string" ? meta.name : typeof idl.name === "string" ? idl.name : null,
-    address: typeof idl.address === "string" ? idl.address : null,
+    // Legacy IDLs carry the address in their metadata, once deployed.
+    address:
+      typeof idl.address === "string"
+        ? idl.address
+        : typeof meta.address === "string"
+          ? meta.address
+          : null,
     instructions,
   };
 }
