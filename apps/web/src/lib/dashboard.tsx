@@ -121,9 +121,22 @@ export interface WalletAuthority {
   canManageShards: boolean;
 }
 
+/** The signed-in wallet and Stele's own Terms (null: none published on this deployment). */
+export interface TermsStatus {
+  organization: string;
+  document: string;
+  version: { number: number; label: string; title: string; address: string };
+  accepted: boolean;
+  /** The version accepted before, when the current one is newer. */
+  acceptedVersion: number | null;
+}
+
 interface DashboardContextValue {
   user: SessionUser;
   recentlyAuthenticated: boolean;
+  terms: TermsStatus | null;
+  /** Stele's staff (they read the contact inbox). */
+  platformAdmin: boolean;
   orgs: OrgSummary[];
   org: OrgSummary | null;
   detail: OrgDetail | null;
@@ -159,7 +172,14 @@ function storeOrg(id: string) {
 
 type Boot =
   | { state: "loading" }
-  | { state: "ready"; user: SessionUser; recentlyAuthenticated: boolean; orgs: OrgSummary[] }
+  | {
+      state: "ready";
+      user: SessionUser;
+      recentlyAuthenticated: boolean;
+      terms: TermsStatus | null;
+      platformAdmin: boolean;
+      orgs: OrgSummary[];
+    }
   | { state: "error"; message: string };
 
 export function DashboardProvider({
@@ -180,12 +200,19 @@ export function DashboardProvider({
 
   const load = useCallback(async () => {
     try {
-      const me = await api<{ user: SessionUser; recentlyAuthenticated: boolean }>("/v1/auth/me");
+      const me = await api<{
+        user: SessionUser;
+        recentlyAuthenticated: boolean;
+        terms: TermsStatus | null;
+        platformAdmin: boolean;
+      }>("/v1/auth/me");
       const { organizations } = await api<{ organizations: OrgSummary[] }>("/v1/organizations");
       setBoot({
         state: "ready",
         user: me.user,
         recentlyAuthenticated: me.recentlyAuthenticated,
+        terms: me.terms,
+        platformAdmin: me.platformAdmin,
         orgs: organizations,
       });
       setSelected((cur) => {
@@ -243,6 +270,8 @@ export function DashboardProvider({
     return {
       user: boot.user,
       recentlyAuthenticated: boot.recentlyAuthenticated,
+      terms: boot.terms,
+      platformAdmin: boot.platformAdmin,
       orgs: boot.orgs,
       org,
       detail: detail && detail.organization.id === selected ? detail : null,
