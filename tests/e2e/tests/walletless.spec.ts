@@ -18,7 +18,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { ed25519 } from "@noble/curves/ed25519.js";
 import { toBase58, toBase64, utf8 } from "@stelehq/protocol";
 import { keypair, seedState } from "../fixtures/localnet";
-import { connectThroughDialog, installTestWallet } from "../fixtures/wallet";
+import { connectThroughDialog, signInToDashboard, installTestWallet } from "../fixtures/wallet";
 
 const state = seedState();
 test.skip(!state, "requires a seeded localnet (pnpm localnet:seed)");
@@ -155,7 +155,7 @@ test("the widget signs with a native passkey on the partner page; the downloaded
   await expect(page.getByText(/You paid nothing/)).toBeVisible();
 
   const download = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Download receipt" }).click();
+  await page.getByRole("button", { name: "Download JSON" }).click();
   const file = await (await download).path();
   const receipt = JSON.parse(readFileSync(file, "utf8")) as {
     format: string;
@@ -233,7 +233,7 @@ test("a purchase is confirmed with a passkey on the hosted page and its receipt 
   await expect(page.getByText("Confirmed and recorded on Solana")).toBeVisible({ timeout: 60_000 });
 
   const download = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Download receipt" }).click();
+  await page.getByRole("button", { name: "Download JSON" }).click();
   const file = await (await download).path();
   const receipt = JSON.parse(readFileSync(file, "utf8")) as {
     format: string;
@@ -320,7 +320,7 @@ test("the dashboard shows signing methods, sponsorship and passkey signers", asy
   await page.goto("/dashboard");
   await page.getByRole("button", { name: "Connect wallet" }).click();
   await connectThroughDialog(page);
-  await page.getByRole("button", { name: "Sign in with this wallet" }).click();
+  await signInToDashboard(page);
   await expect(page.getByRole("heading", { name: "Overview" })).toBeVisible({ timeout: 30_000 });
   await page.getByRole("link", { name: "Signing & fees" }).click();
   await expect(page.getByRole("heading", { name: "Signing & fees" })).toBeVisible();
