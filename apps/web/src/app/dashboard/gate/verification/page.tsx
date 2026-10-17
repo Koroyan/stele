@@ -1,12 +1,13 @@
 "use client";
 /**
- * Stele Verified for a registered program: describe how the protected instruction is called, let
- * Stele probe the deployed program, prove ownership with the upgrade authority, and add the badge.
+ * Stele Verified, step by step: describe how the protected instruction is called (from the
+ * program's IDL), let Stele check the deployed program, optionally prove ownership with the upgrade
+ * authority, and add the badge.
  */
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { AccountRole, address, isAddress } from "@solana/kit";
-import { anchorDiscriminator, toHex, utf8 } from "@stelehq/protocol";
+import { useEffect, useState, type ReactNode } from "react";
+import { AccountRole, address } from "@solana/kit";
+import { utf8 } from "@stelehq/protocol";
 import {
   Alert,
   Badge,
@@ -17,12 +18,13 @@ import {
   Fingerprint,
   Input,
   Select,
-  Spinner,
   XIcon,
+  cn,
 } from "@stele/ui";
 import {
   EnableGate,
   GateTabs,
+  documentTitle,
   type GateOverview,
   type ProbeTemplate,
   type ProgramVerification,
@@ -32,49 +34,81 @@ import { api, errorMessage } from "@/lib/api";
 import { useDashboard } from "@/lib/dashboard";
 import { formatDateTime } from "@/lib/format";
 import { useApi } from "@/lib/use-api";
-import { useNetwork, useWallet } from "@/lib/wallet";
-
-type Role = ProbeTemplate["accounts"][number]["role"];
-interface Row {
-  role: Role;
-  address: string;
-  signer: boolean;
-  writable: boolean;
-}
-
-const ROLES: { value: Role; label: string }[] = [
-  { value: "user", label: "The user's wallet (signer)" },
-  { value: "passport", label: "The user's Stele passport" },
-  { value: "accessPass", label: "The user's Stele access pass" },
-  { value: "policy", label: "Your Stele policy" },
-  { value: "address", label: "A fixed account" },
-];
-
-/** The layout of the guide's and Solana Playground's example: user, policy, passport. */
-const DEFAULT_ROWS: Row[] = [
-  { role: "user", address: "", signer: true, writable: false },
-  { role: "policy", address: "", signer: false, writable: false },
-  { role: "passport", address: "", signer: false, writable: false },
-];
+import { useWallet } from "@/lib/wallet";
+import { InstructionEditor, ROLE_LABELS } from "./instruction-editor";
 
 const MEMO_PROGRAM = "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr";
+const DEMO_IDL = "/examples/stele_gate_demo.idl.json";
 
 const SCENARIOS: Record<string, string> = {
-  refuses_without_acceptance: "A wallet that never accepted is refused",
-  allows_with_acceptance: "A wallet that accepted the required version is let through",
-  refuses_borrowed_passport: "Someone else's acceptance is refused",
+  refuses_without_acceptance: "A wallet that never accepted your terms is refused",
+  allows_with_acceptance: "A wallet that accepted the required version gets through",
+  refuses_borrowed_passport: "Someone else's acceptance doesn't work",
 };
+
+function StepTitle({ n, done, children }: { n: number; done: boolean; children: ReactNode }) {
+  return (
+    <span className="flex items-center gap-2.5">
+      <span
+        className={cn(
+          "grid h-6 w-6 flex-none place-items-center rounded-full text-[12px] font-semibold",
+          done ? "bg-verified-soft text-verified" : "bg-accent-soft text-accent",
+        )}
+      >
+        {done ? <CheckIcon className="h-3.5 w-3.5" /> : n}
+      </span>
+      <span className="min-w-0">{children}</span>
+    </span>
+  );
+}
 
 function StatusBadge({ v }: { v: ProgramVerification | null }) {
   if (!v) return <Badge tone="neutral">Not checked</Badge>;
   if (v.status === "verified") return <Badge tone="verified">Verified</Badge>;
   if (v.status === "failed") return <Badge tone="danger">Not verified</Badge>;
-  return <Badge tone="warning">Incomplete</Badge>;
+  return <Badge tone="warning">One step left</Badge>;
+}
+
+/** What to change when a check fails, in plain words. */
+function advice(v: ProgramVerification, policy: string | null): ReactNode {
+  const failed = v.checks.find((c) => c.outcome === "failed");
+  if (!failed) return null;
+  if (failed.id === "refuses_without_acceptance") {
+    return failed.error ? (
+      <>
+        The call stopped at <code className="font-mono">{failed.error}</code> before reaching the
+        Stele check. Usually an account or an argument in step 1 is wrong — or the Stele check is
+        not in this instruction.
+      </>
+    ) : (
+      <>
+        Your program let a wallet through without accepting. Add{" "}
+        <code className="font-mono">stele_gate::require_current_passport(…)</code> at the start of
+        the instruction (see{" "}
+        <Link href="/dashboard/gate/programs" className="text-accent">
+          Program integration
+        </Link>
+        ), deploy, then check again.
+      </>
+    );
+  }
+  if (failed.id === "allows_with_acceptance")
+    return (
+      <>
+        Your program checks a different policy. It must require{" "}
+        {policy ? <Fingerprint value={policy} /> : "this program's policy"}.
+      </>
+    );
+  return (
+    <>
+      Pass the transaction&apos;s signer as the user to the Stele check, so another wallet&apos;s
+      passport is refused.
+    </>
+  );
 }
 
 export default function GateVerificationPage() {
   const { detail } = useDashboard();
-  const network = useNetwork();
   const wallet = useWallet();
   const tx = useTransaction();
   const orgId = detail?.organization.id;
@@ -89,33 +123,13 @@ export default function GateVerificationPage() {
     if (!programId && first) setProgramId(first.id);
   }, [overview.data, programId]);
 
-  // The instruction editor, loaded from the saved template when there is one.
-  const [mode, setMode] = useState<"anchor" | "raw">("anchor");
-  const [name, setName] = useState("");
-  const [args, setArgs] = useState("");
-  const [raw, setRaw] = useState("");
-  const [rows, setRows] = useState<Row[]>(DEFAULT_ROWS);
-  useEffect(() => {
-    if (!program) return;
-    const t = program.probeTemplate;
-    setName(program.action);
-    setArgs("");
-    if (t) {
-      setMode("raw");
-      setRaw(t.data);
-      setRows(t.accounts.map((a) => ({ ...a, address: a.address ?? "" })));
-    } else {
-      setMode("anchor");
-      setRaw("");
-      setRows(DEFAULT_ROWS);
-    }
-  }, [program]);
-
+  const [changing, setChanging] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [memo, setMemo] = useState<string | null>(null);
   const [signature, setSignature] = useState("");
   useEffect(() => {
+    setChanging(false);
     setMemo(null);
     if (!orgId || !programId) return;
     api<{ memo: string }>(`/v1/organizations/${orgId}/gate/programs/${programId}/ownership`)
@@ -123,59 +137,36 @@ export default function GateVerificationPage() {
       .catch(() => setMemo(null));
   }, [orgId, programId]);
 
-  const data = useMemo(() => {
-    if (mode === "raw") return raw.replace(/\s+/g, "").toLowerCase();
-    const cleanArgs = args.replace(/\s+/g, "").toLowerCase();
-    return name.trim() ? toHex(anchorDiscriminator("global", name.trim())) + cleanArgs : "";
-  }, [mode, raw, name, args]);
-  const rowError = rows.find((r) => r.role === "address" && !isAddress(r.address.trim()))
-    ? "Every fixed account needs a valid address."
-    : !/^([0-9a-f]{2})*$/.test(data)
-      ? "Instruction data must be hex bytes (two characters per byte)."
-      : null;
-
   if (!detail) return null;
   const canAdmin = detail.role === "owner" || detail.role === "admin";
+  const doc = overview.data?.documents.find((d) => d.id === program?.policyDocumentId) ?? null;
+  const policyAddress = doc?.policy?.address ?? null;
   const v = program?.verification ?? null;
+  const template = program?.probeTemplate ?? null;
   const authority = v?.program.upgradeAuthority ?? null;
   const ownershipCurrent = !!program?.ownership && program.ownership.authority === authority;
+  const ownershipDone = ownershipCurrent || v?.program.authorityKind === "immutable";
   const origin = typeof window === "undefined" ? "" : window.location.origin;
   const pageUrl = program ? `${origin}/verified/${program.programAddress}` : "";
   const badgeUrl = program
     ? `${origin}/api/v1/public/verified/${program.programAddress}/badge.svg`
     : "";
+  const acceptUrl = doc ? `/accept/${detail.organization.address}/${doc.slug}` : null;
 
-  const update = (i: number, patch: Partial<Row>) =>
-    setRows((rs) => rs.map((r, j) => (j === i ? { ...r, ...patch } : r)));
-  const move = (i: number, d: -1 | 1) =>
-    setRows((rs) => {
-      const next = [...rs];
-      const j = i + d;
-      if (j < 0 || j >= next.length) return rs;
-      [next[i], next[j]] = [next[j]!, next[i]!];
-      return next;
-    });
-
-  async function saveAndVerify() {
+  async function verify(next?: ProbeTemplate) {
     if (!program) return;
     setBusy(true);
     setError(null);
     try {
-      await api(`/v1/organizations/${orgId}/gate/programs/${program.id}/probe`, {
-        method: "PUT",
-        body: {
-          data,
-          accounts: rows.map((r) => ({
-            role: r.role,
-            ...(r.role === "address" ? { address: r.address.trim() } : {}),
-            signer: r.signer,
-            writable: r.writable,
-          })),
-        },
-      });
+      if (next)
+        await api(`/v1/organizations/${orgId}/gate/programs/${program.id}/probe`, {
+          method: "PUT",
+          body: next,
+        });
       await api(`/v1/organizations/${orgId}/gate/programs/${program.id}/verify`, {
         method: "POST",
       });
+      setChanging(false);
       overview.reload();
     } catch (e) {
       setError(errorMessage(e));
@@ -212,11 +203,21 @@ export default function GateVerificationPage() {
     );
   }
 
+  const headline = !v
+    ? template
+      ? "Run the check to get your badge."
+      : "Three steps to your badge."
+    : v.status === "verified"
+      ? "Your program is Stele Verified."
+      : v.status === "incomplete"
+        ? "Almost there: one wallet must accept your terms."
+        : "Not verified yet — see what to change below.";
+
   return (
     <>
       <PageHeader
         title="Verification"
-        description="Stele Verified: Stele proves — on your deployed program, re-checked after every upgrade — that the protected action waits for your current terms. Your users see it as a badge."
+        description="The Stele Verified badge shows your users that your deployed program refuses anyone who hasn't accepted your current terms. Stele checks it on-chain, and again after every upgrade."
       />
       {!enabled ? (
         <EnableGate />
@@ -224,217 +225,163 @@ export default function GateVerificationPage() {
         <>
           <GateTabs />
           {(overview.data?.programs.length ?? 0) === 0 && !overview.loading ? (
-            <Alert tone="info" className="mt-6">
-              Register your program first —{" "}
-              <Link href="/dashboard/gate/programs" className="text-accent">
-                Program integration
+            <Panel
+              className="mt-6"
+              title={
+                <StepTitle n={1} done={false}>
+                  Register your program
+                </StepTitle>
+              }
+            >
+              <p className="text-[13.5px] text-fg-muted">
+                Verification works on a program registered with Stele: its address, and the policy
+                it requires.
+              </p>
+              <Link
+                href="/dashboard/gate/programs"
+                className="mt-4 inline-flex h-9 items-center rounded-lg bg-accent px-4 text-[13.5px] font-medium text-accent-ink"
+              >
+                Register a program
               </Link>
-              .
-            </Alert>
+            </Panel>
           ) : program ? (
             <div className="mt-6 space-y-6">
-              {(overview.data?.programs.length ?? 0) > 1 && (
-                <Select
-                  aria-label="Program"
-                  value={programId}
-                  onChange={(e) => setProgramId(e.target.value)}
-                  className="w-72"
-                >
-                  {overview.data!.programs.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.label} · {p.programAddress.slice(0, 6)}…
-                    </option>
-                  ))}
-                </Select>
-              )}
+              {/* Where things stand: the program, its status and the live badge. */}
+              <div className="flex flex-col gap-4 rounded-2xl border border-line bg-surface p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {(overview.data?.programs.length ?? 0) > 1 ? (
+                      <Select
+                        aria-label="Program"
+                        value={programId}
+                        onChange={(e) => setProgramId(e.target.value)}
+                        className="w-auto"
+                      >
+                        {overview.data!.programs.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.label} · {p.programAddress.slice(0, 6)}…
+                          </option>
+                        ))}
+                      </Select>
+                    ) : (
+                      <span className="text-[14px] font-semibold text-fg">{program.label}</span>
+                    )}
+                    <StatusBadge v={v} />
+                  </div>
+                  <p className="mt-2 text-[17px] font-semibold tracking-[-0.01em] text-fg">
+                    {headline}
+                  </p>
+                  <p className="mt-1 text-[12.5px] text-fg-subtle">
+                    Program <Fingerprint value={program.programAddress} />
+                    {doc && (
+                      <>
+                        {" "}
+                        · requires {documentTitle(doc)} v{doc.policy?.requiredVersion}
+                      </>
+                    )}
+                  </p>
+                </div>
+                <a href={pageUrl} target="_blank" rel="noopener noreferrer" className="flex-none">
+                  {/* Re-fetched after each check, so it shows the new status. */}
+                  <img
+                    src={`${badgeUrl}?theme=dark&v=${encodeURIComponent(v?.checkedAt ?? "")}`}
+                    alt="Your badge"
+                    width={200}
+                    height={40}
+                  />
+                </a>
+              </div>
+
               {error && <Alert tone="danger">{error}</Alert>}
 
               <Panel
-                title="1. How is the protected instruction called?"
-                description="Stele simulates this instruction against your deployed program — nothing is signed or sent. List the accounts in the order of your instruction's accounts."
+                title={
+                  <StepTitle n={1} done={!!template && !changing}>
+                    Show Stele how your protected instruction is called
+                  </StepTitle>
+                }
+                description="Stele simulates this call on your deployed program with test wallets — nothing is signed or sent, and nothing is spent."
               >
-                <div className="grid gap-4">
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      variant={mode === "anchor" ? "primary" : "secondary"}
-                      size="sm"
-                      onClick={() => setMode("anchor")}
-                    >
-                      Anchor instruction
-                    </Button>
-                    <Button
-                      variant={mode === "raw" ? "primary" : "secondary"}
-                      size="sm"
-                      onClick={() => setMode("raw")}
-                    >
-                      Raw data (hex)
-                    </Button>
-                  </div>
-                  {mode === "anchor" ? (
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <label className="grid gap-1.5 text-[13px] text-fg-muted">
-                        Instruction name
-                        <Input
-                          value={name}
-                          onChange={(e) => setName(e.target.value)}
-                          placeholder="protected_action"
-                          className="font-mono"
-                        />
-                      </label>
-                      <label className="grid gap-1.5 text-[13px] text-fg-muted">
-                        Arguments (Borsh, hex — empty if none)
-                        <Input
-                          value={args}
-                          onChange={(e) => setArgs(e.target.value)}
-                          placeholder="e.g. 0100000000000000 for amount: u64 = 1"
-                          className="font-mono"
-                        />
-                      </label>
+                {template && !changing ? (
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex flex-wrap items-center gap-1.5 text-[13px] text-fg-muted">
+                      <span className="mr-1">Saved:</span>
+                      {template.accounts.map((a, i) => (
+                        <Badge key={i} tone={a.role === "address" ? "neutral" : "accent"}>
+                          {a.role === "address"
+                            ? `fixed ${a.address?.slice(0, 4)}…`
+                            : ROLE_LABELS[a.role].replace(/^(The user's|Your) /, "")}
+                        </Badge>
+                      ))}
                     </div>
-                  ) : (
-                    <label className="grid gap-1.5 text-[13px] text-fg-muted">
-                      Instruction data (hex)
-                      <Input
-                        value={raw}
-                        onChange={(e) => setRaw(e.target.value)}
-                        className="font-mono"
-                      />
-                    </label>
-                  )}
-                  {mode === "anchor" && (
-                    <p className="text-[12.5px] text-fg-subtle">
-                      Data: <code className="break-all font-mono text-fg-muted">{data || "—"}</code>
-                    </p>
-                  )}
-
-                  <div className="grid gap-2">
-                    {rows.map((r, i) => (
-                      <div
-                        key={i}
-                        className="grid items-center gap-2 rounded-xl border border-line p-2.5 sm:grid-cols-[28px_minmax(0,220px)_minmax(0,1fr)_auto]"
-                      >
-                        <span className="text-center font-mono text-[12px] text-fg-subtle">
-                          {i}
-                        </span>
-                        <Select
-                          aria-label={`Account ${i}`}
-                          value={r.role}
-                          onChange={(e) => update(i, { role: e.target.value as Role })}
-                        >
-                          {ROLES.map((o) => (
-                            <option key={o.value} value={o.value}>
-                              {o.label}
-                            </option>
-                          ))}
-                        </Select>
-                        {r.role === "address" ? (
-                          <Input
-                            aria-label={`Account ${i} address`}
-                            value={r.address}
-                            onChange={(e) => update(i, { address: e.target.value })}
-                            placeholder="Account address"
-                            className="font-mono"
-                          />
-                        ) : (
-                          <span className="text-[12.5px] text-fg-subtle">
-                            Filled in per scenario
-                          </span>
-                        )}
-                        <div className="flex items-center gap-3 text-[12.5px] text-fg-muted">
-                          <label className="inline-flex items-center gap-1.5">
-                            <input
-                              type="checkbox"
-                              checked={r.signer}
-                              onChange={(e) => update(i, { signer: e.target.checked })}
-                            />
-                            signer
-                          </label>
-                          <label className="inline-flex items-center gap-1.5">
-                            <input
-                              type="checkbox"
-                              checked={r.writable}
-                              onChange={(e) => update(i, { writable: e.target.checked })}
-                            />
-                            writable
-                          </label>
-                          <button
-                            type="button"
-                            aria-label="Move up"
-                            className="px-1 text-fg-subtle hover:text-fg"
-                            onClick={() => move(i, -1)}
-                          >
-                            ↑
-                          </button>
-                          <button
-                            type="button"
-                            aria-label="Move down"
-                            className="px-1 text-fg-subtle hover:text-fg"
-                            onClick={() => move(i, 1)}
-                          >
-                            ↓
-                          </button>
-                          <button
-                            type="button"
-                            aria-label="Remove"
-                            className="px-1 text-fg-subtle hover:text-danger"
-                            onClick={() => setRows((rs) => rs.filter((_, j) => j !== i))}
-                          >
-                            <XIcon className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                    <div>
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() =>
-                          setRows((rs) => [
-                            ...rs,
-                            { role: "address", address: "", signer: false, writable: false },
-                          ])
-                        }
-                      >
-                        Add account
+                    {canAdmin && (
+                      <Button variant="secondary" size="sm" onClick={() => setChanging(true)}>
+                        Change
                       </Button>
-                    </div>
-                  </div>
-                  {rowError && <p className="text-[13px] text-danger">{rowError}</p>}
-                  <div className="flex flex-wrap items-center gap-3">
-                    <Button
-                      onClick={() => void saveAndVerify()}
-                      disabled={busy || !canAdmin || !!rowError || !data}
-                    >
-                      {busy && <Spinner className="h-4 w-4" />}
-                      Save and verify
-                    </Button>
-                    {!canAdmin && (
-                      <span className="text-[12.5px] text-fg-subtle">
-                        An owner or admin can change this.
-                      </span>
                     )}
                   </div>
-                </div>
+                ) : (
+                  <InstructionEditor
+                    key={program.id}
+                    programAddress={program.programAddress}
+                    policyAddress={policyAddress}
+                    action={program.action}
+                    saved={template}
+                    example={
+                      program.programAddress === overview.data?.demoProgram ? DEMO_IDL : null
+                    }
+                    busy={busy}
+                    disabled={!canAdmin}
+                    onSubmit={(t) => void verify(t)}
+                    onCancel={template ? () => setChanging(false) : null}
+                  />
+                )}
+                {!canAdmin && (
+                  <p className="mt-3 text-[12.5px] text-fg-subtle">
+                    An owner or admin can change this.
+                  </p>
+                )}
               </Panel>
 
               <Panel
-                title="2. Result"
-                description="Re-checked automatically after every upgrade of the program, and at least every six hours."
-                actions={<StatusBadge v={v} />}
+                title={
+                  <StepTitle n={2} done={v?.status === "verified"}>
+                    The check
+                  </StepTitle>
+                }
+                description="Repeated automatically after every upgrade of your program, and at least every six hours."
+                actions={
+                  template && (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      loading={busy}
+                      disabled={busy || !canAdmin}
+                      onClick={() => void verify()}
+                    >
+                      Check again
+                    </Button>
+                  )
+                }
               >
-                {v ? (
+                {!v ? (
+                  <p className="text-[13px] text-fg-muted">
+                    {template ? "Not checked yet." : "Complete step 1 first."}
+                  </p>
+                ) : (
                   <div className="grid gap-5">
                     <ol className="grid gap-3">
                       {v.checks.map((c) => (
                         <li key={c.id} className="flex gap-3">
                           <span
-                            className={`grid h-6 w-6 flex-none place-items-center rounded-full ${
+                            className={cn(
+                              "grid h-6 w-6 flex-none place-items-center rounded-full",
                               c.outcome === "passed"
                                 ? "bg-verified-soft text-verified"
                                 : c.outcome === "failed"
                                   ? "bg-danger-soft text-danger"
-                                  : "bg-surface-3 text-fg-subtle"
-                            }`}
+                                  : "bg-surface-3 text-fg-subtle",
+                            )}
                           >
                             {c.outcome === "passed" ? (
                               <CheckIcon className="h-3.5 w-3.5" />
@@ -460,6 +407,33 @@ export default function GateVerificationPage() {
                         </li>
                       ))}
                     </ol>
+                    {v.status === "failed" && (
+                      <Alert tone="warning">
+                        <span className="font-medium text-fg">What to change: </span>
+                        {advice(v, policyAddress)}
+                      </Alert>
+                    )}
+                    {v.status === "incomplete" && (
+                      <Alert tone="info">
+                        To test the “let through” case, Stele needs one wallet that accepted version{" "}
+                        {v.requiredVersion}. Accept it once with any wallet
+                        {acceptUrl && (
+                          <>
+                            {" "}
+                            —{" "}
+                            <a
+                              href={acceptUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="font-medium text-accent hover:underline"
+                            >
+                              open the acceptance page
+                            </a>
+                          </>
+                        )}{" "}
+                        — then press <em>Check again</em>.
+                      </Alert>
+                    )}
                     <p className="text-[12.5px] text-fg-subtle">
                       Checked {formatDateTime(v.checkedAt)} · code{" "}
                       {v.program.codeHash ? <Fingerprint value={v.program.codeHash} /> : "—"} ·
@@ -471,16 +445,19 @@ export default function GateVerificationPage() {
                           : "a single key"}
                     </p>
                   </div>
-                ) : (
-                  <p className="text-[13px] text-fg-muted">Not checked yet.</p>
                 )}
               </Panel>
 
               <Panel
-                title="3. Prove that the program is yours"
-                description="Your program's upgrade authority signs a memo naming the program and your organization. Shown on the public page."
+                title={
+                  <StepTitle n={3} done={ownershipDone}>
+                    Prove the program is yours{" "}
+                    <span className="font-normal text-fg-subtle">(recommended)</span>
+                  </StepTitle>
+                }
+                description="So nobody can claim your program: its upgrade authority signs a short note naming the program and your organization. The badge page shows it."
                 actions={
-                  ownershipCurrent ? (
+                  ownershipDone ? (
                     <Badge tone="verified">Proven</Badge>
                   ) : (
                     <Badge tone="neutral">Not proven</Badge>
@@ -488,56 +465,70 @@ export default function GateVerificationPage() {
                 }
               >
                 {!v ? (
-                  <p className="text-[13px] text-fg-muted">Verify the program first.</p>
+                  <p className="text-[13px] text-fg-muted">Run the check first.</p>
                 ) : !authority ? (
                   <p className="text-[13px] text-fg-muted">
-                    This program is immutable: there is no upgrade authority, and nobody can change
-                    it — the strongest case.
+                    Nothing to do: this program is immutable — nobody can change it, the strongest
+                    case.
                   </p>
                 ) : (
                   <div className="grid gap-4">
                     <p className="text-[13px] text-fg-muted">
-                      Upgrade authority <Fingerprint value={authority} />
+                      Connect the upgrade authority <Fingerprint value={authority} /> and sign — it
+                      costs one network fee.
                       {v.program.authorityKind === "program" &&
-                        " — a program-controlled account (for example a Squads multisig): create a transaction in it with the Memo program and this text, then paste its signature."}
+                        " It is a program-controlled account (for example a Squads multisig): create a transaction in it with the Memo program and the text below, then paste its signature."}
                     </p>
-                    {memo && (
-                      <code className="break-all rounded-xl border border-line bg-surface-2 px-3 py-2 font-mono text-[12.5px] text-fg">
-                        {memo}
-                      </code>
-                    )}
                     <div className="flex flex-wrap items-center gap-3">
                       <Button
                         onClick={() => void signMemo()}
+                        loading={tx.pending}
                         disabled={!memo || tx.pending || wallet.address !== authority || !canAdmin}
                       >
-                        {tx.pending && <Spinner className="h-4 w-4" />}
-                        Sign with the connected wallet
+                        Sign the ownership note
                       </Button>
                       {wallet.address !== authority && (
                         <span className="text-[12.5px] text-fg-subtle">
-                          Connect the upgrade authority&apos;s wallet to sign here.
+                          {wallet.address
+                            ? "The connected wallet is not the upgrade authority."
+                            : "Connect the upgrade authority's wallet first."}
                         </span>
                       )}
                       {tx.signature && <TxLink signature={tx.signature} />}
                     </div>
                     {tx.error && <Alert tone="danger">{tx.error}</Alert>}
-                    <div className="flex flex-wrap gap-2">
-                      <Input
-                        aria-label="Memo transaction signature"
-                        value={signature}
-                        onChange={(e) => setSignature(e.target.value)}
-                        placeholder="…or paste the memo transaction's signature"
-                        className="min-w-0 flex-1 font-mono"
-                      />
-                      <Button
-                        variant="secondary"
-                        onClick={() => void submitOwnership(signature)}
-                        disabled={!signature.trim() || !canAdmin}
-                      >
-                        Check
-                      </Button>
-                    </div>
+                    <details className="text-[13px] text-fg-muted">
+                      <summary className="cursor-pointer select-none text-fg-subtle hover:text-fg">
+                        Signing somewhere else (CLI, multisig)?
+                      </summary>
+                      <div className="mt-3 grid gap-3">
+                        {memo && (
+                          <code className="break-all rounded-xl border border-line bg-surface-2 px-3 py-2 font-mono text-[12.5px] text-fg">
+                            {memo}
+                          </code>
+                        )}
+                        <p className="text-[12.5px]">
+                          Send a Memo-program transaction with this text, signed by the upgrade
+                          authority, then paste its signature.
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          <Input
+                            aria-label="Memo transaction signature"
+                            value={signature}
+                            onChange={(e) => setSignature(e.target.value)}
+                            placeholder="Transaction signature"
+                            className="min-w-0 flex-1 font-mono"
+                          />
+                          <Button
+                            variant="secondary"
+                            onClick={() => void submitOwnership(signature)}
+                            disabled={!signature.trim() || !canAdmin}
+                          >
+                            Check
+                          </Button>
+                        </div>
+                      </div>
+                    </details>
                     {program.ownership && (
                       <p className="text-[12.5px] text-fg-subtle">
                         {ownershipCurrent ? "Proven" : "Proven by a previous authority"}{" "}
@@ -550,8 +541,12 @@ export default function GateVerificationPage() {
               </Panel>
 
               <Panel
-                title="4. Add the badge to your site"
-                description="It shows the live status and opens the evidence. Outside your verified domains it reads “Not valid on this site”."
+                title={
+                  <StepTitle n={4} done={v?.status === "verified"}>
+                    Add the badge to your site
+                  </StepTitle>
+                }
+                description="Paste this where users take the protected action. It shows the live status and opens the evidence — and only counts on your verified domains."
                 actions={
                   <a
                     href={pageUrl}
@@ -563,22 +558,7 @@ export default function GateVerificationPage() {
                   </a>
                 }
               >
-                <div className="grid gap-5">
-                  <div className="flex flex-wrap gap-4 rounded-xl border border-line bg-surface-2 p-4">
-                    {/* The image badge: the same states as the live one, without the domain check. */}
-                    <img
-                      src={`${badgeUrl}?theme=dark`}
-                      alt="Badge (dark)"
-                      width={200}
-                      height={40}
-                    />
-                    <img
-                      src={`${badgeUrl}?theme=light`}
-                      alt="Badge (light)"
-                      width={200}
-                      height={40}
-                    />
-                  </div>
+                <div className="grid gap-4">
                   <CodeTabs
                     tabs={[
                       {
@@ -600,17 +580,15 @@ export default function GateVerificationPage() {
                   />
                   {v?.status !== "verified" && (
                     <p className="text-[12.5px] text-fg-subtle">
-                      Until the program is verified the badge reads “Verification pending” (or “Not
-                      verified”).
+                      You can add it now: until the check passes it reads “Verification pending”.
                     </p>
                   )}
                   <p className="text-[12.5px] text-fg-subtle">
-                    Network: {network.label}. Verified domains decide where the live badge is valid
-                    —{" "}
+                    Your verified domains decide where the badge is valid —{" "}
                     <Link href="/dashboard/organization" className="text-accent">
                       Organization
                     </Link>
-                    .
+                    . Elsewhere it reads “Not valid on this site”.
                   </p>
                 </div>
               </Panel>
