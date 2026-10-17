@@ -15,7 +15,7 @@
  */
 import { groupedFingerprint, verifiedDomainAt } from "@stelehq/protocol";
 import { acceptDocument, type AcceptanceResult, type MessageSigner } from "./accept";
-import { SteleClient, type SignerType, type SigningPolicy } from "./client";
+import { SteleApiError, SteleClient, type SignerType, type SigningPolicy } from "./client";
 import { NativePasskeySigner, identifyPasskeySigner, nativePasskeySupport } from "./native-passkey";
 import {
   PasskeySigner,
@@ -246,6 +246,13 @@ class SignerPicker {
         });
       }
     }
+  }
+
+  /** Forgets a passkey signer the organization no longer recognises, on this device too. */
+  forgetSigner(signer: MessageSigner): void {
+    (signer as { forget?: () => void }).forget?.();
+    if (this.remembered === signer) this.remembered = null;
+    this.signer = null;
   }
 
   private async sessionToken(): Promise<string | undefined> {
@@ -800,10 +807,23 @@ export function mount(target: string | Element, options: EmbedOptions): EmbedHan
       options.onAccepted?.(result);
       emit("stele:accepted", result);
     } catch (e) {
-      state.error =
-        isUserRejection(e) || isPasskeyCancel(e)
-          ? "Signing was cancelled. Nothing was recorded."
-          : fail(e).message;
+      if (
+        isPasskey(signer.signerType) &&
+        e instanceof SteleApiError &&
+        e.status === 404 &&
+        /signer/i.test(e.message)
+      ) {
+        // The organization no longer knows this passkey signer (e.g. it was reset or revoked):
+        // forget it on this device and let the visitor create or pick another one.
+        state.picker?.forgetSigner(signer);
+        state.error =
+          "This passkey is no longer registered with this organization. Create a passkey (or use your wallet) to sign.";
+      } else {
+        state.error =
+          isUserRejection(e) || isPasskeyCancel(e)
+            ? "Signing was cancelled. Nothing was recorded."
+            : fail(e).message;
+      }
     } finally {
       state.busy = null;
       renderAction();
