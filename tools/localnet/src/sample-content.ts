@@ -165,3 +165,19 @@ We keep order records for 6 years, as required for tax purposes, then delete the
 ## 4. Your rights
 
 You may access, correct or delete your data at any time from your account page.`;
+
+export const NORTHWIND_REWARDS_V1 = `# Northwind Rewards Club Terms
+
+The Rewards Club lets members deposit points into the Northwind Rewards vault and redeem them later.
+
+## 1. Membership
+
+Membership is free. You join by accepting these terms with the wallet you deposit from.
+
+## 2. Points
+
+Points have no cash value. Deposited points can be redeemed for store credit at any time.
+
+## 3. Changes
+
+If we change these terms, you must accept the new version before your next deposit.`;

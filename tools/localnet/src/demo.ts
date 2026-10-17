@@ -3,8 +3,10 @@
  * shop app (examples/demo-shop) to use it:
  *
  *   on-chain   organization + acceptance shard, verified domain northwind.test, Terms of Service and
- *              Privacy Policy (version 1.0 each), and your wallet as an admin + publisher member
- *   off-chain  an API key (all scopes) and a webhook endpoint pointing at the demo shop
+ *              Privacy Policy (version 1.0 each), and your wallet as an admin + publisher member;
+ *              Stele Gate: the Rewards Club Terms, their policy, and a demo vault requiring them
+ *   off-chain  an API key (all scopes), a webhook endpoint pointing at the demo shop, Stele Gate
+ *              turned on, the vault registered and verified (Stele Verified)
  *   writes     examples/demo-shop/.env
  *
  *   pnpm localnet:demo -- --member <your wallet address>
@@ -26,8 +28,11 @@ import {
   createDocumentInstruction,
   createNonceShardInstruction,
   createOrganizationInstruction,
+  createPolicyInstruction,
   createRpc,
+  createVaultInstruction,
   decodeOrganization,
+  depositWithPassportInstruction,
   domainHash,
   fetchAccountData,
   findConfigPda,
@@ -36,6 +41,11 @@ import {
   findMemberPda,
   findNonceShardPda,
   findOrganizationPda,
+  findPolicyPda,
+  findVaultPda,
+  findVersionPda,
+  GATE_DEMO_PROGRAM_ADDRESS,
+  toHex,
   getClusterUnixTimestamp,
   toBase58,
   toBase64,
@@ -46,7 +56,11 @@ import {
 } from "@stelehq/protocol";
 import { PROGRAM, PUBLIC_NETWORKS, RPC_URL, airdrop, publishVersion, send } from "./chain.js";
 import { DATA_DIR, REPO_ROOT, ensureKeypair, signer } from "./keys.js";
-import { NORTHWIND_PRIVACY_V1, NORTHWIND_TERMS_V1 } from "./sample-content.js";
+import {
+  NORTHWIND_PRIVACY_V1,
+  NORTHWIND_REWARDS_V1,
+  NORTHWIND_TERMS_V1,
+} from "./sample-content.js";
 
 const APP = (process.env.STELE_APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
 const API = `${APP}/api`;
@@ -156,6 +170,7 @@ if (member) {
 for (const [slug, documentType, title, source] of [
   ["terms-of-service", "terms-of-service", "Terms of Service", NORTHWIND_TERMS_V1],
   ["privacy-policy", "privacy-policy", "Privacy Policy", NORTHWIND_PRIVACY_V1],
+  ["rewards-club-terms", "terms-of-service", "Rewards Club Terms", NORTHWIND_REWARDS_V1],
 ] as const) {
   const [document] = await findDocumentPda(organization, slug, PROGRAM);
   if (await fetchAccountData(rpc, document)) continue;
@@ -185,6 +200,37 @@ for (const [slug, documentType, title, source] of [
   });
 }
 
+// Stele Gate: the Rewards Club Terms get a policy, and a demo vault requires that policy.
+const [rewardsDocument] = await findDocumentPda(organization, "rewards-club-terms", PROGRAM);
+const [rewardsV1] = await findVersionPda(rewardsDocument, 1, PROGRAM);
+const [policy] = await findPolicyPda(rewardsDocument, PROGRAM);
+if (!(await fetchAccountData(rpc, policy))) {
+  await send(rpc, owner, [
+    createPolicyInstruction({
+      programAddress: PROGRAM,
+      authority: owner,
+      membership: null,
+      config,
+      organization,
+      document: rewardsDocument,
+      version: rewardsV1,
+      policy,
+      payer: owner,
+    }),
+  ]);
+  console.log(`  Gate policy for the Rewards Club Terms: ${policy}`);
+}
+const [vault] = await findVaultPda(policy);
+if (!(await fetchAccountData(rpc, vault))) {
+  await send(rpc, owner, [
+    createVaultInstruction({ manager: owner.address, policy, vault, name: "Northwind Rewards" }),
+  ]);
+  console.log(`  Rewards vault (demo program ${GATE_DEMO_PROGRAM_ADDRESS}): ${vault}`);
+}
+// The shop pays the network fee of its customers' deposits (they need no SOL).
+const shopFeePayer = await signer("demo-shop-fee-payer");
+await airdrop(rpc, shopFeePayer.address, 2);
+
 // Fee sponsorship: the organization funds its nonce shard; the program reimburses the relayer.
 {
   const [shard] = await findNonceShardPda(organization, 0, PROGRAM);
@@ -212,7 +258,7 @@ for (const [slug, documentType, title, source] of [
 for (let i = 0; i < 40; i++) {
   const res = await fetch(`${API}/v1/public/organizations/${DOMAIN}`);
   const body = res.ok ? ((await res.json()) as { documents: unknown[] }) : null;
-  if (body && body.documents.length >= 2) break;
+  if (body && body.documents.length >= 3) break;
   await new Promise((r) => setTimeout(r, 1000));
 }
 
@@ -284,6 +330,74 @@ await call("PATCH", `/v1/organizations/${orgId}/settings`, {
   sponsorFallbackToStele: true,
   sponsorLowBalanceLamports: 50_000_000,
 });
+// Stele Gate: on, with acceptances stored in passports; the policy mirrored; the vault registered,
+// described for the verification probes, and verified once someone has accepted.
+await call("PATCH", `/v1/organizations/${orgId}/settings`, {
+  products: { gate: true },
+  gateStorage: "passport",
+});
+await call("POST", `/v1/organizations/${orgId}/gate/policies/${policy}/refresh`);
+const gate = await call<{
+  documents: { id: string; address: string }[];
+  programs: { id: string; programAddress: string }[];
+}>("GET", `/v1/organizations/${orgId}/gate`);
+const rewardsDoc = gate.documents.find((d) => d.address === rewardsDocument)!;
+const { program: registered } = await call<{ program: { id: string } }>(
+  "POST",
+  `/v1/organizations/${orgId}/gate/programs`,
+  {
+    programAddress: GATE_DEMO_PROGRAM_ADDRESS,
+    label: "Northwind Rewards vault",
+    action: "deposit_with_passport",
+    policyDocumentId: rewardsDoc.id,
+  },
+);
+const placeholder = address("11111111111111111111111111111111");
+await call("PUT", `/v1/organizations/${orgId}/gate/programs/${registered.id}/probe`, {
+  data: toHex(
+    new Uint8Array(
+      depositWithPassportInstruction({
+        investor: placeholder,
+        vault,
+        policy: placeholder,
+        passport: placeholder,
+        amount: 1,
+      }).data!,
+    ),
+  ),
+  accounts: [
+    { role: "user", signer: true, writable: false },
+    { role: "address", address: vault, signer: false, writable: true },
+    { role: "policy", signer: false, writable: false },
+    { role: "passport", signer: false, writable: false },
+  ],
+});
+// One member, so the "let through" probe has an accepted wallet to try.
+{
+  const secret = ed25519.utils.randomSecretKey();
+  const member = toBase58(ed25519.getPublicKey(secret));
+  const ch = (await (
+    await fetch(`${API}/v1/acceptance/challenges`, {
+      method: "POST",
+      headers: { "content-type": "application/json", origin: APP },
+      body: JSON.stringify({ organization, document: rewardsDocument, signer: member }),
+    })
+  ).json()) as { challengeId: string; clientBinding: string; message: string };
+  await fetch(`${API}/v1/acceptance/challenges/${ch.challengeId}/submit`, {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: APP },
+    body: JSON.stringify({
+      clientBinding: ch.clientBinding,
+      signature: toBase58(ed25519.sign(utf8(ch.message), secret)),
+    }),
+  });
+}
+const { verification } = await call<{ verification: { status: string } }>(
+  "POST",
+  `/v1/organizations/${orgId}/gate/programs/${registered.id}/verify`,
+);
+console.log(`  Stele Verified: ${verification.status}`);
+
 const hooks = await call<{ events: string[] }>("GET", `/v1/organizations/${orgId}/webhooks`);
 const { secret } = await call<{ secret: string }>("POST", `/v1/organizations/${orgId}/webhooks`, {
   url: `http://localhost:${SHOP_PORT}/webhooks/stele`,
@@ -303,6 +417,11 @@ writeFileSync(
     `STELE_ORGANIZATION=${DOMAIN}`,
     `STELE_ORGANIZATION_ADDRESS=${organization}`,
     `STELE_RPC_URLS=${RPC_URL}`,
+    `STELE_GATE_DOCUMENT=rewards-club-terms`,
+    `STELE_GATE_POLICY=${policy}`,
+    `STELE_GATE_VAULT=${vault}`,
+    `STELE_GATE_PROGRAM=${GATE_DEMO_PROGRAM_ADDRESS}`,
+    `SHOP_FEE_PAYER_KEYPAIR=${resolve(DATA_DIR, "demo-shop-fee-payer.json")}`,
     "",
   ].join("\n"),
   { mode: 0o600 },
