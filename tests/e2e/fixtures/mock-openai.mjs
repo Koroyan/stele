@@ -10,6 +10,10 @@ import { createServer } from "node:http";
 const PORT = Number(process.env.MOCK_OPENAI_PORT ?? 4510);
 
 createServer((req, res) => {
+  if (req.url?.endsWith("/health")) {
+    res.writeHead(200).end("ok");
+    return;
+  }
   if (req.method !== "POST" || !req.url?.endsWith("/chat/completions")) {
     res.writeHead(404).end();
     return;

@@ -6,12 +6,22 @@
  *   PW_CHANNEL=msedge pnpm test:e2e    # an installed browser instead
  *   E2E_PRODUCTION=1 pnpm test:e2e     # the production builds (run `pnpm build` first); CI does this
  */
+import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { defineConfig, devices } from "@playwright/test";
+import { toBase58 } from "@stelehq/protocol";
 
 const CI = Boolean(process.env.CI);
 const PRODUCTION = CI || process.env.E2E_PRODUCTION === "1";
 const BASE_URL = process.env.BASE_URL ?? "http://localhost:3000";
 const NETWORKS = "devnet=https://devnet.app.stele.example,mainnet=https://app.stele.example";
+/** The live demo organization's owner reads Stele's contact inbox in the tests (when seeded). */
+const LIVE_DEMO_OWNER = (() => {
+  const file = resolve(import.meta.dirname, "../../.data/localnet/live-demo-owner.json");
+  if (!existsSync(file)) return "";
+  const key = JSON.parse(readFileSync(file, "utf8")) as number[];
+  return toBase58(Uint8Array.from(key.slice(32)));
+})();
 
 export default defineConfig({
   testDir: "tests",
@@ -41,12 +51,26 @@ export default defineConfig({
   ],
   webServer: [
     {
+      // OpenAI's stand-in: the assistant's tests never spend a real key.
+      command: "node fixtures/mock-openai.mjs",
+      url: "http://127.0.0.1:4510/v1/health",
+      reuseExistingServer: !CI,
+      timeout: 30_000,
+    },
+    {
       // The API bundle (dist/) or the TypeScript sources; both read the repository's .env.
       command: `pnpm --filter @stele/api run ${PRODUCTION ? "start" : "dev"}`,
       url: "http://127.0.0.1:4000/health",
       reuseExistingServer: !CI,
       timeout: 120_000,
       cwd: "../..",
+      env: {
+        OPENAI_API_KEY: "mock",
+        STELE_CONTACT_PER_IP_HOUR: "1000",
+        OPENAI_BASE_URL: "http://127.0.0.1:4510/v1",
+        // The live demo organization's owner reads the contact inbox in the tests.
+        STELE_PLATFORM_ADMINS: process.env.STELE_PLATFORM_ADMINS ?? LIVE_DEMO_OWNER,
+      },
     },
     {
       // The standalone server reads its listen address and the RPC endpoints allowed by the CSP
