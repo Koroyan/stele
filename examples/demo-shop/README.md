@@ -9,6 +9,7 @@ read how each piece is integrated.
 | `/privacy` | Accepting the Privacy Policy | **`Stele.mount()`** JavaScript API, `sessionToken` as a function, `onAccepted` / `onError` callbacks |
 | `/checkout` | An order the server allows only after the current Terms were accepted | `stele:accepted` browser event for the button; **`hasAcceptedLatest()`** on the server for the decision |
 | `/account` | The user's status per document and all their acceptances | `latestVersion()`, `hasAcceptedLatest()`, `listAcceptances()`, public document API, receipts |
+| `/rewards` | **Stele Gate**: a Solana vault that refuses deposits until the Rewards Club Terms were accepted — checked by the program itself | **Stele Verified** badge, `Stele.wallets`, `gate.check()`, `gate.gate()` (Accept & Deposit), a direct call refused on-chain, the shop paying the customer's network fee |
 | `/verify/<id>` | Checking an acceptance without trusting Stele | `GET /v1/acceptances/{id}` and **`@stelehq/verifier`** reading Solana directly |
 | `/webhooks` | Notifications from Stele | **`verifyWebhook()`** over the raw body, de-duplication by event ID |
 | `/api-log` | Every request the shop made to Stele | |
@@ -23,8 +24,10 @@ read how each piece is integrated.
    ```
 
    This creates **Northwind Shop** on the local network (verified domain `northwind.test`, a Terms
-   of Service and a Privacy Policy), makes your wallet an admin and publisher, creates an API key
-   and a webhook endpoint, and writes them to `examples/demo-shop/.env`.
+   of Service, a Privacy Policy and the Rewards Club Terms), makes your wallet an admin and
+   publisher, creates an API key and a webhook endpoint, turns on Stele Gate with a policy and a
+   Rewards vault that requires it (registered and **Stele Verified**), and writes everything to
+   `examples/demo-shop/.env`.
 
 3. Start the shop and open <http://localhost:4300>:
 
@@ -44,6 +47,12 @@ Use a Solana wallet set to the local network, as for any local testing.
    Shop → Documents → Terms of Service → New version** and publish it.
 6. Back in the shop, **My acceptances** and **Checkout** now ask you to accept again: your old
    acceptance was for the previous version.
+7. Open **Rewards (Gate)**. Connect a wallet and press **Try without accepting**: the vault program
+   refuses the deposit on-chain (`AccessPassMissing`). Press **Deposit 25 points**: Stele shows the
+   Rewards Club Terms, you sign (free), and the deposit goes through. Click the **Stele Verified**
+   badge for the evidence, and re-check it in your browser.
+8. In the dashboard, **Insights** shows what happened: acceptances per day, completion, signing
+   methods, who still has to accept the current version (CSV), and more.
 
 ## Notes
 
