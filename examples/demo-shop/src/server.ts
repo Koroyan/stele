@@ -5,7 +5,9 @@
  *   /privacy    the widget through the JavaScript API (Stele.mount, callbacks, session function)
  *   /checkout   an order the SERVER allows only after the current Terms were accepted, confirmed
  *               by the customer as a signed PURCHASE proof (passkey or wallet, fee-free)
- *   /account    the user's status per document, their acceptances, receipts, independent checks
+ *   /account    the user's status per document, their acceptances, receipts (JSON, PDF), checks
+ *   /rewards    Stele Gate: a Solana vault that refuses deposits until the Rewards Club Terms were
+ *               accepted (checked on-chain), the Stele Verified badge, Accept & Deposit
  *   /security   the user's passkey signer: devices, recovery kit, reset (walletless signing)
  *   /webhooks   signed notifications from Stele, verified and de-duplicated
  *   /api-log    every call this server made to Stele
@@ -15,6 +17,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { verifyWebhook } from "@stelehq/sdk/server";
 import { esc, html, page, raw, short, type Html } from "./html";
+import { GATE, buildDeposit, submitDeposit } from "./rewards";
 import {
   APP_URL,
   DOCUMENTS,
@@ -142,6 +145,11 @@ function home(req: IncomingMessage): string {
       "/account",
       "See your acceptances",
       "Status per document, receipts, and an independent check against Solana.",
+    ],
+    [
+      "/rewards",
+      "Join the Rewards Club (Stele Gate)",
+      "A Solana vault that refuses your deposit until you accept its terms — checked by the program itself. With the Stele Verified badge.",
     ],
     [
       "/security",
@@ -732,7 +740,12 @@ async function accountPage(req: IncomingMessage): Promise<string> {
                     <td>
                       <a href="/verify/${a.acceptanceId}">verify</a> ·
                       <a href="${APP_URL}/receipt/${a.acceptanceId}" target="_blank">receipt</a> ·
-                      <a href="/receipt/${a.acceptanceId}.json">download</a>
+                      <a href="/receipt/${a.acceptanceId}.json">JSON</a> ·
+                      <a
+                        href="${APP_URL}/api/v1/public/acceptances/${a.acceptanceId}/receipt.pdf"
+                        target="_blank"
+                        >PDF</a
+                      >
                     </td>
                   </tr>`,
               )}
@@ -921,6 +934,139 @@ async function receiveWebhook(req: IncomingMessage, res: ServerResponse) {
   webhooks.length = Math.min(webhooks.length, 100);
 }
 
+// ---- Rewards (Stele Gate) ---------------------------------------------------------------------------
+
+function rewardsPage(req: IncomingMessage): string {
+  if (!GATE)
+    return render(
+      req,
+      "/rewards",
+      "Rewards",
+      html`<h1>Rewards Club</h1>
+        <p class="no">Not set up: run <code>pnpm localnet:demo</code> again.</p>`,
+    );
+  const config = JSON.stringify({ api: `${APP_URL}/api`, policy: GATE.policy });
+  const script = raw(`<script src="${esc(SCRIPT)}" defer></script>
+<script>
+window.addEventListener("DOMContentLoaded", async function () {
+  var cfg = ${config.replace(/</g, "\\u003c")};
+  var $ = function (id) { return document.getElementById(id); };
+  var signer = null, gate = null;
+  function log(text, cls) {
+    var li = document.createElement("li");
+    li.textContent = new Date().toLocaleTimeString() + " — " + text;
+    if (cls) li.className = cls;
+    $("log").prepend(li);
+  }
+  var b64 = { dec: function (s) { return Uint8Array.from(atob(s), function (c) { return c.charCodeAt(0); }); },
+              enc: function (b) { var s = ""; b.forEach(function (x) { s += String.fromCharCode(x); }); return btoa(s); } };
+  var net = await (await fetch(cfg.api + "/v1/network")).json();
+  Stele.wallets.watch(net.walletChain, function (list) {
+    var box = $("wallets");
+    box.textContent = list.length ? "" : "No Solana wallet found in this browser.";
+    list.forEach(function (w) {
+      var b = document.createElement("button");
+      b.className = "btn ghost";
+      b.textContent = "Connect " + w.name;
+      b.onclick = async function () {
+        signer = await Stele.wallets.connect(w, net.walletChain);
+        gate = Stele.createGate({ wallet: signer, theme: "light" });
+        $("who").textContent = signer.address;
+        if (!signer.signTransaction) log(w.name + " cannot sign transactions here.", "no");
+        refresh();
+      };
+      box.appendChild(b);
+    });
+  });
+  async function refresh() {
+    var a = await gate.check(cfg.policy, signer.address);
+    $("status").textContent = a.status === "VALID"
+      ? "You accepted the Rewards Club Terms (version " + (a.passportEntry || a.pass).versionNumber + ")."
+      : a.status === "OUTDATED"
+        ? "The terms changed: accept version " + a.requiredVersion + " to deposit again."
+        : "You have not accepted the Rewards Club Terms yet.";
+    $("status").className = a.status === "VALID" ? "ok" : "warn";
+    $("deposit").disabled = $("direct").disabled = !signer.signTransaction;
+  }
+  async function deposit() {
+    var r = await (await fetch("/rewards/tx", { method: "POST", body: JSON.stringify({ investor: signer.address }) })).json();
+    if (r.error) throw new Error(r.error);
+    var signed = await signer.signTransaction(b64.dec(r.transaction));
+    var out = await (await fetch("/rewards/send", { method: "POST", body: JSON.stringify({ id: r.id, transaction: b64.enc(signed) }) })).json();
+    if (out.ok) log("Deposited 25 points — vault total " + out.points + " (terms v" + out.termsVersion + "). Tx " + out.signature.slice(0, 16) + "…", "ok");
+    else log("Refused on-chain by the vault program: " + out.refusal + ". Tx " + out.signature.slice(0, 16) + "…", "no");
+    return out;
+  }
+  $("deposit").onclick = async function () {
+    try {
+      // Shows the Stele window only if needed; records the acceptance; then runs the deposit.
+      await gate.gate({ policy: cfg.policy, acceptLabel: "Accept & Deposit", action: deposit });
+    } catch (e) { log(e.message, "no"); }
+    refresh();
+  };
+  $("direct").onclick = async function () {
+    try { await deposit(); } catch (e) { log(e.message, "no"); }
+  };
+});
+</script>`);
+  return render(
+    req,
+    "/rewards",
+    "Rewards Club",
+    html`<h1>Northwind Rewards Club</h1>
+      <p class="lead">
+        Deposit points into the Rewards vault — a Solana program. Members must accept the Rewards
+        Club Terms, and the program checks it on-chain: no website, script or other app can skip it.
+      </p>
+      <p>
+        <span data-stele-verified="${GATE.program}" data-stele-theme="light"></span>
+      </p>
+      <div class="two">
+        <div class="card">
+          <h3>1 · Connect a wallet</h3>
+          <div id="wallets" style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0"></div>
+          <p class="mono" id="who"></p>
+          <h3 style="margin-top:14px">2 · Your status</h3>
+          <p><span id="status" class="warn">Connect a wallet first.</span></p>
+          <h3 style="margin-top:14px">3 · Deposit</h3>
+          <p style="margin-bottom:10px">The shop pays the network fee: you need no SOL.</p>
+          <button id="deposit" class="btn" disabled>Deposit 25 points</button>
+          <button id="direct" class="btn ghost" disabled>
+            Try without accepting (direct call)
+          </button>
+          <ul id="log" class="mono" style="margin:14px 0 0;padding-left:18px"></ul>
+        </div>
+        <div class="explain">
+          <strong>What is happening</strong>
+          <ol>
+            <li>
+              <code>Stele.wallets</code> connects your wallet; <code>gate.check()</code> reads your
+              Stele passport on Solana.
+            </li>
+            <li>
+              <code>gate.gate()</code> shows the Rewards Club Terms only if you have not accepted
+              the required version, records your acceptance (free), then runs the deposit.
+            </li>
+            <li>
+              The vault program calls <code>stele_gate::require_current_passport</code>: a deposit
+              from a wallet that has not accepted is refused on-chain —
+              <em>Try without accepting</em> shows it.
+            </li>
+            <li>
+              The badge is <strong>Stele Verified</strong>: Stele simulates the vault's deposit and
+              re-checks it after every program upgrade. Click it for the evidence.
+            </li>
+            <li>
+              Publish a new version of the Rewards Club Terms and require it (dashboard → Gate →
+              Policies): your next deposit is refused until you accept again.
+            </li>
+          </ol>
+        </div>
+      </div>
+      ${script}`,
+  );
+}
+
 // ---- Router ----------------------------------------------------------------------------------------
 
 async function handle(req: IncomingMessage, res: ServerResponse) {
@@ -945,6 +1091,22 @@ async function handle(req: IncomingMessage, res: ServerResponse) {
     if (req.method === "POST" && path === "/checkout/complete")
       return await completeOrder(req, res);
     if (req.method === "POST" && path === "/security/reset") return await resetSigner(req, res);
+    if (req.method === "POST" && path === "/rewards/tx") {
+      const { investor } = JSON.parse((await readBody(req)).toString()) as { investor: string };
+      return send(res, 200, JSON.stringify(await buildDeposit(investor)), "application/json");
+    }
+    if (req.method === "POST" && path === "/rewards/send") {
+      const { id, transaction } = JSON.parse((await readBody(req)).toString()) as {
+        id: string;
+        transaction: string;
+      };
+      return send(
+        res,
+        200,
+        JSON.stringify(await submitDeposit(id, transaction)),
+        "application/json",
+      );
+    }
     const proofMatch = /^\/proof\/([0-9a-f]{64})\.json$/.exec(path);
     if (req.method === "GET" && proofMatch) {
       const { receipt: body } = await stele.getProofReceipt(proofMatch[1]!);
@@ -989,6 +1151,8 @@ async function handle(req: IncomingMessage, res: ServerResponse) {
         return send(res, 200, await checkoutPage(req));
       case "/account":
         return send(res, 200, await accountPage(req));
+      case "/rewards":
+        return send(res, 200, rewardsPage(req));
       case "/security":
         return send(res, 200, await securityPage(req));
       case "/webhooks":

@@ -10,6 +10,8 @@
     "lint": "eslint src"
   },
   "dependencies": {
+    "@solana/kit": "^8.4.0",
+    "@stelehq/protocol": "workspace:*",
     "@stelehq/sdk": "workspace:*",
     "@stelehq/verifier": "workspace:*"
   },

@@ -41,9 +41,10 @@ const NAV: [string, string][] = [
   ["/privacy", "2 · Privacy"],
   ["/checkout", "3 · Checkout"],
   ["/account", "4 · My acceptances"],
-  ["/security", "5 · Security"],
-  ["/webhooks", "6 · Webhooks"],
-  ["/api-log", "7 · API log"],
+  ["/rewards", "5 · Rewards (Gate)"],
+  ["/security", "6 · Security"],
+  ["/webhooks", "7 · Webhooks"],
+  ["/api-log", "8 · API log"],
 ];
 
 const CSS = `
@@ -88,6 +89,8 @@ code, .mono { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size
 .explain strong { color:var(--ink); }
 .explain ol { margin:6px 0 0; padding-left:20px; }
 .empty { color:var(--muted); font-style:italic; }
+#log { list-style:none; padding:0 !important; }
+#log li { display:block; border-radius:10px; padding:7px 10px; margin:6px 0; line-height:1.45; }
 footer { max-width:1060px; margin:0 auto 40px; padding:0 20px; color:var(--muted); font-size:12.5px; }
 `;
 
