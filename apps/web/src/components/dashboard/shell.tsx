@@ -48,6 +48,7 @@ const PROOF_NAV: NavItem[] = [
   { href: "/dashboard", label: "Overview", icon: HomeIcon, exact: true },
   { href: "/dashboard/documents", label: "Documents", icon: FileIcon },
   { href: "/dashboard/acceptances", label: "Acceptances", icon: ActivityIcon },
+  { href: "/dashboard/insights", label: "Insights", icon: LayersIcon },
 ];
 
 const GATE_NAV: NavItem[] = [
