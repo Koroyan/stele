@@ -18,6 +18,7 @@ import {
   verifySiwsSignature,
 } from "../lib/siws.js";
 import { clearSessionCookies, requireUser, setSessionCookies } from "../plugins/auth.js";
+import { isPlatformAdmin, termsStatus } from "../services/platform.js";
 import { base58Address, base58Signature } from "./schemas.js";
 
 const CHALLENGE_TTL_MS = 10 * 60_000;
@@ -172,6 +173,9 @@ export function authRoutes(deps: Deps): FastifyPluginAsyncZod {
         user: { id: row!.id, walletAddress: row!.walletAddress, displayName: row!.displayName },
         recentlyAuthenticated:
           Date.now() - user.reauthenticatedAt.getTime() < deps.config.STEP_UP_MINUTES * 60_000,
+        // Stele's own Terms, accepted with Stele (null: none published on this deployment).
+        terms: await termsStatus(deps, user.walletAddress),
+        platformAdmin: isPlatformAdmin(deps, user.walletAddress),
       };
     });
   };
