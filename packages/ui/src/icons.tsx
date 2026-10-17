@@ -143,3 +143,8 @@ export const RefreshIcon = icon(
   <path d="M20 11a8 8 0 0 0-14.9-3.5M4 4v4h4M4 13a8 8 0 0 0 14.9 3.5M20 20v-4h-4" />,
 );
 export const PlayIcon = icon(<path d="M7 5l12 7-12 7z" />);
+export const InboxIcon = icon(<path d="M3 13h5l1.5 3h5L16 13h5M5 5h14l2 8v6H3v-6z" />);
+export const ChatIcon = icon(
+  <path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12zM8.5 12h.01M12 12h.01M15.5 12h.01" />,
+);
+export const SendIcon = icon(<path d="M4 12 20 4l-6 16-3-7zM11 13l9-9" />);
