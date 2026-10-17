@@ -1,0 +1,395 @@
+{
+  "address": "A6DBoANAavtbG2ARK6PihqzMjhtbcZUbLnTMAWn339uR",
+  "metadata": {
+    "name": "stele_gate_demo",
+    "version": "1.0.0",
+    "spec": "0.1.0",
+    "description": "Stele Gate demo: Atlas Real Estate Vault — deposits require the current Investor Offering Terms"
+  },
+  "instructions": [
+    {
+      "name": "create_vault",
+      "docs": [
+        "Opens a vault whose deposits require `policy` (one vault per policy)."
+      ],
+      "discriminator": [
+        29,
+        237,
+        247,
+        208,
+        193,
+        82,
+        54,
+        135
+      ],
+      "accounts": [
+        {
+          "name": "manager",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "policy"
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "policy"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "name",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "deposit",
+      "docs": [
+        "Deposits `amount` demo USDC (6 decimals) — only with a current Stele AccessPass."
+      ],
+      "discriminator": [
+        242,
+        35,
+        198,
+        137,
+        82,
+        225,
+        242,
+        182
+      ],
+      "accounts": [
+        {
+          "name": "investor",
+          "signer": true
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault.policy",
+                "account": "Vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "policy"
+        },
+        {
+          "name": "access_pass"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "deposit_with_passport",
+      "docs": [
+        "The same deposit, admitted by the investor's Stele passport (one account per wallet for every",
+        "document) instead of a per-document AccessPass."
+      ],
+      "discriminator": [
+        55,
+        255,
+        168,
+        251,
+        95,
+        87,
+        1,
+        42
+      ],
+      "accounts": [
+        {
+          "name": "investor",
+          "signer": true
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault.policy",
+                "account": "Vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "policy"
+        },
+        {
+          "name": "passport"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "Vault",
+      "discriminator": [
+        211,
+        8,
+        232,
+        43,
+        2,
+        152,
+        117,
+        119
+      ]
+    }
+  ],
+  "events": [
+    {
+      "name": "Deposited",
+      "discriminator": [
+        111,
+        141,
+        26,
+        45,
+        161,
+        35,
+        100,
+        57
+      ]
+    },
+    {
+      "name": "PassportDeposited",
+      "discriminator": [
+        26,
+        251,
+        43,
+        6,
+        141,
+        153,
+        147,
+        231
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "InvalidName",
+      "msg": "The vault name must be 1 to 64 bytes"
+    },
+    {
+      "code": 6001,
+      "name": "NotAStelePolicy",
+      "msg": "The policy is not a Stele policy"
+    },
+    {
+      "code": 6002,
+      "name": "WrongPolicy",
+      "msg": "This is not the policy the vault requires"
+    },
+    {
+      "code": 6003,
+      "name": "InvalidAmount",
+      "msg": "Amount must be between 0.000001 and 1,000,000 demo USDC"
+    },
+    {
+      "code": 6004,
+      "name": "Overflow",
+      "msg": "Arithmetic overflow"
+    }
+  ],
+  "types": [
+    {
+      "name": "Deposited",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "investor",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "total_deposited",
+            "type": "u64"
+          },
+          {
+            "name": "deposit_count",
+            "type": "u64"
+          },
+          {
+            "name": "terms_version",
+            "docs": [
+              "The offering terms the investor's AccessPass names (their Stele Proof acceptance)."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "terms_version_number",
+            "type": "u32"
+          },
+          {
+            "name": "terms_fingerprint",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "acceptance_id",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "slot",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PassportDeposited",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "investor",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "total_deposited",
+            "type": "u64"
+          },
+          {
+            "name": "deposit_count",
+            "type": "u64"
+          },
+          {
+            "name": "terms_version_number",
+            "type": "u32"
+          },
+          {
+            "name": "accepted_at",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Vault",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "policy",
+            "docs": [
+              "The Stele policy every deposit requires."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "manager",
+            "type": "pubkey"
+          },
+          {
+            "name": "total_deposited",
+            "docs": [
+              "Demo USDC, 6 decimals."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "deposit_count",
+            "type": "u64"
+          },
+          {
+            "name": "created_at",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "name",
+            "type": "string"
+          }
+        ]
+      }
+    }
+  ]
+}
