@@ -78,3 +78,50 @@ test("a customer without a wallet accepts the Terms and confirms a purchase with
   await page.goto(`${SHOP}/security`);
   await expect(page.getByRole("cell", { name: "active" })).toBeVisible();
 });
+
+test("a passkey signer the organization no longer knows is replaced, not a dead end", async ({
+  page,
+}) => {
+  test.skip(!(await shopUp()), "requires the demo shop (pnpm localnet:demo && pnpm demo:shop)");
+  test.setTimeout(180_000);
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send("WebAuthn.enable");
+  await cdp.send("WebAuthn.addVirtualAuthenticator", {
+    options: {
+      protocol: "ctap2",
+      ctap2Version: "ctap2_1",
+      transport: "internal",
+      hasResidentKey: true,
+      hasUserVerification: true,
+      isUserVerified: true,
+      automaticPresenceSimulation: true,
+      hasPrf: true,
+    },
+  });
+  // This browser remembers a passkey signer that the organization's records no longer contain
+  // (a reset database, or a revoked signer).
+  await page.addInitScript(() => {
+    // A valid P-256 key (the curve's generator) that no organization has on record.
+    const hint = JSON.stringify({
+      publicKey: "p256:036b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296",
+      credentialId: "AAAAAAAAAAAAAAAAAAAAAA",
+    });
+    for (const org of ["northwind.test", "5b9tyU87fgPq3Rm5TVJyrayxN7Nhsf3cpYKWB9QW3kvU"])
+      localStorage.setItem(`stele:native-passkey:http://localhost:3000/api:${org}:localhost`, hint);
+  });
+  await page.goto(SHOP);
+  await page.getByPlaceholder("for example: nino").fill(`e2e ${Date.now() % 100000}`);
+  await page.getByRole("button", { name: "Sign in" }).click();
+  await page.getByRole("button", { name: /Continue with your passkey/ }).click({ timeout: 60_000 });
+  await expect(page.getByText("Signing with your passkey as")).toBeVisible({ timeout: 30_000 });
+  await page.getByRole("checkbox").check();
+  await page.getByRole("button", { name: "Accept with passkey" }).click();
+  await expect(
+    page.getByText("This passkey is no longer registered with this organization"),
+  ).toBeVisible({ timeout: 60_000 });
+  // The way forward is offered right away: a new passkey, then the acceptance.
+  await page.getByRole("button", { name: /Create a passkey/ }).click();
+  await page.getByRole("checkbox").check({ timeout: 30_000 });
+  await page.getByRole("button", { name: "Accept with passkey" }).click();
+  await expect(page.getByText("Accepted and recorded on Solana")).toBeVisible({ timeout: 60_000 });
+});
