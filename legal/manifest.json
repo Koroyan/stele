@@ -6,8 +6,8 @@
       "documentType": "terms-of-service",
       "file": "legal/terms-of-service.md",
       "title": "Stele Terms of Service",
-      "versionLabel": "1.0",
-      "changeSummary": "First version."
+      "versionLabel": "1.1",
+      "changeSummary": "Removed the limitation of liability (former section 18); later sections are renumbered."
     },
     {
       "slug": "privacy-policy",
