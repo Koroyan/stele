@@ -76,12 +76,17 @@ export function explainFailure(
       const stele = describeProgramError(code);
       if (stele) return { program, code, source: "stele", ...stele };
     }
+    // Anchor logs the error's name (the program's own errors, and its framework's: e.g. 101,
+    // InstructionFallbackNotFound — no such instruction).
+    const named = logs
+      .map((l) => l.match(/Error Code: (\w+)\. Error Number: (\d+)\.(?: Error Message: (.*))?/))
+      .find((n) => n && Number(n[2]) === code);
     return {
       program,
       code,
       source: "program",
-      name: `Custom(${code})`,
-      message: `The program returned error ${code}`,
+      name: named?.[1] ?? `Custom(${code})`,
+      message: named?.[3]?.replace(/\.$/, "") ?? `The program returned error ${code}`,
     };
   }
   const anchorError = logs.find((l) => /AnchorError/.test(l));
