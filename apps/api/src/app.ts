@@ -29,7 +29,9 @@ import { authRoutes } from "./routes/auth.js";
 import { documentRoutes } from "./routes/documents.js";
 import { integrationRoutes } from "./routes/integrations.js";
 import { billingRoutes } from "./routes/billing.js";
+import { assistantRoutes } from "./routes/assistant.js";
 import { demoRoutes } from "./routes/demo.js";
+import { platformRoutes } from "./routes/platform.js";
 import { analyticsRoutes } from "./routes/analytics.js";
 import { gateRoutes } from "./routes/gate.js";
 import { networkRoutes } from "./routes/network.js";
@@ -246,6 +248,8 @@ export async function buildApp(deps: Deps, opts: BuildOptions = {}) {
   await app.register(gateRoutes(deps));
   await app.register(analyticsRoutes(deps));
   await app.register(demoRoutes(deps));
+  await app.register(platformRoutes(deps));
+  await app.register(assistantRoutes(deps));
 
   app.get("/v1/openapi.json", { config: { rateLimit: false } }, async () => app.swagger());
 
