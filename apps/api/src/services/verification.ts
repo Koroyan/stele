@@ -385,11 +385,13 @@ export async function verifyRegisteredProgram(
 
 /**
  * The monitor: re-verifies a program when its code or upgrade authority changed (a cheap header
- * read) and at least every `maxAgeMs`. Safe to run in several processes.
+ * read), at least every `maxAgeMs`, and every `retryMs` while it is not verified. Safe to run in
+ * several processes.
  */
 export async function monitorVerifiedPrograms(
   deps: Deps,
   maxAgeMs = 6 * 3_600_000,
+  retryMs = 2 * 60_000,
 ): Promise<number> {
   const rows = await deps.db
     .select({
@@ -402,7 +404,9 @@ export async function monitorVerifiedPrograms(
   let rechecked = 0;
   for (const r of rows) {
     try {
-      let due = !r.v || Date.now() - Date.parse(r.v.checkedAt) > maxAgeMs;
+      const age = r.v ? Date.now() - Date.parse(r.v.checkedAt) : Infinity;
+      // Not verified yet (e.g. nobody had accepted): try again soon, not in six hours.
+      let due = age > maxAgeMs || (r.v!.status !== "verified" && age > retryMs);
       if (!due) {
         const now = await inspectProgram(deps, address(r.program), { withCode: false });
         due =
