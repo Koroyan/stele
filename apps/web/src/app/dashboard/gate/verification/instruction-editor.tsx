@@ -8,7 +8,18 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { address as toAddress, isAddress } from "@solana/kit";
 import { toHex } from "@stelehq/protocol";
-import { Alert, Badge, Button, FileIcon, Input, Select, Tabs, Textarea, XIcon } from "@stele/ui";
+import {
+  Alert,
+  Badge,
+  Button,
+  FileIcon,
+  Fingerprint,
+  Input,
+  Select,
+  Tabs,
+  Textarea,
+  XIcon,
+} from "@stele/ui";
 import type { ProbeTemplate } from "@/components/dashboard/gate";
 import {
   defaultArgValue,
@@ -64,6 +75,7 @@ function templateProblem(accounts: { role: Role; address: string }[]): string | 
 
 export function InstructionEditor({
   programAddress,
+  programLabel,
   policyAddress,
   action,
   saved,
@@ -74,6 +86,7 @@ export function InstructionEditor({
   onCancel,
 }: {
   programAddress: string;
+  programLabel: string;
   policyAddress: string | null;
   /** The protected instruction named at registration (preselected). */
   action: string;
@@ -255,7 +268,9 @@ export function InstructionEditor({
                   <FileIcon className="h-5 w-5" />
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="text-[14px] font-medium text-fg">Upload your program&apos;s IDL</p>
+                  <p className="text-[14px] font-medium text-fg">
+                    Upload the IDL of {programLabel} <Fingerprint value={programAddress} />
+                  </p>
                   <p className="mt-0.5 text-[12.5px] leading-relaxed text-fg-muted">
                     Anchor writes it to{" "}
                     <code className="font-mono">target/idl/&lt;program&gt;.json</code> on{" "}

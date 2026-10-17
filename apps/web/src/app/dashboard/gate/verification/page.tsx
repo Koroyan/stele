@@ -70,15 +70,52 @@ function StatusBadge({ v }: { v: ProgramVerification | null }) {
 }
 
 /** What to change when a check fails, in plain words. */
-function advice(v: ProgramVerification, policy: string | null): ReactNode {
+function advice(
+  v: ProgramVerification,
+  program: { label: string; programAddress: string },
+  policy: { address: string; title: string; version: number } | null,
+): ReactNode {
   const failed = v.checks.find((c) => c.outcome === "failed");
   if (!failed) return null;
-  if (failed.id === "refuses_without_acceptance") {
-    return failed.error ? (
+  const error = failed.error ?? "";
+  const policyNote = policy ? (
+    <>
+      {" "}
+      <Fingerprint value={policy.address} /> — the policy of {policy.title} v{policy.version}
+    </>
+  ) : null;
+  if (error === "InvalidPolicy" || failed.id === "allows_with_acceptance")
+    return (
       <>
-        The call stopped at <code className="font-mono">{failed.error}</code> before reaching the
-        Stele check. Usually an account or an argument in step 1 is wrong — or the Stele check is
-        not in this instruction.
+        Your program checks a different policy than the one registered for it. Pin
+        {policyNote ?? " this program's policy"} in your program and deploy — or, if the program is
+        meant for another document, register it with that document&apos;s policy.
+      </>
+    );
+  if (error === "InstructionFallbackNotFound" || error === "InstructionMissing")
+    return (
+      <>
+        The program {program.label} (<Fingerprint value={program.programAddress} />) has no such
+        instruction: the IDL in step 1 belongs to another program. If you have several programs,
+        choose the right one at the top of this page.
+      </>
+    );
+  if (error === "InstructionDidNotDeserialize")
+    return <>The arguments don&apos;t match the instruction — check them in step 1.</>;
+  if (/^(Account|Constraint)/.test(error))
+    return (
+      <>
+        An account in step 1 is not what the program expects (
+        <code className="font-mono">{error}</code>). Check the fixed accounts&apos; addresses and
+        the order of the accounts.
+      </>
+    );
+  if (failed.id === "refuses_without_acceptance")
+    return error ? (
+      <>
+        The call stopped at <code className="font-mono">{error}</code> before the Stele check.
+        Usually an account or an argument in step 1 is wrong — or the Stele check is not in this
+        instruction.
       </>
     ) : (
       <>
@@ -89,14 +126,6 @@ function advice(v: ProgramVerification, policy: string | null): ReactNode {
           Program integration
         </Link>
         ), deploy, then check again.
-      </>
-    );
-  }
-  if (failed.id === "allows_with_acceptance")
-    return (
-      <>
-        Your program checks a different policy. It must require{" "}
-        {policy ? <Fingerprint value={policy} /> : "this program's policy"}.
       </>
     );
   return (
@@ -119,7 +148,10 @@ export default function GateVerificationPage() {
   const [programId, setProgramId] = useState("");
   const program = overview.data?.programs.find((p) => p.id === programId) ?? null;
   useEffect(() => {
-    const first = overview.data?.programs[0];
+    // The organization's own program first, before the demo vault.
+    const programs = overview.data?.programs ?? [];
+    const first =
+      programs.find((p) => p.programAddress !== overview.data?.demoProgram) ?? programs[0];
     if (!programId && first) setProgramId(first.id);
   }, [overview.data, programId]);
 
@@ -252,6 +284,7 @@ export default function GateVerificationPage() {
                   <div className="flex flex-wrap items-center gap-2">
                     {(overview.data?.programs.length ?? 0) > 1 ? (
                       <Select
+                        title="Choose the program to verify"
                         aria-label="Program"
                         value={programId}
                         onChange={(e) => setProgramId(e.target.value)}
@@ -324,6 +357,7 @@ export default function GateVerificationPage() {
                   <InstructionEditor
                     key={program.id}
                     programAddress={program.programAddress}
+                    programLabel={program.label}
                     policyAddress={policyAddress}
                     action={program.action}
                     saved={template}
@@ -410,7 +444,17 @@ export default function GateVerificationPage() {
                     {v.status === "failed" && (
                       <Alert tone="warning">
                         <span className="font-medium text-fg">What to change: </span>
-                        {advice(v, policyAddress)}
+                        {advice(
+                          v,
+                          program,
+                          doc?.policy
+                            ? {
+                                address: doc.policy.address,
+                                title: documentTitle(doc),
+                                version: doc.policy.requiredVersion,
+                              }
+                            : null,
+                        )}
                       </Alert>
                     )}
                     {v.status === "incomplete" && (
