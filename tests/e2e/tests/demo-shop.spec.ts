@@ -125,3 +125,54 @@ test("a passkey signer the organization no longer knows is replaced, not a dead 
   await page.getByRole("button", { name: "Accept with passkey" }).click();
   await expect(page.getByText("Accepted and recorded on Solana")).toBeVisible({ timeout: 60_000 });
 });
+
+test("a purchase can be confirmed after the remembered Stele key was forgotten by the organization", async ({
+  page,
+}) => {
+  test.skip(!(await shopUp()), "requires the demo shop (pnpm localnet:demo && pnpm demo:shop)");
+  test.setTimeout(180_000);
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send("WebAuthn.enable");
+  await cdp.send("WebAuthn.addVirtualAuthenticator", {
+    options: {
+      protocol: "ctap2",
+      ctap2Version: "ctap2_1",
+      transport: "internal",
+      hasResidentKey: true,
+      hasUserVerification: true,
+      isUserVerified: true,
+      automaticPresenceSimulation: true,
+      hasPrf: true,
+    },
+  });
+  await page.goto(SHOP);
+  await page.getByPlaceholder("for example: nino").fill(`e2e ${Date.now() % 100000}`);
+  await page.getByRole("button", { name: "Sign in" }).click();
+  await expect(page.getByText("Text verified against Solana")).toBeVisible({ timeout: 60_000 });
+  await page.getByRole("button", { name: /Create a passkey/ }).click();
+  await page.getByRole("checkbox").check({ timeout: 30_000 });
+  await page.getByRole("button", { name: "Accept with passkey" }).click();
+  await expect(page.getByText("Accepted and recorded on Solana")).toBeVisible({ timeout: 60_000 });
+
+  // This browser remembers a Stele key the organization no longer has on record.
+  await page.evaluate(() => {
+    const hint = JSON.stringify({
+      publicKey: "4L95dmjRqz5u9wXKXa6R5gH6rbsZxCQ6xqJJgXGWX4h1",
+      credentialId: "AAAAAAAAAAAAAAAAAAAAAA",
+    });
+    for (const org of ["northwind.test", "5b9tyU87fgPq3Rm5TVJyrayxN7Nhsf3cpYKWB9QW3kvU"])
+      localStorage.setItem(`stele:passkey-signer:http://localhost:3000/api:${org}:localhost`, hint);
+  });
+  await page.goto(`${SHOP}/checkout`);
+  await page.getByRole("button", { name: "Place order" }).click();
+  await page.getByRole("button", { name: /Continue with your passkey/ }).click({ timeout: 60_000 });
+  await page.getByRole("button", { name: "Confirm & sign" }).click();
+  await expect(
+    page.getByText("This passkey is no longer registered with this organization"),
+  ).toBeVisible({ timeout: 60_000 });
+  // The way forward: a new passkey-protected key, then the confirmation.
+  await page.getByRole("button", { name: /Create a passkey/ }).click();
+  await page.getByRole("button", { name: "I saved it" }).click({ timeout: 30_000 });
+  await page.getByRole("button", { name: "Confirm & sign" }).click();
+  await expect(page.getByRole("heading", { name: "Thank you!" })).toBeVisible({ timeout: 60_000 });
+});
