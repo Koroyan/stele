@@ -107,7 +107,7 @@ export default async function PricingPage() {
       price: "Custom",
       unit: "annual agreement",
       description: "For regulated teams and high-volume platforms.",
-      cta: { href: "/docs/how-it-works", label: "See how Stele works" },
+      cta: { href: "/contact", label: "Talk to us" },
       features: [
         "Dedicated relayer and RPC providers",
         "Self-hosted deployment support",
