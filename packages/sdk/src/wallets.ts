@@ -3,8 +3,10 @@
  * discovers the Solana wallets installed in the browser that support the document's network, connects
  * the one the user picks, and exposes it as a {@link MessageSigner}.
  *
- * Only two features are used: `standard:connect` (to learn the account's public address) and
- * `solana:signMessage` (to sign the acceptance text the wallet displays). Nothing here can move funds.
+ * Acceptances use two features: `standard:connect` (to learn the account's public address) and
+ * `solana:signMessage` (to sign the acceptance text the wallet displays). When the wallet supports
+ * `solana:signTransaction`, the connected signer also offers `signTransaction` — for the integrator's
+ * own protected action (Stele Gate); Stele itself never asks for it.
  */
 import { getWallets } from "@wallet-standard/app";
 import type { Wallet, WalletAccount } from "@wallet-standard/base";
@@ -12,6 +14,7 @@ import type { MessageSigner } from "./accept";
 
 const CONNECT = "standard:connect";
 const SIGN_MESSAGE = "solana:signMessage";
+const SIGN_TRANSACTION = "solana:signTransaction";
 
 interface ConnectFeature {
   connect(input?: { silent?: boolean }): Promise<{ accounts: readonly WalletAccount[] }>;
@@ -73,17 +76,30 @@ export function isUserRejection(error: unknown): boolean {
   return /reject|denied|declined|cancel/.test(text);
 }
 
+interface SignTransactionFeature {
+  signTransaction(
+    ...inputs: { account: WalletAccount; transaction: Uint8Array; chain?: string }[]
+  ): Promise<readonly { signedTransaction: Uint8Array }[]>;
+}
+
+/** A connected wallet: signs acceptance messages, and transactions when the wallet can. */
+export interface ConnectedWallet extends MessageSigner {
+  /** Signs a serialized transaction (wire format) and returns it signed; absent if unsupported. */
+  signTransaction?: (transaction: Uint8Array) => Promise<Uint8Array>;
+}
+
 /** Connects `wallet` and returns a signer for its first account on `chain`. */
 export async function connectWallet(
   wallet: AvailableWallet,
   chain: string,
-): Promise<MessageSigner> {
+): Promise<ConnectedWallet> {
   const connect = wallet.wallet.features[CONNECT] as ConnectFeature;
   const { accounts } = await connect.connect();
   const account =
     accounts.find((a) => a.chains.includes(chain as `${string}:${string}`)) ?? accounts[0];
   if (!account) throw new Error(`${wallet.name} did not share an account.`);
   const feature = wallet.wallet.features[SIGN_MESSAGE] as SignMessageFeature;
+  const signTx = wallet.wallet.features[SIGN_TRANSACTION] as SignTransactionFeature | undefined;
   return {
     address: account.address,
     walletName: wallet.name,
@@ -92,5 +108,14 @@ export async function connectWallet(
       if (!output) throw new Error(`${wallet.name} returned no signature.`);
       return output.signature;
     },
+    ...(signTx
+      ? {
+          async signTransaction(transaction: Uint8Array): Promise<Uint8Array> {
+            const [output] = await signTx.signTransaction({ account, transaction, chain });
+            if (!output) throw new Error(`${wallet.name} returned no signed transaction.`);
+            return output.signedTransaction;
+          },
+        }
+      : {}),
   };
 }

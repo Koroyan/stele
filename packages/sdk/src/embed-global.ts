@@ -26,6 +26,7 @@ import { SteleClient } from "./client";
 import { createSteleGate, type SteleGate, type SteleGateOptions } from "./gate";
 import { mountVerifiedBadge, type VerifiedBadgeHandle, type VerifiedBadgeOptions } from "./badge";
 import { PasskeySigner, passkeySigningSupport } from "./passkey";
+import { connectWallet, watchWallets } from "./wallets";
 
 const script = document.currentScript as HTMLScriptElement | null;
 const origin = script?.src ? new URL(script.src).origin : window.location.origin;
@@ -97,6 +98,8 @@ declare global {
       client: () => SteleClient;
       PasskeySigner: typeof PasskeySigner;
       passkeySigningSupport: typeof passkeySigningSupport;
+      /** Wallet Standard helpers for plain pages: list installed wallets, connect one. */
+      wallets: { watch: typeof watchWallets; connect: typeof connectWallet };
       /** The Stele Verified badge: `Stele.badge("#badge", { program })`. */
       badge: typeof badgeWithDefaults;
       /** Stele Gate for Solana apps: `Stele.createGate({ wallet }).gate({ policy, action })`. */
@@ -127,6 +130,7 @@ if (!window.Stele) {
     PasskeySigner,
     passkeySigningSupport,
     badge: badgeWithDefaults,
+    wallets: { watch: watchWallets, connect: connectWallet },
     createGate: (options) => createSteleGate({ apiBaseUrl: DEFAULTS.apiBaseUrl, ...options }),
   };
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start);
