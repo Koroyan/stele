@@ -310,6 +310,16 @@ if (!organizations.some((o) => o.address === organization)) {
   ));
 }
 const orgId = organizations.find((o) => o.address === organization)!.id;
+// The acceptance shard (also on a fresh database, whose indexer may no longer find its creation).
+{
+  const [shard] = await findNonceShardPda(organization, 0, PROGRAM);
+  await call("POST", `/v1/organizations/${orgId}/shards/sync`, { address: shard });
+}
+// The documents, likewise mirrored straight from their accounts.
+for (const slug of ["terms-of-service", "privacy-policy", "rewards-club-terms"]) {
+  const [document] = await findDocumentPda(organization, slug, PROGRAM);
+  await call("POST", `/v1/organizations/${orgId}/documents/sync`, { address: document });
+}
 
 const { key } = await call<{ key: string }>("POST", `/v1/organizations/${orgId}/api-keys`, {
   name: "Northwind demo shop",
