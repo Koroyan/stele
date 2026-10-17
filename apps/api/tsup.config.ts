@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { cpSync } from "node:fs";
 import { defineConfig } from "tsup";
 
@@ -6,7 +7,8 @@ import { defineConfig } from "tsup";
  * sources, so they are inlined;
  * third-party dependencies stay external and are resolved from this package's node_modules at
  * runtime (every module the bundle imports is therefore a direct dependency of @stele/api). The SQL
- * migrations ship in dist/drizzle, where the inlined @stele/db looks for them.
+ * migrations ship in dist/drizzle, where the inlined @stele/db looks for them; the public documentation
+ * for the AI assistant in dist/knowledge.json (scripts/build-knowledge.mjs).
  */
 export default defineConfig({
   entry: ["src/main.ts", "src/worker-main.ts", "src/indexer-main.ts"],
@@ -19,5 +21,6 @@ export default defineConfig({
   noExternal: [/^@stele(hq)?\//],
   onSuccess: async () => {
     cpSync("../../packages/db/drizzle", "dist/drizzle", { recursive: true });
+    execFileSync(process.execPath, ["scripts/build-knowledge.mjs"], { stdio: "inherit" });
   },
 });
