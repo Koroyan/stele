@@ -292,7 +292,7 @@ async function call<T>(method: string, path: string, body?: unknown): Promise<T>
   const res = await fetch(`${API}${path}`, {
     method,
     headers: session,
-    body: body ? JSON.stringify(body) : undefined,
+    body: body ? JSON.stringify(body) : method === "GET" ? undefined : "{}",
   });
   if (!res.ok) throw new Error(`${method} ${path}: ${res.status} ${await res.text()}`);
   return (await res.json()) as T;
