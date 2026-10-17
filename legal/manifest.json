@@ -1,0 +1,21 @@
+{
+  "organization": "Stele",
+  "documents": [
+    {
+      "slug": "terms-of-service",
+      "documentType": "terms-of-service",
+      "file": "legal/terms-of-service.md",
+      "title": "Stele Terms of Service",
+      "versionLabel": "1.0",
+      "changeSummary": "First version."
+    },
+    {
+      "slug": "privacy-policy",
+      "documentType": "privacy-policy",
+      "file": "legal/privacy-policy.md",
+      "title": "Stele Privacy Policy",
+      "versionLabel": "1.0",
+      "changeSummary": "First version."
+    }
+  ]
+}
