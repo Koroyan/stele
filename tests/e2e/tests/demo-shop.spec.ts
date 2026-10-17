@@ -4,6 +4,7 @@
  * by the organization's sponsorship, see the signers on the security page.
  * Runs only when the demo is set up and running (`pnpm localnet:demo`, `pnpm demo:shop`).
  */
+import { readFileSync } from "node:fs";
 import { expect, test } from "@playwright/test";
 
 const SHOP = "http://localhost:4300";
@@ -44,6 +45,17 @@ test("a customer without a wallet accepts the Terms and confirms a purchase with
   await page.getByRole("checkbox").check({ timeout: 30_000 });
   await page.getByRole("button", { name: "Accept with passkey" }).click();
   await expect(page.getByText("Accepted and recorded on Solana")).toBeVisible({ timeout: 60_000 });
+  // The signer's PDF certificate (rendered by the PDF service, the JSON receipt inside it).
+  const [pdf] = await Promise.all([
+    page.waitForEvent("download", { timeout: 90_000 }),
+    page.getByRole("button", { name: "Download PDF" }).click(),
+  ]);
+  expect(pdf.suggestedFilename()).toMatch(/^stele-receipt-[0-9a-f]{16}\.pdf$/);
+  expect(
+    readFileSync(await pdf.path())
+      .subarray(0, 5)
+      .toString(),
+  ).toBe("%PDF-");
   // Northwind sponsors fees on-chain.
   await expect(
     page.getByText("You paid nothing: the organization sponsored the network fee."),
