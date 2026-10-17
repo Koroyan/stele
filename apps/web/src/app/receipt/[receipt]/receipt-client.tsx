@@ -21,6 +21,7 @@ import {
   buttonClasses,
 } from "@stele/ui";
 import { downloadJson, ReportView } from "@/components/report-view";
+import { saveBlob } from "@/lib/receipt-from-pdf";
 import { api, ApiError, errorMessage } from "@/lib/api";
 import { txExplorerUrl } from "@/lib/chain";
 import { cliCommand, defaultSettings, rpcHosts, verifierOptions } from "@/lib/verify";
@@ -35,6 +36,27 @@ export function ReceiptClient({ acceptanceId }: { acceptanceId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [serverWarning, setServerWarning] = useState<string | null>(null);
   const [qr, setQr] = useState<string | null>(null);
+  /** "busy" while the PDF is produced, or the reason it could not be. */
+  const [pdf, setPdf] = useState<string | null>(null);
+
+  async function downloadPdf() {
+    setPdf("busy");
+    try {
+      const res = await fetch(`/api/v1/public/acceptances/${acceptanceId}/receipt.pdf`);
+      if (!res.ok) {
+        const body = (await res.json().catch(() => null)) as {
+          error?: { message?: string };
+        } | null;
+        throw new Error(
+          body?.error?.message ?? `The PDF could not be produced (HTTP ${res.status}).`,
+        );
+      }
+      saveBlob(`stele-receipt-${acceptanceId.slice(0, 12)}.pdf`, await res.blob());
+      setPdf(null);
+    } catch (e) {
+      setPdf(`${errorMessage(e)} The JSON receipt below carries the same evidence.`);
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -151,18 +173,24 @@ export function ReceiptClient({ acceptanceId }: { acceptanceId: string }) {
               Verify page.
             </p>
             <div className="mt-4 space-y-2">
-              <a
-                href={`/api/v1/public/acceptances/${acceptanceId}/receipt.pdf`}
-                download={`stele-receipt-${acceptanceId.slice(0, 12)}.pdf`}
-                aria-disabled={!receipt}
-                className={buttonClasses(
-                  "primary",
-                  "md",
-                  `w-full ${receipt ? "" : "pointer-events-none opacity-50"}`,
-                )}
+              <button
+                type="button"
+                disabled={!receipt || pdf === "busy"}
+                onClick={() => void downloadPdf()}
+                className={buttonClasses("primary", "md", "w-full")}
               >
-                <DownloadIcon className="h-4 w-4" /> Download PDF receipt
-              </a>
+                {pdf === "busy" ? (
+                  <Spinner className="h-4 w-4" />
+                ) : (
+                  <DownloadIcon className="h-4 w-4" />
+                )}{" "}
+                Download PDF receipt
+              </button>
+              {pdf && pdf !== "busy" && (
+                <p role="alert" className="text-[12.5px] text-danger">
+                  {pdf}
+                </p>
+              )}
               <button
                 type="button"
                 disabled={!receipt}
