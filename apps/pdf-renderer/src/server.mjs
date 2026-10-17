@@ -7,11 +7,25 @@
 //
 //   POST /render  {"html": "...", "footer": "..."}  ->  application/pdf
 //   GET  /health
+import { existsSync } from "node:fs";
 import http from "node:http";
 import puppeteer from "puppeteer-core";
 
 const PORT = Number(process.env.PORT ?? 4100);
-const CHROME = process.env.CHROME_PATH ?? "/usr/bin/chromium";
+/** The image's Chromium; for local development, an installed Chromium, Chrome or Edge. */
+const CHROME =
+  process.env.CHROME_PATH ??
+  [
+    "/usr/bin/chromium",
+    "/usr/bin/chromium-browser",
+    "/usr/bin/google-chrome",
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
+    "C:/Program Files/Google/Chrome/Application/chrome.exe",
+    "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe",
+    "C:/Program Files/Microsoft/Edge/Application/msedge.exe",
+  ].find((p) => existsSync(p)) ??
+  "/usr/bin/chromium";
 const MAX_BODY = 4 * 1024 * 1024;
 const log = (msg, extra = {}) =>
   process.stdout.write(`${JSON.stringify({ time: new Date().toISOString(), msg, ...extra })}\n`);
