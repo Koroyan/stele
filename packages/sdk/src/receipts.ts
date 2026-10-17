@@ -7,7 +7,14 @@ import type { SteleClient } from "./client";
 
 /** Saves `stele-receipt-<id>.json` (acceptances) or `stele-proof-<id>.json` (proofs). */
 export function downloadJson(filename: string, value: unknown): void {
-  const blob = new Blob([`${JSON.stringify(value, null, 2)}\n`], { type: "application/json" });
+  downloadBlob(
+    filename,
+    new Blob([`${JSON.stringify(value, null, 2)}\n`], { type: "application/json" }),
+  );
+}
+
+/** Saves a file the page already holds (e.g. a PDF receipt fetched by the client). */
+export function downloadBlob(filename: string, blob: Blob): void {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;

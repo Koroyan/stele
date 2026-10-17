@@ -30,7 +30,7 @@ import {
   type VerifiedProofRequest,
 } from "./proofs";
 import { applyStyles, displayNotice, h, present, renderBlocks, type Child } from "./dom";
-import { downloadJson, verificationLink } from "./receipts";
+import { downloadBlob, downloadJson, verificationLink } from "./receipts";
 import { loadVerifiedDocument, type VerifiedDocument } from "./verified-document";
 import { connectWallet, isUserRejection, watchWallets, type AvailableWallet } from "./wallets";
 
@@ -673,8 +673,25 @@ export function mount(target: string | Element, options: EmbedOptions): EmbedHan
                     )
                     .catch((e: unknown) => ((state.error = fail(e).message), renderAction())),
               },
-              "Download receipt",
+              "Download JSON",
             ),
+            r.receiptAccess
+              ? h(
+                  "button",
+                  {
+                    type: "button",
+                    class: "secondary",
+                    onclick: () =>
+                      void client
+                        .signerReceiptPdf(r.receiptAccess)
+                        .then((blob) =>
+                          downloadBlob(`stele-receipt-${r.acceptanceId.slice(0, 16)}.pdf`, blob),
+                        )
+                        .catch((e: unknown) => ((state.error = fail(e).message), renderAction())),
+                  },
+                  "Download PDF",
+                )
+              : null,
             h(
               "button",
               {
@@ -976,7 +993,7 @@ export function mountProof(target: string | Element, options: ProofEmbedOptions)
                     )
                     .catch((e: unknown) => ((state.error = fail(e).message), renderAction())),
               },
-              "Download receipt",
+              "Download JSON",
             ),
           ),
           h(
