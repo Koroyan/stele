@@ -127,8 +127,7 @@ export interface ContactInput {
   message: string;
 }
 
-/** Messages one IP address may send per hour, and everyone together per day. */
-const PER_IP_HOUR = 5;
+/** Messages everyone together may send per day (per IP: STELE_CONTACT_PER_IP_HOUR). */
 const PER_DAY = 500;
 
 export async function submitContact(deps: Deps, input: ContactInput, ipHash: string) {
@@ -142,7 +141,7 @@ export async function submitContact(deps: Deps, input: ContactInput, ipHash: str
     .select({ n: count() })
     .from(contactRequests)
     .where(gte(contactRequests.createdAt, dayAgo));
-  if ((mine?.n ?? 0) >= PER_IP_HOUR || (all?.n ?? 0) >= PER_DAY)
+  if ((mine?.n ?? 0) >= deps.config.STELE_CONTACT_PER_IP_HOUR || (all?.n ?? 0) >= PER_DAY)
     throw new ApiError(429, "rate_limited", "Too many messages for now. Please try again later.");
   const [row] = await deps.db
     .insert(contactRequests)

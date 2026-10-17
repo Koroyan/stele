@@ -70,6 +70,8 @@ const schema = z.object({
   STELE_PLATFORM_ORGANIZATION: z.string().optional(),
   /** Wallets of Stele's staff: they read the contact inbox in the dashboard. */
   STELE_PLATFORM_ADMINS: csv.default([]),
+  /** Contact form messages one IP address may send per hour. */
+  STELE_CONTACT_PER_IP_HOUR: z.coerce.number().int().min(1).default(5),
 
   /** The AI assistant (OpenAI-compatible chat completions). Unset key = assistant off. */
   OPENAI_API_KEY: z.string().optional(),
