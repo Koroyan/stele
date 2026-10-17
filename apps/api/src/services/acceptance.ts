@@ -857,7 +857,12 @@ async function relayAndIndex(
       .update(acceptanceChallenges)
       .set({ status: "failed", failureReason: reason, updatedAt: new Date() })
       .where(eq(acceptanceChallenges.id, ch.id));
-    deps.logger.error({ challengeId: ch.id, reason }, "acceptance relay failed");
+    // The program's own logs say why a simulation failed (e.g. which check refused it).
+    const logs = (e as { logs?: unknown }).logs;
+    deps.logger.error(
+      { challengeId: ch.id, reason, logs: Array.isArray(logs) ? logs.slice(-12) : undefined },
+      "acceptance relay failed",
+    );
     // The nonce was consumed elsewhere after it was handed out: fast-forward the cursor.
     if (/NonceAlreadyUsed/.test(reason))
       await syncShard(deps.db, deps.chain, shard.address).catch(() => undefined);
