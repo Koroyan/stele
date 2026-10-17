@@ -241,9 +241,13 @@ export async function verifyProtectedProgram(
       detail:
         gate === "AccessPassMissing"
           ? "Refused on-chain by the Stele check"
-          : sim.ok
-            ? "The program ran the action for a wallet that never accepted the terms"
-            : `Refused, but not by the Stele check (${sim.failure?.name}): the check must run in this instruction`,
+          : gate === "InvalidPolicy"
+            ? `Refused by the Stele check with InvalidPolicy: the program requires another policy than ${i.policy}, the one registered for it`
+            : gate !== null
+              ? `Refused by the Stele check, but with ${gate} instead of AccessPassMissing`
+              : sim.ok
+                ? "The program ran the action for a wallet that never accepted the terms"
+                : `Refused before the Stele check could run (${sim.failure?.name})`,
     });
   }
   // 2. Accepted the required version: no Stele check may refuse it.
