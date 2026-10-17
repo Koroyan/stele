@@ -85,6 +85,13 @@
       "when": 1792191197436,
       "tag": "0011_gate_program_verification",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1792276338217,
+      "tag": "0012_contact_requests",
+      "breakpoints": true
     }
   ]
 }

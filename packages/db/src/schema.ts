@@ -1158,3 +1158,33 @@ export const gatePolicies = pgTable("gate_policies", {
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });
+
+// ---- Stele's own inbox -----------------------------------------------------------------------------
+
+export const contactStatus = pgEnum("contact_status", ["new", "read", "replied", "archived"]);
+
+/** Messages sent with the website's contact form (partnerships, integrations, enterprise, …). */
+export const contactRequests = pgTable(
+  "contact_requests",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** "partnership", "integration", "enterprise", "press" or "other". */
+    topic: text("topic").notNull(),
+    name: text("name").notNull(),
+    email: text("email").notNull(),
+    company: text("company"),
+    website: text("website"),
+    message: text("message").notNull(),
+    status: contactStatus("status").notNull().default("new"),
+    /** A note by Stele's staff (never shown to the sender). */
+    note: text("note"),
+    /** Keyed hash of the sender's IP address (abuse limits), never the address itself. */
+    ipHash: text("ip_hash").notNull(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    index("contact_requests_status_idx").on(t.status, t.createdAt),
+    index("contact_requests_ip_idx").on(t.ipHash, t.createdAt),
+  ],
+);
