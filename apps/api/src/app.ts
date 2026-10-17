@@ -30,6 +30,7 @@ import { documentRoutes } from "./routes/documents.js";
 import { integrationRoutes } from "./routes/integrations.js";
 import { billingRoutes } from "./routes/billing.js";
 import { demoRoutes } from "./routes/demo.js";
+import { analyticsRoutes } from "./routes/analytics.js";
 import { gateRoutes } from "./routes/gate.js";
 import { networkRoutes } from "./routes/network.js";
 import { organizationRoutes } from "./routes/organizations.js";
@@ -243,6 +244,7 @@ export async function buildApp(deps: Deps, opts: BuildOptions = {}) {
   await app.register(integrationRoutes(deps));
   await app.register(billingRoutes(deps));
   await app.register(gateRoutes(deps));
+  await app.register(analyticsRoutes(deps));
   await app.register(demoRoutes(deps));
 
   app.get("/v1/openapi.json", { config: { rateLimit: false } }, async () => app.swagger());
