@@ -20,6 +20,7 @@ import {
   PlayIcon,
   PlugIcon,
   ShieldIcon,
+  InboxIcon,
   Spinner,
   SteleLogo,
   TicketIcon,
@@ -27,6 +28,7 @@ import {
   WalletIcon,
   cn,
 } from "@stele/ui";
+import { AssistantWidget } from "@/components/assistant";
 import { WalletButton } from "@/components/wallet";
 import { signOut } from "@/lib/auth";
 import { DashboardProvider, useDashboard } from "@/lib/dashboard";
@@ -34,6 +36,7 @@ import { shortAddress } from "@/lib/format";
 import { NetworkSwitcher } from "@/components/network-switcher";
 import { useWallet } from "@/lib/wallet";
 import { CreateOrganization } from "./create-organization";
+import { TermsGate } from "./terms-gate";
 
 interface NavItem {
   href: string;
@@ -71,16 +74,20 @@ const ORG_NAV: NavItem[] = [
   { href: "/dashboard/audit-log", label: "Audit log", icon: ListIcon },
 ];
 
+/** Stele's own staff: messages from the website's contact form. */
+const STAFF_NAV: NavItem[] = [{ href: "/dashboard/inbox", label: "Inbox", icon: InboxIcon }];
+
 function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { orgs, org, selectOrg, user, detail } = useDashboard();
+  const { orgs, org, selectOrg, user, detail, platformAdmin } = useDashboard();
   const gate = detail?.organization.settings.products?.gate === true;
   // Gate is always listed so it can be found; until enabled it is one entry that explains it.
   const groups: { label: string; items: NavItem[] }[] = [
     { label: "Stele Proof", items: PROOF_NAV },
     { label: "Stele Gate", items: gate ? GATE_NAV : [{ ...GATE_NAV[0]!, tag: "Off" }] },
     { label: "Organization", items: ORG_NAV },
+    ...(platformAdmin ? [{ label: "Stele team", items: STAFF_NAV }] : []),
   ];
 
   return (
@@ -290,6 +297,7 @@ function Shell({ children }: { children: ReactNode }) {
           )}
         </main>
       </div>
+      <AssistantWidget organizationId={org?.id} />
     </div>
   );
 }
@@ -315,7 +323,10 @@ export function DashboardShell({ children }: { children: ReactNode }) {
         )
       }
     >
-      {() => <Shell>{children}</Shell>}
+      {(ctx) =>
+        // Stele's own Terms first, accepted with Stele (when this deployment publishes them).
+        ctx.terms && !ctx.terms.accepted ? <TermsGate /> : <Shell>{children}</Shell>
+      }
     </DashboardProvider>
   );
 }
