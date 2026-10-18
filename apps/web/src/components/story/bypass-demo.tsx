@@ -47,7 +47,7 @@ export function BypassDemo() {
     s === lane ? ok : s > lane ? "done" : "idle";
   return (
     <StoryFrame seq={seq} title="Can the requirement be skipped?" captions={CAPTIONS}>
-      <div className="grid gap-5 @min-[880px]:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5 @min-[880px]:grid-cols-2">
         <div className="space-y-3">
           <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-fg-subtle">
             Without a program-level gate

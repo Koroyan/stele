@@ -22,17 +22,17 @@ const STEPS: { title: string; body: string; tone: "neutral" | "danger" | "succes
   },
   {
     title: "The fund publishes v2 and requires it",
-    body: "The investor's next deposit is rejected on-chain: their pass names v1.",
+    body: "The investor's next deposit is rejected on-chain: their passport names v1.",
     tone: "danger",
   },
   {
     title: "Accept v2, deposit succeeds",
-    body: "The same pass now names v2. The v1 acceptance stays verifiable forever.",
+    body: "The same passport now names v2. The v1 acceptance stays verifiable forever.",
     tone: "success",
   },
   {
     title: "A direct CLI call fails",
-    body: "No frontend, no SDK — deposit() without a current pass is rejected by the program.",
+    body: "No frontend, no SDK — deposit() without a current passport is rejected by the program.",
     tone: "danger",
   },
 ];
@@ -49,7 +49,7 @@ const CODE = `pub fn deposit(ctx: Context<Deposit>, amount: u64) -> Result<()> {
 
 export function RwaExample() {
   return (
-    <div className="grid items-start gap-8 lg:grid-cols-[1.05fr_0.95fr]">
+    <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-[1.05fr_0.95fr]">
       <ol className="space-y-2.5">
         {STEPS.map((s, i) => (
           <li

@@ -27,7 +27,7 @@ const GATE_FOR = [
 
 export function ProductCards() {
   return (
-    <div className="grid gap-5 md:grid-cols-2">
+    <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
       <ProductCard
         href="/gate"
         name="Stele Gate"
@@ -174,16 +174,16 @@ function ProofVisual() {
   );
 }
 
-/** A request meets the gate: rejected without a pass, through with one. */
+/** A request meets the gate: rejected without a passport, through with one. */
 function GateVisual() {
   return (
     <div className="space-y-2 font-mono text-[10.5px]">
       <div className="flex items-center justify-between rounded-lg border border-danger-line bg-danger-soft/50 px-2.5 py-1.5 text-danger">
-        <span>no pass</span>
+        <span>no passport</span>
         <span>✕ rejected</span>
       </div>
       <div className="flex items-center justify-between rounded-lg border border-verified-line bg-verified-soft/40 px-2.5 py-1.5 text-verified transition-transform duration-500 group-hover:translate-x-1">
-        <span>pass v1</span>
+        <span>passport v1</span>
         <span>✓ deposits</span>
       </div>
     </div>
@@ -193,7 +193,7 @@ function GateVisual() {
 export function Chooser() {
   return (
     <div>
-      <div className="grid gap-5 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
         <ChoiceCard
           title="I run a normal application or website."
           product="Stele Proof"

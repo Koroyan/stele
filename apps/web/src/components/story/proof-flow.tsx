@@ -71,7 +71,7 @@ export function ProofFlow() {
         />
       </Flow>
 
-      <div className="mt-6 grid gap-4 @min-[560px]:grid-cols-2">
+      <div className="mt-6 grid grid-cols-1 gap-4 @min-[560px]:grid-cols-2">
         {/* The document as published */}
         <div className="rounded-xl border border-line bg-bg-raised p-4">
           <div className="flex items-center justify-between gap-2">

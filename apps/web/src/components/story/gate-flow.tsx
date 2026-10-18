@@ -26,7 +26,7 @@ export function GateFlow() {
   return (
     <StoryFrame seq={seq} title="Stele Gate — a protected deposit" captions={CAPTIONS}>
       <div className="@container">
-        <div className="grid items-start gap-5 @min-[800px]:grid-cols-[minmax(0,300px)_1fr]">
+        <div className="grid grid-cols-1 items-start gap-5 @min-[800px]:grid-cols-[minmax(0,300px)_1fr]">
           {/* The app */}
           <div className="relative mx-auto w-full max-w-[300px] overflow-hidden rounded-[22px] border border-line-strong bg-bg p-4 shadow-[var(--shadow-card)]">
             <div className="flex items-center justify-between text-[11px] text-fg-subtle">
@@ -126,7 +126,7 @@ export function GateFlow() {
               />
             </Flow>
 
-            <div className="mt-5 grid gap-3 @min-[520px]:grid-cols-2">
+            <div className="mt-5 grid grid-cols-1 gap-3 @min-[520px]:grid-cols-2">
               <div className="rounded-xl border border-line bg-bg-raised p-3.5">
                 <p className="flex items-center gap-1.5 text-[11.5px] uppercase tracking-[0.08em] text-fg-subtle">
                   <TicketIcon className="h-3.5 w-3.5" /> Passport

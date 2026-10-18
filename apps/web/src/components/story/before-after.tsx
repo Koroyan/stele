@@ -24,7 +24,7 @@ export function BeforeAfter() {
   const s = seq.step;
   return (
     <StoryFrame seq={seq} title="The same acceptance, before and after" captions={CAPTIONS}>
-      <div className="grid gap-4 @min-[640px]:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 @min-[640px]:grid-cols-2">
         <div
           className={cn(
             "rounded-xl border p-4 transition-colors duration-500",

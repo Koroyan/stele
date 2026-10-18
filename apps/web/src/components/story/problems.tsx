@@ -66,7 +66,7 @@ const PROBLEMS: { icon: ReactNode; title: string; today: string; stele: string }
 
 export function ProblemGrid() {
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {PROBLEMS.map((p, i) => (
         <InView key={p.title} delayMs={(i % 3) * 120} className="h-full">
           <div className="group flex h-full flex-col rounded-2xl border border-line bg-surface p-6 transition-colors duration-300 hover:border-accent-line">
@@ -111,7 +111,7 @@ const STEPS: { icon: ReactNode; title: string; body: string }[] = [
 
 export function SolveSteps() {
   return (
-    <ol className="relative grid gap-4 md:grid-cols-3">
+    <ol className="relative grid grid-cols-1 gap-4 md:grid-cols-3">
       {/* The thread that runs through the three steps. */}
       <div
         aria-hidden="true"
@@ -172,7 +172,7 @@ const WHO: { icon: ReactNode; title: string; body: string }[] = [
 
 export function WhoNeedsIt() {
   return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
       {WHO.map((w, i) => (
         <InView key={w.title} delayMs={(i % 3) * 90}>
           <div className="flex h-full gap-4 rounded-xl border border-line bg-surface/60 p-4">

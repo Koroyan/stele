@@ -34,7 +34,7 @@ const STEPS = [
   },
   {
     name: "Continue",
-    title: "The pass is created, the deposit continues",
+    title: "The passport records it, the deposit continues",
     body: "The acceptance is recorded on Solana and adds or advances the entry in the wallet's passport; then your original action runs.",
     code: `passport entry → valid (v1)
 deposit() → sent`,
@@ -43,7 +43,7 @@ deposit() → sent`,
     name: "Enforce",
     title: "The program rejects everything else",
     body: "Never accepted, an older version, someone else's passport, another policy or a forged account: the check fails and the deposit never happens.",
-    code: `deposit() without a current pass
+    code: `deposit() without a current passport
 → AccessPassMissing · AccessPassOutdated
 → AccessPassMismatch · InvalidPolicy`,
   },
@@ -51,7 +51,7 @@ deposit() → sent`,
 
 const BADGES = [
   "Policy pinned",
-  "Checking pass",
+  "Checking passport",
   "Access required",
   "Access granted",
   "Bypass rejected",
@@ -88,7 +88,10 @@ export function GateSteps() {
           </li>
         ))}
       </ol>
-      <div key={seq.step} className="mt-5 grid animate-fade-up gap-4 @min-[640px]:grid-cols-2">
+      <div
+        key={seq.step}
+        className="mt-5 grid grid-cols-1 animate-fade-up gap-4 @min-[640px]:grid-cols-2"
+      >
         <div>
           <h3 className="text-[18px] font-semibold tracking-[-0.015em] text-fg">{current.title}</h3>
           <p className="mt-2 text-[14px] leading-relaxed text-fg-muted">{current.body}</p>

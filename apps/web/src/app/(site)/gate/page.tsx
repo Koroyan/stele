@@ -64,7 +64,7 @@ export default function GatePage() {
       </Section>
 
       <Section className="border-t border-line bg-bg-raised">
-        <div className="grid items-start gap-10 lg:grid-cols-2">
+        <div className="grid grid-cols-1 items-start gap-10 lg:grid-cols-2">
           <div>
             <Eyebrow>One call</Eyebrow>
             <h2 className="mt-3 text-[30px] font-semibold leading-[1.15] tracking-[-0.025em] text-fg">
@@ -124,15 +124,15 @@ export default function GatePage() {
       <Section className="border-t border-line bg-bg-raised">
         <SectionHeading
           eyebrow="Bypass resistance"
-          title="A direct call without a current pass is rejected on-chain."
+          title="A direct call without a current passport is rejected on-chain."
         />
         <div className="mt-10">
           <BypassDemo />
         </div>
         <p className="mt-5 text-[13.5px] leading-relaxed text-fg-muted">
-          Tested against the real program binaries: no pass, an older version, someone else&apos;s
-          pass, a pass for another document or organization, another policy, an unsigned investor,
-          look-alike and forged accounts, and a forged policy all fail.
+          Tested against the real program binaries: no passport, an older version, someone
+          else&apos;s passport, an entry for another document or organization, another policy, an
+          unsigned investor, look-alike and forged accounts, and a forged policy all fail.
         </p>
       </Section>
 
@@ -148,7 +148,7 @@ export default function GatePage() {
       </Section>
 
       <Section className="border-t border-line bg-bg-raised">
-        <div className="grid gap-10 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-10 lg:grid-cols-2">
           <div>
             <Eyebrow>Why Solana</Eyebrow>
             <h2 className="mt-3 text-[30px] font-semibold leading-[1.15] tracking-[-0.025em] text-fg">
@@ -186,7 +186,10 @@ export default function GatePage() {
                 ],
                 ["For the investor", "Nothing: no fee for accepting"],
               ].map(([k, v]) => (
-                <div key={k} className="grid gap-1 py-3 sm:grid-cols-[1fr_1.2fr] sm:gap-4">
+                <div
+                  key={k}
+                  className="grid grid-cols-1 gap-1 py-3 sm:grid-cols-[1fr_1.2fr] sm:gap-4"
+                >
                   <dt className="text-fg">{k}</dt>
                   <dd className="text-fg-muted">{v}</dd>
                 </div>
@@ -197,7 +200,7 @@ export default function GatePage() {
       </Section>
 
       <Section className="border-t border-line">
-        <div className="grid items-center gap-10 lg:grid-cols-2">
+        <div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-2">
           <div>
             <Eyebrow>Stele Verified</Eyebrow>
             <h2 className="mt-3 text-[30px] font-semibold leading-[1.15] tracking-[-0.025em] text-fg">
@@ -237,7 +240,7 @@ export default function GatePage() {
       </Section>
 
       <Section className="border-t border-line bg-bg-raised">
-        <div className="grid gap-10 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-10 lg:grid-cols-2">
           <div>
             <SectionHeading eyebrow="Proof vs Gate" title="Gate includes Proof." />
             <div className="mt-8">
@@ -254,7 +257,7 @@ export default function GatePage() {
                   "A passport binds the wallet that signed; passkey acceptances create Proof evidence, not passport entries.",
                   "The SDK is user experience; protection exists only where your program calls require_current_passport().",
                   "Accepting and acting are two transactions (not atomic).",
-                  "Passes are public accounts: anyone can see that a wallet accepted a version.",
+                  "Passports are public accounts: anyone can see which versions a wallet accepted.",
                   "Stele's program is upgradeable today (moving to a multisig); it runs on Devnet, not Mainnet yet.",
                 ]}
               />

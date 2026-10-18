@@ -119,7 +119,7 @@ export default function HomePage() {
 
       {/* 7. Gate */}
       <Section id="gate" className="border-t border-line">
-        <div className="grid items-start gap-10 lg:grid-cols-[0.8fr_1.2fr]">
+        <div className="grid grid-cols-1 items-start gap-10 lg:grid-cols-[0.8fr_1.2fr]">
           <div className="lg:sticky lg:top-24">
             <Eyebrow>Stele Gate</Eyebrow>
             <h2 className="mt-3 text-balance text-[30px] font-semibold leading-[1.15] tracking-[-0.025em] text-fg sm:text-[38px]">
@@ -139,7 +139,7 @@ export default function HomePage() {
 
       {/* 8. Proof */}
       <Section id="proof" className="border-t border-line bg-bg-raised">
-        <div className="grid items-start gap-10 lg:grid-cols-[0.8fr_1.2fr]">
+        <div className="grid grid-cols-1 items-start gap-10 lg:grid-cols-[0.8fr_1.2fr]">
           <div className="lg:sticky lg:top-24">
             <Eyebrow>Stele Proof</Eyebrow>
             <h2 className="mt-3 text-balance text-[30px] font-semibold leading-[1.15] tracking-[-0.025em] text-fg sm:text-[38px]">
@@ -191,7 +191,7 @@ export default function HomePage() {
         <div className="mt-10">
           <DevTabs />
         </div>
-        <div className="mt-8 grid items-start gap-5 lg:grid-cols-[1fr_auto]">
+        <div className="mt-8 grid grid-cols-1 items-start gap-5 lg:grid-cols-[1fr_auto]">
           <div>
             <p className="mb-2 text-[13px] font-medium text-fg-muted">Stele Proof · any website</p>
             <CodeBlock code={PROOF_SNIPPET} language="html" />
@@ -229,7 +229,7 @@ export default function HomePage() {
             Who controls what <ArrowRightIcon className="h-4 w-4" />
           </Link>
         </div>
-        <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-10 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
           <FeatureCard icon={<HashIcon className="h-[18px] w-[18px]" />} title="Exact versions">
             Each version is canonicalized and fingerprinted on Solana. There is no instruction to
             edit it.
@@ -270,8 +270,8 @@ export default function HomePage() {
             See it work on Solana Devnet.
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-[16px] leading-relaxed text-fg-muted">
-            Accept offering terms, deposit, publish v2, watch the old pass stop working and a direct
-            call fail — every step a real transaction.
+            Accept offering terms, deposit, publish v2, watch the old acceptance stop working and a
+            direct call fail — every step a real transaction.
           </p>
           <div className="mt-8 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center">
             <Link href="/demo" className={buttonClasses("primary", "lg")}>

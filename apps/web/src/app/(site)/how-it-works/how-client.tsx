@@ -23,7 +23,7 @@ const GATE_STEPS = [
   ["Check", "The SDK reads the investor's passport and the policy from Solana."],
   ["Accept if required", "Missing or outdated? The Stele modal records the acceptance."],
   ["Continue", "The passport entry is added or advanced; the original action runs."],
-  ["Enforce", "Your program rejects any call without a current pass — even from the CLI."],
+  ["Enforce", "Your program rejects any call without a current passport — even from the CLI."],
 ] as const;
 
 function StepRow({

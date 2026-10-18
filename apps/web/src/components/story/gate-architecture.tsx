@@ -39,7 +39,7 @@ const CAPTIONS = [
   "The SDK reads the policy and the wallet's passport from Solana.",
   "Missing or outdated? The modal records the acceptance, which adds or advances the entry in the passport.",
   "Your program calls require_current_passport() with the passport and the policy it pins.",
-  "Only with a current pass does the deposit execute. Everything before it is UX; this is enforcement.",
+  "Only with a current passport does the deposit execute. Everything before it is UX; this is enforcement.",
 ];
 
 export function GateArchitecture() {
@@ -61,7 +61,7 @@ export function GateArchitecture() {
           </div>
         ))}
       </Flow>
-      <div className="mt-5 grid gap-3 @min-[520px]:grid-cols-2">
+      <div className="mt-5 grid grid-cols-1 gap-3 @min-[520px]:grid-cols-2">
         <div
           className={cn(
             "rounded-xl border p-4 transition-colors duration-500",

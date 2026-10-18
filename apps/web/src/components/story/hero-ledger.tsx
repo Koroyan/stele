@@ -39,7 +39,7 @@ export function HeroLedger() {
   const s = seq.step;
   return (
     <div ref={seq.ref} className="mx-auto w-full max-w-4xl">
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {/* Today */}
         <div
           className={cn(

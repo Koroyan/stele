@@ -7,7 +7,7 @@ import { useSequence } from "./use-sequence";
 const CAPTIONS = [
   "The investor accepted Offering Terms v1. Their passport names v1 — and the policy requires v1.",
   "The fund's admin publishes Offering Terms v2 and makes the policy require it.",
-  "Nothing is rewritten: the v1 pass simply no longer satisfies the policy.",
+  "Nothing is rewritten: the passport's v1 entry simply no longer satisfies the policy.",
   "The investor tries another deposit. The vault program rejects it: v2 is required.",
   "The investor accepts v2 in the Stele modal.",
   "The same passport entry now names v2. The deposit succeeds — and the v1 acceptance stays on record.",
@@ -46,7 +46,7 @@ export function PolicyUpdate() {
   const passState = s >= 5 ? "valid" : s >= 2 ? "outdated" : "valid";
   return (
     <StoryFrame seq={seq} title="When the policy changes" captions={CAPTIONS}>
-      <div className="grid gap-4 @min-[720px]:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 @min-[720px]:grid-cols-3">
         <div className="space-y-3">
           <p className="text-[11.5px] font-semibold uppercase tracking-[0.08em] text-fg-subtle">
             Published versions

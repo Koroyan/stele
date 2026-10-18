@@ -59,13 +59,13 @@ function Arrow({ label }: { label: ReactNode }) {
 export function Architecture() {
   return (
     <figure aria-label="Stele architecture">
-      <div className="grid items-center gap-2 lg:grid-cols-[1fr_auto_1fr_auto_1fr_auto_1fr]">
+      <div className="grid grid-cols-1 items-center gap-2 lg:grid-cols-[1fr_auto_1fr_auto_1fr_auto_1fr]">
         <Group
           title="Client"
           where="@stelehq/sdk"
           tone="client"
           items={[
-            { name: "Stele SDK", detail: "gate(): read pass, modal, accept, continue" },
+            { name: "Stele SDK", detail: "gate(): read passport, modal, accept, continue" },
             { name: "Embedded modal", detail: "hash-verified text, wallet signature" },
           ]}
         />
@@ -91,7 +91,7 @@ export function Architecture() {
             { name: "Passport", detail: "one per wallet, an entry per document" },
             {
               name: "Gate instructions",
-              detail: "create_policy, set_policy_requirement, record_gated_acceptance",
+              detail: "create_policy, set_policy_requirement, record_passport_acceptance",
             },
             {
               name: "require_current_passport()",

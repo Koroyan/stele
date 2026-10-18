@@ -109,7 +109,7 @@ export function DevTabs() {
   const [tab, setTab] = useState<Tab>("frontend");
   const seq = useSequence(FLOW_STEPS.length, { intervalMs: 1300 });
   return (
-    <div className="grid items-start gap-6 lg:grid-cols-[1fr_260px]">
+    <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[1fr_260px]">
       <div className="min-w-0">
         <Tabs
           value={tab}
