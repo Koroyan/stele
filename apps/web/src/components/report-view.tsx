@@ -43,7 +43,8 @@ const VERDICT = {
 
 export function VerdictBanner({ report, where }: { report: VerificationReport; where: string }) {
   const v = VERDICT[report.verdict];
-  const warnings = report.checks.filter((c) => c.status === "warn").length;
+  const warned = report.checks.filter((c) => c.status === "warn");
+  const warnings = warned.length;
   return (
     <div
       className={cn("rounded-2xl border px-5 py-4 sm:px-6", v.tone)}
@@ -60,6 +61,17 @@ export function VerdictBanner({ report, where }: { report: VerificationReport; w
             )}
           </div>
           <p className="mt-1 text-[13.5px] leading-relaxed text-fg-muted">{report.summary}</p>
+          {/* Which warnings, without hunting for them among dozens of checks. */}
+          {warnings > 0 && (
+            <ul className="mt-2 space-y-1 text-[13px] leading-relaxed text-fg-muted">
+              {warned.map((c) => (
+                <li key={c.id}>
+                  <span className="font-medium text-warning">{c.label}:</span>{" "}
+                  {c.detail.split(/(?<=\.)\s/)[0]}
+                </li>
+              ))}
+            </ul>
+          )}
           <p className="mt-2 text-[12px] text-fg-subtle">
             {where} · {report.checks.length} checks · finished {formatIso(report.finishedAt)} ·
             verifier {report.verifierVersion}
