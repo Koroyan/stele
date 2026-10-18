@@ -93,12 +93,15 @@ export default async function PricingPage() {
       price: cheapest !== null ? sol(cheapest, 9) : "Credits",
       unit: "per recording, beyond the free allowance",
       description: "Prepaid credits in SOL, one per recording. They never expire.",
-      cta: { href: "/dashboard/billing", label: "Buy credits" },
+      // Purchases switched off on this app: say so instead of leading to a page that can't sell.
+      cta: billing?.enabled
+        ? { href: "/dashboard/billing", label: "Buy credits" }
+        : { href: "/contact", label: "Ask about credits" },
       features: [
         "Volume discounts (below)",
         "Network fees included in every credit",
         "Paid on-chain to a public treasury address",
-        "Email support with a 1 business day response",
+        "E-mail support, usually within two business days",
       ],
       featured: true,
     },
@@ -127,13 +130,13 @@ export default async function PricingPage() {
       />
 
       <Section>
-        {test && (
+        {test && billing!.enabled && (
           <p className="mb-6 rounded-xl border border-warning-line bg-warning-soft px-4 py-3 text-[13.5px] text-fg">
             You are on <strong>{billing!.network.label}</strong>: payments here use test SOL, which
             has no value, so you can try billing end to end for free.
           </p>
         )}
-        <div className="grid gap-5 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
           {plans.map((p) => (
             <Card
               key={p.name}
@@ -272,7 +275,10 @@ export default async function PricingPage() {
         <SectionHeading eyebrow="Questions" title="Straight answers." />
         <dl className="mt-10 divide-y divide-line rounded-2xl border border-line">
           {FAQ.map(([q, a]) => (
-            <div key={q} className="grid gap-2 px-6 py-5 md:grid-cols-[0.9fr_1.1fr] md:gap-8">
+            <div
+              key={q}
+              className="grid grid-cols-1 gap-2 px-6 py-5 md:grid-cols-[0.9fr_1.1fr] md:gap-8"
+            >
               <dt className="text-[15px] font-medium text-fg">{q}</dt>
               <dd className="text-[14px] leading-relaxed text-fg-muted">{a}</dd>
             </div>
