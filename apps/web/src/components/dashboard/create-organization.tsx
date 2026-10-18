@@ -4,7 +4,7 @@
  * first acceptance shard (relayed by Stele). The API then mirrors both by reading the chain.
  */
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { address, isAddress } from "@solana/kit";
 import {
   createNonceShardInstruction,
@@ -41,6 +41,10 @@ const PRODUCTS = [
   },
 ];
 
+/** Rent for the organization and its first shard, plus fees, with a small margin. */
+const NEEDED_LAMPORTS = 65_000_000n;
+const formatSol = (l: bigint) => (Number(l) / 1e9).toFixed(Number(l) === 0 ? 0 : 4);
+
 export function CreateOrganization({
   firstTime,
   onCancel,
@@ -57,6 +61,21 @@ export function CreateOrganization({
   const [recovery, setRecovery] = useState("");
   const [airdrop, setAirdrop] = useState<string | null>(null);
   const [product, setProduct] = useState<"proof" | "gate">("proof");
+  // The wallet's balance, checked before the user tries: creating needs rent for two accounts.
+  const [lamports, setLamports] = useState<bigint | null>(null);
+  const refreshBalance = useCallback(async () => {
+    if (!wallet.address) return setLamports(null);
+    try {
+      const { value } = await rpcFor(network).getBalance(address(wallet.address)).send();
+      setLamports(BigInt(value));
+    } catch {
+      setLamports(null); // unknown: never block on an RPC hiccup
+    }
+  }, [network, wallet.address]);
+  useEffect(() => {
+    void refreshBalance();
+  }, [refreshBalance]);
+  const short = lamports !== null && lamports < NEEDED_LAMPORTS;
 
   const normalized = normalizeDisplayString(name);
   const nameError = name ? validationError(validateOrgName, normalized) : null;
@@ -67,7 +86,12 @@ export function CreateOrganization({
         ? "The recovery authority must be a different key from the owner."
         : null;
   const canSubmit =
-    Boolean(wallet.signer) && normalized.length > 0 && !nameError && !recoveryError && !tx.pending;
+    Boolean(wallet.signer) &&
+    normalized.length > 0 &&
+    !nameError &&
+    !recoveryError &&
+    !short &&
+    !tx.pending;
 
   async function requestAirdrop() {
     if (!wallet.address) return;
@@ -77,6 +101,15 @@ export function CreateOrganization({
         .requestAirdrop(address(wallet.address), 2_000_000_000n as never)
         .send();
       setAirdrop("2 test SOL requested. It may take a few seconds to arrive.");
+      for (let i = 0; i < 10; i++) {
+        await new Promise((r) => setTimeout(r, 1500));
+        const { value } = await rpcFor(network).getBalance(address(wallet.address)).send();
+        setLamports(BigInt(value));
+        if (BigInt(value) >= NEEDED_LAMPORTS) {
+          setAirdrop(null);
+          break;
+        }
+      }
     } catch (e) {
       setAirdrop(`Airdrop failed: ${e instanceof Error ? e.message : String(e)}`);
     }
@@ -243,13 +276,27 @@ export function CreateOrganization({
           </div>
 
           <SigningAs need="SOL for rent" />
-          {network.cluster !== "mainnet" && wallet.address && (
-            <div className="flex flex-wrap items-center gap-3 text-[12.5px] text-fg-muted">
-              <Button type="button" size="sm" variant="ghost" onClick={() => void requestAirdrop()}>
-                Request test SOL ({network.label})
-              </Button>
-              {airdrop && <span>{airdrop}</span>}
-            </div>
+          {short && (
+            <Alert tone="warning">
+              Your wallet has {formatSol(lamports!)} SOL; creating the organization needs about
+              0.065 SOL.{" "}
+              {network.cluster === "mainnet"
+                ? "Send some SOL to this wallet, then continue."
+                : `On ${network.label}, test SOL is free:`}
+              {network.cluster !== "mainnet" && (
+                <div className="mt-3 flex flex-wrap items-center gap-3">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => void requestAirdrop()}
+                  >
+                    Get 2 test SOL
+                  </Button>
+                  {airdrop && <span className="text-[12.5px]">{airdrop}</span>}
+                </div>
+              )}
+            </Alert>
           )}
           <TxStatus tx={tx} />
           <div className="flex flex-wrap gap-3 pt-1">
