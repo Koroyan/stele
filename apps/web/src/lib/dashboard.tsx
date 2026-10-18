@@ -199,6 +199,11 @@ export function DashboardProvider({
   const [detailError, setDetailError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
+    // No session cookie: straight to sign-in, without a request the API can only refuse.
+    if (!/(?:^|;\s*)stele_csrf=/.test(document.cookie)) {
+      router.replace(`/login?next=${encodeURIComponent(pathname)}`);
+      return;
+    }
     try {
       const me = await api<{
         user: SessionUser;
