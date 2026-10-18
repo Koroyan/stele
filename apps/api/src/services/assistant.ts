@@ -329,20 +329,74 @@ const SEARCH_TOOL = {
   },
 } as const;
 
-export function systemPrompt(deps: Deps, input: AskInput): string {
+/** The pages the assistant may link to: the app's own, and every public documentation page. */
+function siteMap(origin: string, kb: Knowledge): string[] {
+  const app: [string, string][] = [
+    ["/", "Home"],
+    ["/proof", "Stele Proof"],
+    ["/gate", "Stele Gate"],
+    ["/how-it-works", "How it works"],
+    ["/demo", "Live demo"],
+    ["/pricing", "Pricing"],
+    ["/security", "Security"],
+    ["/verify", "Verify an agreement"],
+    ["/developers", "Developers"],
+    ["/developers/sdk", "SDK reference"],
+    ["/developers/api", "API explorer"],
+    ["/developers/onchain", "On-chain reference"],
+    ["/dashboard", "Dashboard"],
+    ["/contact", "Contact"],
+    ["/terms", "Terms of Service"],
+    ["/privacy", "Privacy Policy"],
+  ];
+  const docs = new Map<string, string>();
+  for (const p of kb.passages) if (!docs.has(p.slug)) docs.set(p.slug, p.title);
+  return [
+    ...app.map(([path, title]) => `${origin}${path === "/" ? "" : path} — ${title}`),
+    ...[...docs]
+      .filter(([slug]) => slug !== "terms-of-service" && slug !== "privacy-policy")
+      .map(([slug, title]) => `${origin}/docs/${slug} — ${title}`),
+  ];
+}
+
+/** Facts the documentation leaves to this deployment's configuration (prices, network). */
+function deploymentFacts(deps: Deps): string[] {
+  const sol = (lamports: number) => `${(lamports / 1e9).toFixed(9).replace(/0+$/, "")} SOL`;
+  const packs = deps.config.billing.packs
+    .map(
+      (p) =>
+        `${p.credits.toLocaleString("en-US")} recordings for ${sol(p.lamports)} (${sol(Math.round(p.lamports / p.credits))} each)`,
+    )
+    .join("; ");
+  return [
+    `- Network: Solana ${deps.config.network.label}.${deps.config.network.cluster === "mainnet" ? "" : " Records here are test records, not evidence; Mainnet is not available yet."}`,
+    `- Free: ${deps.config.STELE_FREE_RECORDS_PER_MONTH.toLocaleString("en-US")} recordings (acceptances or proofs) per organization every month.`,
+    `- After that, prepaid credits in SOL, one per recording, never expiring: ${packs || "no packs configured"}.${deps.config.billing.treasury ? " Bought in the dashboard (Billing)." : " Credit purchases are not enabled on this deployment yet."}`,
+    "- The people who accept pay nothing and need no crypto: Stele's relayer pays every network fee; they sign with a passkey (Face ID, fingerprint) or a wallet.",
+    "- Organizations pay Solana rent directly from their wallet for what they create (organization, documents, versions, nonce shards), at cost — see the pricing page.",
+  ];
+}
+
+export function systemPrompt(deps: Deps, input: AskInput, kb: Knowledge = getKnowledge()): string {
   const origin = deps.config.APP_ORIGIN;
   const lines = [
     `You are the Stele assistant on ${origin}. You help companies and developers understand and set up Stele.`,
     "Stele records cryptographic evidence on Solana: organizations publish versions of their documents (terms, privacy policies, offering terms), people accept a specific version by signing it (wallet or passkey, free for them), and anyone can verify both against the chain without Stele. Stele Gate lets a Solana program refuse users who have not accepted the required version (policies, passports, the stele-gate Rust crate). Stele Verified checks a deployed program and shows a badge.",
     "",
     "How to answer:",
-    "- Base every answer on Stele's documentation: the passages below, and search_docs when they do not cover the question. Never invent endpoints, functions, parameters, prices or behaviour. If the documentation does not say, say so and suggest the contact page.",
-    `- Link the pages you rely on with Markdown links (${origin}/docs/<slug>). Useful pages: ${origin}/dashboard, ${origin}/demo, ${origin}/pricing, ${origin}/gate, ${origin}/verify, ${origin}/developers/sdk, ${origin}/developers/api, ${origin}/contact, ${origin}/terms, ${origin}/privacy.`,
-    "- Reply in the language of the user's last message. Be concise and practical: short steps, and short code samples that follow the documentation (TypeScript for the SDK and API, Rust for programs).",
+    "- Answer the question directly in the first sentence, then add only what helps. Keep answers under about 150 words unless the user asks for detail or code.",
+    "- Base every answer on Stele's documentation (the passages below, and search_docs when they do not cover the question) and on the facts below. Never invent endpoints, functions, parameters, prices or behaviour. If neither says, say so and suggest the contact page.",
+    "- Link only to pages from the site map below, with Markdown links, and never make up a URL.",
+    "- Reply in the language of the user's last message, in natural, grammatical language. Short code samples follow the documentation (TypeScript for the SDK and API, Rust for programs).",
     "- Never ask for private keys, seed phrases, API keys or webhook secrets. If the user pastes one, tell them to rotate it immediately.",
     "- You do not give legal advice. Explain what a Stele record proves and what it does not, and recommend a lawyer for legal questions.",
-    `- This deployment runs on Solana ${deps.config.network.label}.${deps.config.network.cluster === "mainnet" ? "" : " Records here are test records, not evidence."}`,
     "- Politely decline questions unrelated to Stele, Solana development with Stele, or legal-tech workflows Stele supports.",
+    "",
+    "Facts about this deployment:",
+    ...deploymentFacts(deps),
+    "",
+    "Site map (the only pages you may link to):",
+    ...siteMap(origin, kb),
   ];
   if (input.page) lines.push("", `The user is on the page ${input.page}.`);
   if (input.organization)
@@ -441,7 +495,7 @@ export async function answer(
   const messages: OpenAiMessage[] = [
     {
       role: "system",
-      content: `${systemPrompt(deps, input)}\n\nDocumentation passages found for the question:\n\n${
+      content: `${systemPrompt(deps, input, kb)}\n\nDocumentation passages found for the question:\n\n${
         found.length > 0 ? formatPassages(found, origin) : "(none: use search_docs)"
       }`,
     },

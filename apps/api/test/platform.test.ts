@@ -316,6 +316,10 @@ describe("assistant answers", () => {
     ]);
     const system = requests[0]!.messages[0]!.content!;
     expect(system).toContain("Reply in the language of the user's last message");
+    // Only real pages, and this deployment's facts (prices come from its configuration).
+    expect(system).toContain("http://localhost:3000/docs/gate-guide — Gate guide");
+    expect(system).toContain("http://localhost:3000/developers/sdk — SDK reference");
+    expect(system).toMatch(/Free: 1,000 recordings/);
     expect(system).toContain("/dashboard/gate/verification");
     expect(system).toContain('"name":"Acme"');
     // The tool's result went back to the model.
