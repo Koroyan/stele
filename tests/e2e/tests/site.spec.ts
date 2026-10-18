@@ -21,6 +21,12 @@ const PAGES: { path: string; heading: string | RegExp }[] = [
   { path: "/contact", heading: /build provable agreements together/ },
   { path: "/terms", heading: "Terms of Service" },
   { path: "/privacy", heading: "Privacy Policy" },
+  { path: "/developers/api", heading: "API explorer" },
+  { path: "/developers/sdk", heading: "SDK reference" },
+  { path: "/developers/onchain", heading: "On-chain reference" },
+  { path: "/docs/gate-guide", heading: /step-by-step guide/ },
+  { path: "/docs/threat-model", heading: "Threat model" },
+  { path: "/login", heading: "Sign in to Stele" },
 ];
 
 test.describe("public site", () => {
@@ -156,4 +162,38 @@ test.describe("public site", () => {
       expect(text, path).not.toMatch(/runbook|disaster recovery|secret manager/i);
     }
   });
+});
+
+/**
+ * A phone-width window, without phone emulation: an emulated phone zooms out to fit a page that is
+ * too wide, which hides exactly the overflow this test looks for.
+ */
+test.describe("narrow screens", () => {
+  for (const p of PAGES) {
+    test(`${p.path} fits a 390px-wide screen`, async ({ page }, info) => {
+      test.skip(info.project.name !== "desktop", "measured in a desktop browser at 390px");
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.goto(p.path);
+      await expect(page.getByRole("heading", { level: 1 })).toContainText(p.heading);
+      await page.waitForTimeout(600);
+      const wide = await page.evaluate(() => {
+        const W = document.documentElement.clientWidth;
+        const out: string[] = [];
+        for (const el of document.querySelectorAll("body *")) {
+          const r = el.getBoundingClientRect();
+          const parent = el.parentElement?.getBoundingClientRect();
+          // Report only where the overflow starts (scrolling code blocks and tables clip it).
+          if (r.width > 0 && r.right > W + 1 && !(parent && parent.right > W + 1)) {
+            // Inside a scrolling or clipping container (code blocks, tables), it is not the page.
+            let clipped = false;
+            for (let a = el.parentElement; a && a !== document.body; a = a.parentElement)
+              if (getComputedStyle(a).overflowX !== "visible") clipped = true;
+            if (!clipped) out.push(`${el.tagName} ${Math.round(r.right)}px`);
+          }
+        }
+        return { scroll: document.documentElement.scrollWidth - W, out: out.slice(0, 5) };
+      });
+      expect(wide, JSON.stringify(wide)).toEqual({ scroll: 0, out: [] });
+    });
+  }
 });
