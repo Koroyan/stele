@@ -126,7 +126,7 @@ export default async function DocsPage({ params }: { params: Promise<Params> }) 
 
   if (key === null) {
     return (
-      <div className="mx-auto grid max-w-6xl gap-10 px-4 py-12 sm:px-6 lg:grid-cols-[220px_1fr]">
+      <div className="mx-auto grid grid-cols-1 max-w-6xl gap-10 px-4 py-12 sm:px-6 lg:grid-cols-[220px_1fr]">
         <aside className="hidden lg:block">
           <div className="sticky top-24">
             <Sidebar active={null} />
@@ -144,7 +144,7 @@ export default async function DocsPage({ params }: { params: Promise<Params> }) 
             comes after.
           </p>
 
-          <div className="mt-8 grid gap-4 sm:grid-cols-2">
+          <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
             {START.map((s) => (
               <Link key={s.href} href={s.href} className="group">
                 <Card className="flex h-full flex-col p-5 transition-colors group-hover:border-accent-line sm:p-6">
@@ -182,7 +182,7 @@ export default async function DocsPage({ params }: { params: Promise<Params> }) 
           <h2 className="mt-14 text-[20px] font-semibold tracking-[-0.02em] text-fg">
             All documentation
           </h2>
-          <div className="mt-6 grid gap-x-10 gap-y-8 sm:grid-cols-2">
+          <div className="mt-6 grid grid-cols-1 gap-x-10 gap-y-8 sm:grid-cols-2">
             {DOC_GROUPS.map((g) => (
               <section key={g}>
                 <h3 className="text-[12px] font-medium uppercase tracking-[0.1em] text-fg-subtle">
@@ -218,7 +218,7 @@ export default async function DocsPage({ params }: { params: Promise<Params> }) 
   const toc = outline(doc.markdown);
 
   return (
-    <div className="mx-auto grid max-w-7xl gap-10 px-4 py-12 sm:px-6 lg:grid-cols-[220px_minmax(0,1fr)] xl:grid-cols-[220px_minmax(0,1fr)_220px]">
+    <div className="mx-auto grid grid-cols-1 max-w-7xl gap-10 px-4 py-12 sm:px-6 lg:grid-cols-[220px_minmax(0,1fr)] xl:grid-cols-[220px_minmax(0,1fr)_220px]">
       <aside className="hidden lg:block">
         <div className="sticky top-24 max-h-[calc(100dvh-8rem)] overflow-y-auto pb-8">
           <Sidebar active={doc.entry.slug} />

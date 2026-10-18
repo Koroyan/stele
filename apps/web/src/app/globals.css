@@ -152,6 +152,8 @@
     color: var(--color-fg-subtle);
   }
   .prose-stele :not(pre) > code {
+    /* Long identifiers and URLs wrap instead of widening the page on phones. */
+    overflow-wrap: anywhere;
     background: var(--color-surface-2);
     border: 1px solid var(--color-line);
     border-radius: 6px;

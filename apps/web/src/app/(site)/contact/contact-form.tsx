@@ -84,7 +84,7 @@ export function ContactForm() {
             ))}
           </Select>
         </Field>
-        <div className="grid gap-5 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
           <Field label="Your name" htmlFor="name">
             <Input id="name" required maxLength={120} value={form.name} onChange={set("name")} />
           </Field>

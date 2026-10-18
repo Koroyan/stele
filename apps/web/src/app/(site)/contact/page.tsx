@@ -23,7 +23,7 @@ const REASONS = [
 
 export default function ContactPage() {
   return (
-    <div className="mx-auto grid max-w-6xl gap-12 px-4 py-14 sm:px-6 sm:py-20 lg:grid-cols-[1fr_1.15fr]">
+    <div className="mx-auto grid grid-cols-1 max-w-6xl gap-12 px-4 py-14 sm:px-6 sm:py-20 lg:grid-cols-[1fr_1.15fr]">
       <div>
         <p className="text-[12.5px] font-medium uppercase tracking-[0.12em] text-accent">Contact</p>
         <h1 className="mt-3 text-balance text-[34px] font-semibold leading-[1.1] tracking-[-0.025em] text-fg sm:text-[44px]">

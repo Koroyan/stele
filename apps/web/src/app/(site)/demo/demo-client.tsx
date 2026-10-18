@@ -671,7 +671,7 @@ function GateDemo({
 
   if (!session) {
     return (
-      <div className="grid gap-6 rounded-2xl border border-line bg-surface p-6 sm:p-8 lg:grid-cols-[1.2fr_1fr]">
+      <div className="grid grid-cols-1 gap-6 rounded-2xl border border-line bg-surface p-6 sm:p-8 lg:grid-cols-[1.2fr_1fr]">
         <div>
           <p className="text-[12px] font-semibold uppercase tracking-[0.1em] text-accent">
             The story · about 2 minutes
@@ -734,7 +734,7 @@ function GateDemo({
   const nextVersion = (access?.requiredVersion ?? 1) + 1;
 
   return (
-    <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
+    <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_320px]">
       <div className="min-w-0 space-y-5">
         <nav aria-label="Demo steps">
           <ol className="flex flex-wrap gap-1.5">
@@ -919,7 +919,7 @@ function GateDemo({
               Free play — every control, in any order
             </span>
           </summary>
-          <div className="grid gap-2 border-t border-line px-5 py-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-2 border-t border-line px-5 py-4 sm:grid-cols-2">
             <button
               type="button"
               className={buttonClasses("primary", "md")}
@@ -1116,7 +1116,7 @@ function ProofDemo({
     });
 
   return (
-    <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
+    <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_320px]">
       <ol className="space-y-3">
         <ProofStep n={1} title="A company publishes its Terms" done={!!session}>
           <p>

@@ -148,7 +148,7 @@ export default async function DevelopersPage() {
             Prove which terms each user accepted — or make your Solana program require them. Install
             a package, follow one guide, look things up in the references.
           </p>
-          <div className="mt-8 grid gap-3 md:grid-cols-3">
+          <div className="mt-8 grid grid-cols-1 gap-3 md:grid-cols-3">
             <Install
               label="Browser & Node.js"
               command="npm install @stelehq/sdk"
@@ -172,7 +172,7 @@ export default async function DevelopersPage() {
       </section>
 
       <section className="mx-auto max-w-6xl px-4 py-14 sm:px-6">
-        <div className="grid gap-5 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
           <ProductCard
             name="Stele Proof"
             tagline="Prove which terms each user accepted"
@@ -211,7 +211,7 @@ export default async function DevelopersPage() {
           <h2 className="text-[13px] font-semibold uppercase tracking-[0.1em] text-fg-subtle">
             References
           </h2>
-          <div className="mt-5 grid gap-4 md:grid-cols-3">
+          <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-3">
             {REFERENCES.map((r) => (
               <Link key={r.href} href={r.href} className="group">
                 <div className="h-full rounded-2xl border border-line bg-surface p-5 transition-colors group-hover:border-accent-line">
@@ -228,7 +228,7 @@ export default async function DevelopersPage() {
           <h2 className="mt-12 text-[13px] font-semibold uppercase tracking-[0.1em] text-fg-subtle">
             API base URL
           </h2>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
             {networks.map((n) => (
               <div
                 key={n.label}

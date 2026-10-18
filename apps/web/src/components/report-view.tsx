@@ -377,7 +377,7 @@ export function ReportView({ report, where }: { report: VerificationReport; wher
       </Card>
 
       {(f.organization || f.version || f.acceptance || f.proof) && (
-        <div className="grid gap-6 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <ProofCards report={report} />
           {f.acceptance && (
             <Card className="lg:col-span-2">

@@ -40,7 +40,7 @@ export function Reference({
   groups: RefGroup[];
 }) {
   return (
-    <div className="mx-auto grid max-w-6xl gap-10 px-4 py-10 sm:px-6 lg:grid-cols-[220px_minmax(0,1fr)]">
+    <div className="mx-auto grid grid-cols-1 max-w-6xl gap-10 px-4 py-10 sm:px-6 lg:grid-cols-[220px_minmax(0,1fr)]">
       <aside className="hidden lg:block">
         <nav
           aria-label="Contents"

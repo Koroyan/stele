@@ -280,7 +280,7 @@ function OperationView({ origin, op }: { origin: string; op: Operation }) {
             </p>
           )}
           {inputs.length > 0 && (
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               {inputs.map((p) => (
                 <label key={`${p.in}:${p.name}`} className="block text-[13px]">
                   <span className="font-mono text-fg">{p.name}</span>
@@ -404,7 +404,7 @@ export function ApiExplorer({ origin }: { origin: string }) {
   const op = spec.ops.find((o) => o.id === selected) ?? null;
 
   return (
-    <div className="grid gap-8 lg:grid-cols-[300px_minmax(0,1fr)]">
+    <div className="grid grid-cols-1 gap-8 lg:grid-cols-[300px_minmax(0,1fr)]">
       <aside className="lg:sticky lg:top-32 lg:max-h-[calc(100dvh-9rem)] lg:overflow-y-auto">
         <input
           value={query}
