@@ -151,7 +151,7 @@ export default function AcceptancesPage() {
       />
       <Panel title="Search">
         <form
-          className="grid gap-4 md:grid-cols-3 xl:grid-cols-6"
+          className="grid grid-cols-1 gap-4 md:grid-cols-3 xl:grid-cols-6"
           onSubmit={(e) => {
             e.preventDefault();
             void search();

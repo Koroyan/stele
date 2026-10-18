@@ -108,7 +108,7 @@ function Versions({ doc }: { doc: DocDetail }) {
                   </span>
                 </div>
                 <p className="mt-1 text-[13.5px] text-fg-muted">{v.title}</p>
-                <dl className="mt-4 grid gap-x-6 gap-y-2 text-[12.5px] sm:grid-cols-2">
+                <dl className="mt-4 grid grid-cols-1 gap-x-6 gap-y-2 text-[12.5px] sm:grid-cols-2">
                   <div className="flex min-w-0 gap-2">
                     <dt className="shrink-0 text-fg-subtle">Fingerprint</dt>
                     <dd className="min-w-0">
@@ -344,7 +344,7 @@ const accepted = await stele.hasAcceptedLatest(user.id, "${slug}");`,
     },
   } as const;
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
       <Panel
         title="Hosted acceptance page"
         description="Send users here, or open it from your app. The page verifies the text against Solana before showing it."

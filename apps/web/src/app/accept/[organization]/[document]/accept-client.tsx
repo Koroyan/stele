@@ -293,7 +293,7 @@ export function AcceptClient({
         </Alert>
       )}
 
-      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_380px]">
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_380px]">
         {/* Document */}
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">

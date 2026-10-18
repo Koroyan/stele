@@ -346,7 +346,7 @@ function DomainSection({ canManage }: { canManage: boolean }) {
             <p className="text-[13.5px] font-medium text-fg">
               Add this DNS record for <span className="font-mono">{v.domain}</span>
             </p>
-            <div className="grid gap-3 sm:grid-cols-[110px_1fr]">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-[110px_1fr]">
               <span className="text-[12.5px] text-fg-subtle">Type</span>
               <span className="font-mono text-[12.5px] text-fg">TXT</span>
               <span className="text-[12.5px] text-fg-subtle">Name</span>

@@ -159,7 +159,7 @@ export default function InsightsPage() {
 
       {d && t && (
         <div className={cn("mt-6 space-y-6 transition-opacity", a.loading && "opacity-60")}>
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <Kpi
               label="Acceptances"
               value={fmt(t.acceptances)}
@@ -205,7 +205,7 @@ export default function InsightsPage() {
             />
           </Panel>
 
-          <div className="grid gap-6 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <Panel
               title="From request to record"
               description="Signing requests your site made in this period, and how far each got."
@@ -316,7 +316,7 @@ export default function InsightsPage() {
             )}
           </Panel>
 
-          <div className="grid gap-6 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
             <Panel title="How people sign">
               <RankedBars
                 rows={[
@@ -334,7 +334,7 @@ export default function InsightsPage() {
             </Panel>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <Kpi
               label="Network fees"
               value={`${(t.feeLamports / 1e9).toFixed(4)} SOL`}

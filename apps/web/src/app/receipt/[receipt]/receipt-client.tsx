@@ -143,7 +143,7 @@ export function ReceiptClient({ acceptanceId }: { acceptanceId: string }) {
         </Alert>
       )}
 
-      <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_300px]">
+      <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_300px]">
         <div className="min-w-0">
           {report ? (
             <ReportView report={report} where={where} />

@@ -74,7 +74,7 @@ function Checklist() {
       title="Set up your organization"
       description={`${items.length - remaining} of ${items.length} complete`}
     >
-      <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+      <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
         {items.map((i) => (
           <li key={i.label}>
             <Link
@@ -124,7 +124,7 @@ export default function OverviewPage() {
 
       <Checklist />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Stat
           label="Acceptances, last 30 days"
           value={s ? formatNumber(s.acceptances30d) : "—"}
@@ -151,7 +151,7 @@ export default function OverviewPage() {
         {s ? <AcceptanceChart daily={s.daily} /> : <LoadingRows label="Loading activity…" />}
       </Card>
 
-      <div className="grid gap-6 xl:grid-cols-[1.4fr_1fr]">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.4fr_1fr]">
         <Panel
           title="Recent acceptances"
           actions={

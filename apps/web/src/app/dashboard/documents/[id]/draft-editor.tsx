@@ -128,7 +128,7 @@ export function DraftEditor({
   }
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+    <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
       <Card className="p-5 sm:p-6">
         <div className="flex items-center justify-between gap-3">
           <p className="text-[15px] font-semibold text-fg">
@@ -160,7 +160,7 @@ export function DraftEditor({
               placeholder="Acme Terms of Service"
             />
           </Field>
-          <div className="grid gap-5 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
             <Field
               label="Version label"
               htmlFor="label"

@@ -207,7 +207,7 @@ export default function SecurityPage() {
             )}
           </Panel>
 
-          <div className="grid gap-6 xl:grid-cols-2">
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
             <Panel
               title="Transfer ownership"
               description="Two steps: the owner proposes, then the new owner accepts by signing with the new key. Use this to move ownership to a multisig (for example a Squads vault)."

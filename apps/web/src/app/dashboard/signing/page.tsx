@@ -168,7 +168,7 @@ function PolicyPanel({ canEdit }: { canEdit: boolean }) {
       <RoleNotice allowed={canEdit}>
         Only the owner or an admin can change the signing policy.
       </RoleNotice>
-      <fieldset className="grid gap-3 lg:grid-cols-2" disabled={!canEdit}>
+      <fieldset className="grid grid-cols-1 gap-3 lg:grid-cols-2" disabled={!canEdit}>
         <legend className="sr-only">Signing policy</legend>
         {POLICIES.map((p) => (
           <label
@@ -266,7 +266,7 @@ function SponsorshipSettings({
       description="Your users never pay: every recording is relayed and paid by Stele's relayer. Choose whether Stele absorbs the fee or your organization reimburses it on-chain."
     >
       <RoleNotice allowed={canEdit}>Only the owner or an admin can change fee settings.</RoleNotice>
-      <div className="grid gap-3 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         {(
           [
             [
@@ -416,7 +416,7 @@ function ShardSponsorship({
         )}
         {shard.lowBalance && <Badge tone="danger">Low balance</Badge>}
       </div>
-      <div className="grid gap-2 text-[13px] sm:grid-cols-[150px_1fr]">
+      <div className="grid grid-cols-1 gap-2 text-[13px] sm:grid-cols-[150px_1fr]">
         <span className="text-fg-subtle">Deposit address</span>
         <span className="flex flex-wrap items-center gap-2">
           <Fingerprint value={shard.address} mode="full" />
@@ -448,7 +448,7 @@ function ShardSponsorship({
       </div>
       {shard.relayedByStele && (
         <>
-          <div className="grid max-w-xl gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-1 max-w-xl gap-3 sm:grid-cols-2">
             <Field label="Cap per record (SOL)" htmlFor={`max-${shard.shardId}`}>
               <Input
                 id={`max-${shard.shardId}`}
@@ -539,7 +539,7 @@ function ShardSponsorship({
             )}
           </div>
           {s && (
-            <div className="grid max-w-xl gap-3 sm:grid-cols-2">
+            <div className="grid grid-cols-1 max-w-xl gap-3 sm:grid-cols-2">
               <div className="space-y-2">
                 <Field
                   label="Deposit (SOL)"

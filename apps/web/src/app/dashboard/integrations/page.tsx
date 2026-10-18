@@ -308,7 +308,7 @@ const { sessionToken } = await stele.createAcceptanceSession({
             </Field>
             <fieldset>
               <legend className="text-[13px] font-medium text-fg">Events</legend>
-              <div className="mt-2 grid gap-2 sm:grid-cols-2">
+              <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {(hooks.data?.events ?? []).map((ev) => (
                   <label
                     key={ev}
@@ -341,7 +341,7 @@ const { sessionToken } = await stele.createAcceptanceSession({
         </Panel>
       )}
 
-      <div className="grid gap-6 xl:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
         <Panel
           title="Verify webhook signatures"
           description="Header Stele-Signature: t=<unix>,v1=<HMAC-SHA256(secret, t.body)>. Reject stale timestamps."

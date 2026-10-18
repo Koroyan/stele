@@ -263,7 +263,7 @@ export function VerifiedClient({ program }: { program: string }) {
 
       <Origin view={view} />
 
-      <div className="mt-8 grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+      <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="min-w-0 space-y-6">
           <Card className="p-6">
             <h2 className="text-[16px] font-semibold text-fg">What Stele checked</h2>

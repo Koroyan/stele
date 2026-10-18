@@ -381,7 +381,7 @@ export function InstructionEditor({
                       return (
                         <li
                           key={`${ix.name}-${a.name}`}
-                          className="grid items-center gap-2 rounded-xl border border-line p-3 sm:grid-cols-[minmax(0,160px)_minmax(0,230px)_minmax(0,1fr)]"
+                          className="grid grid-cols-1 items-center gap-2 rounded-xl border border-line p-3 sm:grid-cols-[minmax(0,160px)_minmax(0,230px)_minmax(0,1fr)]"
                         >
                           <div className="min-w-0">
                             <p className="truncate font-mono text-[13px] text-fg">{a.name}</p>
@@ -436,7 +436,7 @@ export function InstructionEditor({
                       — any valid value, e.g. an amount of 1
                     </span>
                   </p>
-                  <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     {ix.args.map((arg, i) => (
                       <label key={arg.name} className="grid gap-1.5 text-[13px] text-fg-muted">
                         <span>
@@ -491,7 +491,7 @@ export function InstructionEditor({
             {rows.map((r, i) => (
               <div
                 key={i}
-                className="grid items-center gap-2 rounded-xl border border-line p-2.5 sm:grid-cols-[28px_minmax(0,220px)_minmax(0,1fr)_auto]"
+                className="grid grid-cols-1 items-center gap-2 rounded-xl border border-line p-2.5 sm:grid-cols-[28px_minmax(0,220px)_minmax(0,1fr)_auto]"
               >
                 <span className="text-center font-mono text-[12px] text-fg-subtle">{i}</span>
                 <Select

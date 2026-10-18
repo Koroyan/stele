@@ -73,7 +73,7 @@ function Allowance({ o }: { o: Overview }) {
       title="This month"
       description="Every recorded acceptance or proof counts once, whoever pays the network fee. The free allowance resets on the 1st (UTC); credits never expire."
     >
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div>
           <p className="text-[12.5px] text-fg-subtle">Free recordings used</p>
           <p className="mt-1 text-[22px] font-semibold tracking-[-0.02em] text-fg">
@@ -201,7 +201,7 @@ function BuyCredits({ o, canBuy, reload }: { o: Overview; canBuy: boolean; reloa
           Payments here use test SOL, which has no value: try the whole purchase flow for free.
         </Alert>
       )}
-      <div className="grid gap-3 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         {o.packs.map((p, i) => (
           <div
             key={p.id}

@@ -211,7 +211,7 @@ export default function GateProgramsPage() {
                 </Alert>
               ) : (
                 <>
-                  <div className="grid gap-4 md:grid-cols-2">
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <Field label="Policy" htmlFor="policy">
                       <Select
                         id="policy"
@@ -351,7 +351,7 @@ export default function GateProgramsPage() {
               title="4. Register your deployed program"
               description="So this dashboard can test it and show its allowed and refused transactions."
             >
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <Field label="Program ID" htmlFor="program" error={addressError}>
                   <Input
                     id="program"

@@ -199,7 +199,7 @@ export function CreateOrganization({
         >
           <fieldset>
             <legend className="text-[13px] font-medium text-fg">How will you use Stele?</legend>
-            <div className="mt-2 grid gap-3 sm:grid-cols-2">
+            <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
               {PRODUCTS.map((p) => {
                 const Icon = p.icon;
                 const checked = product === p.id;

@@ -53,7 +53,7 @@ function GateSetup({ steps }: { steps: SetupStep[] }) {
       title="Set up Stele Gate"
       description={`${steps.filter((s) => s.done).length} of ${steps.length} done — follow the steps in order.`}
     >
-      <ol className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+      <ol className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-4">
         {steps.map((step, i) => (
           <li key={step.title}>
             <Link
@@ -189,7 +189,7 @@ export default function GateOverviewPage() {
                   },
                 ]}
               />
-              <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 <Fact
                   label="Protected program"
                   value={

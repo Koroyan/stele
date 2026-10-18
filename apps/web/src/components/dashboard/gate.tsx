@@ -285,7 +285,7 @@ export function EnableGate() {
         </div>
       </div>
 
-      <ol className="mt-6 grid gap-3 md:grid-cols-3">
+      <ol className="mt-6 grid grid-cols-1 gap-3 md:grid-cols-3">
         {GATE_STEPS.map((step, i) => (
           <li key={step.title} className="rounded-xl border border-line bg-surface-2 p-4">
             <p className="flex items-center gap-2 text-[14px] font-semibold text-fg">
