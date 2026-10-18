@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 const PAGES: { path: string; heading: string | RegExp }[] = [
-  { path: "/", heading: "Prove what was agreed." },
+  { path: "/", heading: /is a row in someone.s database/ },
   { path: "/proof", heading: "Know exactly what your user agreed to." },
   { path: "/gate", heading: /accepted your current terms/ },
   { path: "/product", heading: "Know exactly what your user agreed to." },
@@ -18,6 +18,9 @@ const PAGES: { path: string; heading: string | RegExp }[] = [
   { path: "/docs/gate", heading: "Stele Gate" },
   { path: "/docs/trust-model", heading: /Trust model/ },
   { path: "/verify", heading: "Verify an agreement" },
+  { path: "/contact", heading: /build provable agreements together/ },
+  { path: "/terms", heading: "Terms of Service" },
+  { path: "/privacy", heading: "Privacy Policy" },
 ];
 
 test.describe("public site", () => {
