@@ -30,7 +30,7 @@ const EXAMPLE_MESSAGE = buildAcceptanceMessage(
     version: 3,
     versionHash: sha256(utf8("illustrative fingerprint")),
     signer: toBase58(sha256(utf8("illustrative signer"))),
-    networkLabel: "Solana Mainnet",
+    networkLabel: "Solana Devnet",
     issuedAt: 1_790_000_000,
     expiresAt: 1_790_000_600,
     shardId: 0,
@@ -124,7 +124,7 @@ export default function ProofPage() {
 
       <Section className="border-t border-line bg-bg-raised">
         <SectionHeading eyebrow="How it works" title="Five steps from document to proof." />
-        <ol className="mt-10 grid gap-4 md:grid-cols-5">
+        <ol className="mt-10 grid grid-cols-1 gap-4 md:grid-cols-5">
           {STEPS.map(([title, body], i) => (
             <li key={title} className="rounded-2xl border border-line bg-surface p-5">
               <p className="font-mono text-[12px] text-accent">{String(i + 1).padStart(2, "0")}</p>
@@ -142,7 +142,7 @@ export default function ProofPage() {
       </Section>
 
       <Section className="border-t border-line">
-        <div className="grid items-start gap-12 lg:grid-cols-[0.9fr_1.1fr]">
+        <div className="grid grid-cols-1 items-start gap-12 lg:grid-cols-[0.9fr_1.1fr]">
           <SectionHeading
             eyebrow="What users sign"
             title="Human-readable. Bound to one version, one site, one network."
@@ -162,7 +162,7 @@ export default function ProofPage() {
 
       <Section className="border-t border-line bg-bg-raised">
         <SectionHeading eyebrow="Use cases" title="For any agreement that has to hold up later." />
-        <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {USE_CASES.map(([title, body]) => (
             <div key={title} className="rounded-2xl border border-line bg-surface p-5">
               <p className="text-[15px] font-semibold text-fg">{title}</p>
@@ -178,7 +178,7 @@ export default function ProofPage() {
           title="Use the page, the widget, the API or the SDK."
           lead="No blockchain knowledge is needed to integrate Proof: Stele pays the network fee and your users never see a wallet unless they want one."
         />
-        <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-10 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
           {INTEGRATIONS.map((i) => (
             <Link key={i.title} href={i.href} className="group">
               <FeatureCard
@@ -198,7 +198,7 @@ export default function ProofPage() {
           eyebrow="Honest boundaries"
           title="What the evidence proves — and what it doesn't."
         />
-        <div className="mt-10 grid gap-5 md:grid-cols-2">
+        <div className="mt-10 grid grid-cols-1 gap-5 md:grid-cols-2">
           <div className="rounded-2xl border border-line bg-surface p-6">
             <p className="text-[15px] font-semibold text-fg">Stele evidence proves</p>
             <div className="mt-4">
