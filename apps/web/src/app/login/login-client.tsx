@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Alert, Button, Card, Fingerprint, LockIcon, Spinner } from "@stele/ui";
@@ -72,7 +73,12 @@ export function LoginClient({ next }: { next?: string }) {
         <LockIcon className="mt-0.5 h-4 w-4 shrink-0" />
         <p>
           The sign-in message names this site and {network.label}. It cannot accept an agreement,
-          move funds or authorize a transaction. Stele never asks for your seed phrase.
+          move funds or authorize a transaction. Stele never asks for your seed phrase. The first
+          time, you will be asked to accept Stele&apos;s{" "}
+          <Link href="/terms" className="text-accent hover:underline">
+            Terms of Service
+          </Link>{" "}
+          separately — with Stele itself.
         </p>
       </div>
       <WalletDialog open={open} onClose={() => setOpen(false)} />
