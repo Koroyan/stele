@@ -111,6 +111,12 @@ function StatusIcon({ status }: { status: Check["status"] }) {
         <AlertIcon className="h-3 w-3" />
       </span>
     );
+  if (status === "note")
+    return (
+      <span className={cn(base, "border-accent-line bg-accent-soft text-accent")} aria-label="note">
+        <InfoIcon className="h-3 w-3" />
+      </span>
+    );
   return (
     <span className={cn(base, "border-line-strong text-fg-subtle")} aria-label="skipped">
       <InfoIcon className="h-3 w-3" />
