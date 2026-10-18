@@ -178,7 +178,7 @@ export default function OverviewPage() {
                   <Td mono>{shortAddress(a.signer, 5, 5)}</Td>
                   <Td>
                     <span className="text-fg">{a.documentSlug}</span>{" "}
-                    <span className="text-fg-subtle">v#{a.versionNumber}</span>
+                    <span className="text-fg-subtle">v{a.versionNumber}</span>
                   </Td>
                   <Td>{relativeTime(a.blockTime)}</Td>
                   <Td>

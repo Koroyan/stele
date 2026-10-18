@@ -255,7 +255,7 @@ const GATE_STEPS = [
   {
     icon: <CodeIcon className="h-4 w-4" />,
     title: "Your program checks",
-    body: "One call, require_current(), before the action. No pass, an old version or someone else’s pass, and Solana refuses the transaction — whoever sent it.",
+    body: "One call, require_current_passport(), before the action. No passport entry, an old version or someone else’s passport, and Solana refuses the transaction — whoever sent it.",
   },
 ];
 

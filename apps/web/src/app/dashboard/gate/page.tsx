@@ -135,7 +135,7 @@ export default function GateOverviewPage() {
     <>
       <PageHeader
         title="Stele Gate"
-        description="Require the current version of your terms before a protected Solana action. Your program enforces it with require_current(); this page shows the state on Solana."
+        description="Require the current version of your terms before a protected Solana action. Your program enforces it with require_current_passport(); this page shows the state on Solana."
         actions={
           enabled ? (
             <Link href="/dashboard/gate/programs" className={buttonClasses("primary", "md")}>
@@ -175,7 +175,7 @@ export default function GateOverviewPage() {
                   {
                     done: Boolean(program),
                     title: "Connect your program",
-                    hint: "Register it and add one call, require_current(), to the protected instruction.",
+                    hint: "Register it and add one call, require_current_passport(), to the protected instruction.",
                     href: "/dashboard/gate/programs",
                   },
                   {
