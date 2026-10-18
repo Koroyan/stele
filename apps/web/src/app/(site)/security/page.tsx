@@ -88,7 +88,7 @@ export default function SecurityPage() {
 
       <Section>
         <SectionHeading eyebrow="Trust model" title="What you trust — and what you don't." />
-        <div className="mt-12 grid gap-5 md:grid-cols-2">
+        <div className="mt-12 grid grid-cols-1 gap-5 md:grid-cols-2">
           <Card className="p-6">
             <p className="text-[15px] font-semibold text-fg">You rely on</p>
             <div className="mt-4">
@@ -96,7 +96,7 @@ export default function SecurityPage() {
                 items={[
                   "Solana consensus and the integrity of finalized blocks",
                   "SHA-256 and Ed25519",
-                  "The Stele program at a build you can reproduce from source, with its upgrade authority held by a multisig",
+                  "The Stele program at a build you can reproduce from source — upgradeable today by a single key, moving to a multisig before Mainnet",
                   "The DNS attestor, only for the meaning of “verified domain”",
                 ]}
               />
@@ -125,7 +125,7 @@ export default function SecurityPage() {
           title="Sixty-plus attack scenarios, each with a defense."
           lead="Every scenario in the threat model lists the attack, impact, defense, detection, recovery and residual risk. The main families:"
         />
-        <div className="mt-12 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-12 grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
           {THREATS.map((t) => (
             <Card key={t.title} className="flex flex-col p-6">
               <p className="text-[15px] font-semibold text-fg">{t.title}</p>
@@ -159,7 +159,7 @@ export default function SecurityPage() {
       </Section>
 
       <Section className="border-t border-line bg-bg-raised">
-        <div className="grid gap-12 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-12 lg:grid-cols-2">
           <div>
             <SectionHeading eyebrow="Application security" title="The web layer is hardened too." />
             <div className="mt-8">
@@ -182,7 +182,7 @@ export default function SecurityPage() {
                 items={[
                   "The relayer key only pays fees; it cannot create or alter evidence",
                   "The attestor key can only vouch for domains, with expiry, and can be rotated",
-                  "Program upgrades require a multisig; verifiable builds let anyone match the deployed bytecode",
+                  "Program upgrades: a single key on Devnet today, a multisig before Mainnet; verifiable builds let anyone match the deployed bytecode",
                   "The verifier detects post-upgrade tampering by cross-checking publication transactions",
                   "No private keys or seed phrases are ever stored or requested",
                 ]}
@@ -193,7 +193,7 @@ export default function SecurityPage() {
       </Section>
 
       <Section className="border-t border-line">
-        <div className="grid items-center gap-8 rounded-2xl border border-line bg-surface p-8 md:grid-cols-[1fr_auto]">
+        <div className="grid grid-cols-1 items-center gap-8 rounded-2xl border border-line bg-surface p-8 md:grid-cols-[1fr_auto]">
           <div>
             <p className="text-[18px] font-semibold tracking-[-0.01em] text-fg">
               Found a vulnerability?
