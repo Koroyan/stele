@@ -666,7 +666,15 @@ function GateDemo({
   const go = (n: number) => {
     setChapter(n);
     setError(null);
-    requestAnimationFrame(() => heading.current?.focus());
+    // The new step starts where its title is readable — below the sticky header, not under it.
+    requestAnimationFrame(() => {
+      const h = heading.current;
+      if (!h) return;
+      h.focus({ preventScroll: true });
+      const section = h.closest("section");
+      if (section && section.getBoundingClientRect().top < 80)
+        section.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
   };
 
   if (!session) {
@@ -770,7 +778,7 @@ function GateDemo({
         </nav>
 
         {!finale && current ? (
-          <section className="rounded-2xl border border-line bg-surface p-5 sm:p-7">
+          <section className="scroll-mt-24 rounded-2xl border border-line bg-surface p-5 sm:p-7">
             <p className="text-[12px] font-semibold uppercase tracking-[0.1em] text-accent">
               Step {chapter + 1} of {CHAPTERS.length}
             </p>
@@ -829,7 +837,7 @@ function GateDemo({
             </div>
           </section>
         ) : (
-          <section className="rounded-2xl border border-line bg-surface p-5 sm:p-7">
+          <section className="scroll-mt-24 rounded-2xl border border-line bg-surface p-5 sm:p-7">
             <p className="text-[12px] font-semibold uppercase tracking-[0.1em] text-verified">
               Summary
             </p>
