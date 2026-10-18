@@ -1,7 +1,11 @@
 /** Verification report model. */
 import type { SignerEvidence, Statement } from "@stelehq/protocol";
 
-export type CheckStatus = "pass" | "fail" | "warn" | "skip" | "error";
+/**
+ * `note`: a fact the reader should know that is neither a pass nor a problem (for example: a
+ * wallet signature cannot show which website displayed the agreement). Never affects the verdict.
+ */
+export type CheckStatus = "pass" | "fail" | "warn" | "note" | "skip" | "error";
 
 export interface Check {
   id: string;
@@ -180,7 +184,7 @@ export interface VerificationReport {
   verifierVersion: string;
 }
 
-export const VERIFIER_VERSION = "2.0.0";
+export const VERIFIER_VERSION = "2.1.0";
 
 export class ReportBuilder {
   readonly checks: Check[] = [];
@@ -209,6 +213,9 @@ export class ReportBuilder {
   }
   warn(id: string, label: string, detail: string) {
     return this.add(id, label, "warn", detail, false);
+  }
+  note(id: string, label: string, detail: string) {
+    return this.add(id, label, "note", detail, false);
   }
   error(id: string, label: string, detail: string, critical = true) {
     return this.add(id, label, "error", detail, critical);

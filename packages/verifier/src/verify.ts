@@ -1329,10 +1329,10 @@ export async function verifyAcceptance(
         false,
       );
     else
-      b.warn(
+      b.note(
         "origin.attestation",
         "Requesting-site attestation",
-        `Origin: merchant-claimed, not browser-attested. "Requested by: ${message.requestDomain}" is part of the signed text, so it cannot be changed after signing — but the requesting page wrote it; a wallet signature does not prove which website displayed the agreement. Signature and document are unaffected.`,
+        `"Requested by: ${message.requestDomain}" was stated by the requesting site. It is part of the signed text, so it cannot be changed afterwards, but a wallet signature cannot show which website displayed the agreement (a passkey signature can). The signature and the document are unaffected.`,
       );
     b.facts.fees = checkFees(b, tx, decoded.accountKeys, {
       programId: ctx.programId,
@@ -2341,10 +2341,10 @@ async function verifyBatchedAcceptance(
       false,
     );
   else
-    b.warn(
+    b.note(
       "origin.attestation",
       "Requesting-site attestation",
-      `Origin: merchant-claimed, not browser-attested. "Requested by: ${requestDomain}" is part of the signed text, but the requesting page wrote it. Signature and document are unaffected.`,
+      `"Requested by: ${requestDomain}" was stated by the requesting site. It is part of the signed text, but a wallet signature cannot show which website displayed the agreement (a passkey signature can). The signature and the document are unaffected.`,
     );
 
   // 3. Inclusion: the leaf is in the anchored tree, at the anchored count.

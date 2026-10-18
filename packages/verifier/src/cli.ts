@@ -64,7 +64,14 @@ const opts = {
   deepPublicationSearch: values.deep,
 };
 
-const ICON: Record<string, string> = { pass: "✔", fail: "✘", warn: "!", skip: "–", error: "?" };
+const ICON: Record<string, string> = {
+  pass: "✔",
+  fail: "✘",
+  warn: "!",
+  note: "i",
+  skip: "–",
+  error: "?",
+};
 
 function print(report: VerificationReport): void {
   if (values.json) {
