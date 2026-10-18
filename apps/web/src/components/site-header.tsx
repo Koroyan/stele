@@ -13,6 +13,7 @@ const NAV = [
   { href: "/developers", label: "Developers" },
   { href: "/demo", label: "Live demo" },
   { href: "/docs", label: "Docs" },
+  { href: "/contact", label: "Contact" },
 ];
 
 export function SiteHeader() {
@@ -61,9 +62,12 @@ export function SiteHeader() {
         </nav>
         <div className="ml-auto hidden items-center gap-2 lg:flex">
           <NetworkSwitcher variant="header" className="mr-1" />
-          <Link href="/verify" className={buttonClasses("ghost", "sm")}>
-            Verify agreement
-          </Link>
+          {/* Below xl the main menu needs the room; Verify stays in the footer and mobile menu. */}
+          <span className="hidden xl:block">
+            <Link href="/verify" className={buttonClasses("ghost", "sm")}>
+              Verify agreement
+            </Link>
+          </span>
           <Link href="/dashboard" className={buttonClasses("primary", "sm")}>
             Launch dashboard
           </Link>
