@@ -152,7 +152,7 @@ You may stop using the Services at any time.
 
 We may suspend or end your access to the Services, or to part of them, if you breach these Terms, if your use creates a risk for the Services, for other users or for us, if we are required to by law, or if your account has been inactive for a long period. Where reasonable, we will tell you in advance and give you a chance to fix the problem.
 
-Suspension or termination does not delete on-chain records, and it does not prevent anyone from verifying them. Sections 5, 6, 7, 8, 9, 12, 17, 18 and 20 continue to apply after termination.
+Suspension or termination does not delete on-chain records, and it does not prevent anyone from verifying them. Sections 5, 6, 7, 8, 9, 12, 17, 18, 19 and 21 continue to apply after termination.
 
 ## 17. Disclaimers
 
@@ -160,23 +160,32 @@ To the extent permitted by law, the Services are provided "as is" and "as availa
 
 Some jurisdictions do not allow certain warranties to be excluded; in those jurisdictions, these exclusions apply only to the extent permitted.
 
-## 18. Indemnity
+## 18. Limitation of liability
+
+To the extent permitted by law:
+
+- Stele is not liable for indirect, incidental, special, consequential or punitive damages, or for loss of profits, revenue, data, goodwill or digital assets, however caused, even if we were told they were possible;
+- Stele's total liability arising out of or relating to the Services or these Terms is limited to the greater of the amounts you paid to Stele in the twelve months before the event giving rise to the liability, or one hundred US dollars (USD 100).
+
+Nothing in these Terms limits liability that cannot be limited by law, such as liability for fraud, or for death or personal injury caused by negligence.
+
+## 19. Indemnity
 
 You will defend and indemnify Stele against claims by third parties — including your users — and related losses and reasonable costs, to the extent they arise from Your Content, your documents and your relationship with your users, your programs, or your breach of these Terms or of the law.
 
-## 19. Changes to these Terms
+## 20. Changes to these Terms
 
 We may update these Terms. Each new version is published with Stele: its text, version and publication time are recorded on-chain, and anyone can compare it with earlier versions.
 
 We will tell you about material changes in the dashboard before they take effect. When a new version requires your acceptance, the dashboard asks you to sign it; if you do not accept it, you may stop using the Services. Changes do not apply retroactively.
 
-## 20. Governing law and disputes
+## 21. Governing law and disputes
 
 These Terms are governed by the laws of [GOVERNING LAW — to be completed before the Mainnet launch], without regard to its conflict-of-laws rules. Any dispute arising out of or in connection with these Terms or the Services will be resolved by the competent courts of [VENUE — to be completed before the Mainnet launch], unless mandatory law gives you the right to bring proceedings elsewhere.
 
 Before starting proceedings, each party will first try to resolve the dispute in good faith by contacting the other and allowing thirty days for a solution.
 
-## 21. General
+## 22. General
 
 These Terms, together with the Privacy Policy and any order or agreement we sign with you, are the entire agreement between you and Stele about the Services. If a provision is found unenforceable, the rest remains in effect. If we do not enforce a provision, we do not waive it.
 
@@ -186,6 +195,6 @@ Neither party is liable for delays or failures caused by events beyond its reaso
 
 These Terms are written in English. Translations are provided for convenience; the English version prevails.
 
-## 22. Contact
+## 23. Contact
 
 Questions about these Terms, notices and requests: use the contact form at stele.site/contact.
