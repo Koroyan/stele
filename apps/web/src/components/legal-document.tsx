@@ -6,8 +6,9 @@
  * the repository text (`fallback`) marked as not yet published.
  */
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import type { Content } from "@stelehq/protocol";
 import { SteleClient, loadVerifiedDocument, type VerifiedDocument } from "@stelehq/sdk";
-import { Alert, CheckIcon, ExternalIcon, Fingerprint, Skeleton } from "@stele/ui";
+import { Alert, CheckIcon, ExternalIcon, Fingerprint, Skeleton, Spinner } from "@stele/ui";
 import { ContentView } from "@/components/content-view";
 import { errorMessage } from "@/lib/api";
 import { txExplorerUrl } from "@/lib/chain";
@@ -89,10 +90,36 @@ export function LegalEvidence({ doc }: { doc: VerifiedDocument }) {
 }
 
 /** The whole document: evidence, then the verified text (or the unpublished draft). */
-export function LegalDocument({ slug, fallback }: { slug: string; fallback: ReactNode }) {
+/** The published version as the server read it, rendered before the browser has verified it. */
+export interface PublishedLegal {
+  content: Content;
+  label: string;
+  number: number;
+}
+
+export function LegalDocument({
+  slug,
+  published,
+  fallback,
+}: {
+  slug: string;
+  published: PublishedLegal | null;
+  fallback: ReactNode;
+}) {
   const state = useStelePlatformDocument(slug);
   if (state.kind === "loading")
-    return (
+    return published ? (
+      // The text is in the page from the first byte (search engines, no-JS readers); the
+      // verification against Solana replaces this note when it completes.
+      <div className="space-y-8">
+        <div className="flex items-center gap-2 rounded-xl border border-line bg-surface-2 px-4 py-3 text-[13px] text-fg-muted">
+          <Spinner className="h-4 w-4" />
+          Version {published.label} (#{published.number}) — verifying against Solana in your
+          browser…
+        </div>
+        <ContentView content={published.content} />
+      </div>
+    ) : (
       <div className="space-y-3">
         <Skeleton className="h-14 w-full" />
         <Skeleton className="h-6 w-2/3" />
@@ -115,7 +142,7 @@ export function LegalDocument({ slug, fallback }: { slug: string; fallback: Reac
           Not yet published with Stele on this network. This is the current text.
         </Alert>
       )}
-      {fallback}
+      {state.kind === "error" && published ? <ContentView content={published.content} /> : fallback}
     </div>
   );
 }
