@@ -54,11 +54,11 @@ export default function HomePage() {
                 Try the live demo <ArrowRightIcon className="h-4 w-4" />
               </Link>
               <Link href="/dashboard" className={buttonClasses("secondary", "lg")}>
-                Start free
+                Create your organization
               </Link>
             </div>
             <p className="mt-5 text-[13px] text-fg-subtle">
-              Free for your users · No crypto needed to sign · Open-source verifier
+              1,000 recordings free every month · Free for your users · Open-source verifier
             </p>
           </div>
           <div className="mt-14 sm:mt-16">
