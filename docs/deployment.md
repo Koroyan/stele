@@ -323,6 +323,20 @@ reach it (`PDF_RENDERER_URL`, default `http://pdf-renderer:4100`). Without it, P
 The evidence itself lives on Solana and cannot be lost or altered by any failure below. These
 runbooks restore service and limit damage.
 
+### Backups
+
+`infra/backup.sh` dumps the database (`pg_dump --format=custom`) and archives the content store every
+night, keeping 14 days in `/var/backups/stele`:
+
+```bash
+chmod +x /opt/stele/infra/backup.sh
+echo '15 3 * * * root /opt/stele/infra/backup.sh >> /var/log/stele-backup.log 2>&1' > /etc/cron.d/stele-backup
+```
+
+Copy `/var/backups/stele` off the host as well (object storage with versioning, or another server).
+Restore: `docker exec -i stele-postgres-1 pg_restore -U stele -d stele --clean --if-exists < db-….dump`,
+and unpack `content-….tar.gz` into the `stele_content` volume. Test a restore before Mainnet.
+
 ### Database lost or corrupted
 
 1. Provision an empty database and run migrations.
