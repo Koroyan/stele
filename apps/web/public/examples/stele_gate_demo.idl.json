@@ -9,19 +9,8 @@
   "instructions": [
     {
       "name": "create_vault",
-      "docs": [
-        "Opens a vault whose deposits require `policy` (one vault per policy)."
-      ],
-      "discriminator": [
-        29,
-        237,
-        247,
-        208,
-        193,
-        82,
-        54,
-        135
-      ],
+      "docs": ["Opens a vault whose deposits require `policy` (one vault per policy)."],
+      "discriminator": [29, 237, 247, 208, 193, 82, 54, 135],
       "accounts": [
         {
           "name": "manager",
@@ -38,13 +27,7 @@
             "seeds": [
               {
                 "kind": "const",
-                "value": [
-                  118,
-                  97,
-                  117,
-                  108,
-                  116
-                ]
+                "value": [118, 97, 117, 108, 116]
               },
               {
                 "kind": "account",
@@ -67,19 +50,8 @@
     },
     {
       "name": "deposit",
-      "docs": [
-        "Deposits `amount` demo USDC (6 decimals) — only with a current Stele AccessPass."
-      ],
-      "discriminator": [
-        242,
-        35,
-        198,
-        137,
-        82,
-        225,
-        242,
-        182
-      ],
+      "docs": ["Deposits `amount` demo USDC (6 decimals) — only with a current Stele AccessPass."],
+      "discriminator": [242, 35, 198, 137, 82, 225, 242, 182],
       "accounts": [
         {
           "name": "investor",
@@ -92,13 +64,7 @@
             "seeds": [
               {
                 "kind": "const",
-                "value": [
-                  118,
-                  97,
-                  117,
-                  108,
-                  116
-                ]
+                "value": [118, 97, 117, 108, 116]
               },
               {
                 "kind": "account",
@@ -128,16 +94,7 @@
         "The same deposit, admitted by the investor's Stele passport (one account per wallet for every",
         "document) instead of a per-document AccessPass."
       ],
-      "discriminator": [
-        55,
-        255,
-        168,
-        251,
-        95,
-        87,
-        1,
-        42
-      ],
+      "discriminator": [55, 255, 168, 251, 95, 87, 1, 42],
       "accounts": [
         {
           "name": "investor",
@@ -150,13 +107,7 @@
             "seeds": [
               {
                 "kind": "const",
-                "value": [
-                  118,
-                  97,
-                  117,
-                  108,
-                  116
-                ]
+                "value": [118, 97, 117, 108, 116]
               },
               {
                 "kind": "account",
@@ -184,44 +135,17 @@
   "accounts": [
     {
       "name": "Vault",
-      "discriminator": [
-        211,
-        8,
-        232,
-        43,
-        2,
-        152,
-        117,
-        119
-      ]
+      "discriminator": [211, 8, 232, 43, 2, 152, 117, 119]
     }
   ],
   "events": [
     {
       "name": "Deposited",
-      "discriminator": [
-        111,
-        141,
-        26,
-        45,
-        161,
-        35,
-        100,
-        57
-      ]
+      "discriminator": [111, 141, 26, 45, 161, 35, 100, 57]
     },
     {
       "name": "PassportDeposited",
-      "discriminator": [
-        26,
-        251,
-        43,
-        6,
-        141,
-        153,
-        147,
-        231
-      ]
+      "discriminator": [26, 251, 43, 6, 141, 153, 147, 231]
     }
   ],
   "errors": [
@@ -291,19 +215,13 @@
           {
             "name": "terms_fingerprint",
             "type": {
-              "array": [
-                "u8",
-                32
-              ]
+              "array": ["u8", 32]
             }
           },
           {
             "name": "acceptance_id",
             "type": {
-              "array": [
-                "u8",
-                32
-              ]
+              "array": ["u8", 32]
             }
           },
           {
@@ -356,9 +274,7 @@
         "fields": [
           {
             "name": "policy",
-            "docs": [
-              "The Stele policy every deposit requires."
-            ],
+            "docs": ["The Stele policy every deposit requires."],
             "type": "pubkey"
           },
           {
@@ -367,9 +283,7 @@
           },
           {
             "name": "total_deposited",
-            "docs": [
-              "Demo USDC, 6 decimals."
-            ],
+            "docs": ["Demo USDC, 6 decimals."],
             "type": "u64"
           },
           {

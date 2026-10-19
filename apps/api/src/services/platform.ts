@@ -28,9 +28,7 @@ export interface PlatformDocument {
 }
 
 /** Stele's own organization and its legal documents, or null when not configured. */
-export async function platformDocuments(
-  deps: Deps,
-): Promise<{
+export async function platformDocuments(deps: Deps): Promise<{
   organization: string;
   terms: PlatformDocument | null;
   privacy: PlatformDocument | null;
