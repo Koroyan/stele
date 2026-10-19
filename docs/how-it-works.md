@@ -88,9 +88,9 @@ No personal data is written to Solana: only public keys, hashes, timestamps and 
 
 ## Without a wallet, and beyond documents
 
-- **Passkeys.** A visitor without a wallet creates a passkey; their browser generates a signing key and
-  encrypts it so that only the passkey can unlock it. Signing then takes one passkey prompt, and the
-  same signature is recorded on Solana. Stele stores only the encrypted key.
+- **Passkeys.** A visitor without a wallet creates a passkey (Face ID, a fingerprint, a device PIN).
+  The passkey's own key signs — it never leaves the device — and Solana verifies that signature
+  on-chain; the browser also attests which site asked. Stele holds only the public key.
 - **Fees.** The visitor never pays: Stele's relayer pays every network fee, and the organization can
   reimburse it automatically from a deposit only the Solana program can spend.
 - **Proofs.** The same machinery records confirmations of purchases, refunds, consents and more: the

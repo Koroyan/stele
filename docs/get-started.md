@@ -1150,11 +1150,18 @@ Your test wallet needs no SOL to accept. If your organization has **Allowed requ
 Many visitors have no Solana wallet. In **Dashboard → Signing & fees**, choose **Wallet or passkey**
 (or **Passkey only**). The same widget then offers **Create a passkey**:
 
-1. The browser creates a signing key and protects it with the visitor's passkey (Face ID, Touch ID,
-   Windows Hello, a phone or a security key). Stele receives only the encrypted key — it cannot sign
-   for the visitor, and neither can you.
-2. The widget offers a **recovery kit** (a code shown once) for the day the device is lost.
-3. To sign, one passkey prompt approves the exact text and unlocks the key for that one signature.
+1. The visitor creates a passkey (Face ID, Touch ID, Windows Hello, a phone or a security key). Its
+   own key (secp256r1) is the signer: the private key never leaves the device or the visitor's
+   password manager. Stele and you receive only the public key — nobody can sign for the visitor.
+2. To sign, one passkey prompt approves the exact text, and Solana verifies the passkey's signature
+   on-chain. The browser also attests which website asked, so the receipt proves the site too.
+3. A passkey synced by iCloud Keychain, Google Password Manager or a password manager comes back on
+   the visitor's new device. If it is lost for good, see below.
+
+> [!NOTE]
+> Signers created before native passkeys existed are **PRF-protected keys**: a separate signing key,
+> encrypted with the passkey, with a **recovery kit**. They keep working; new signers are always
+> native passkeys.
 
 Nothing changes for your server: the step 7 check, webhooks and receipts work the same. Receipts
 additionally carry the passkey's evidence, which every verifier checks.
@@ -1417,7 +1424,7 @@ confirmed the acceptance with Stele.
 > Installing `@stelehq/sdk` and bundling it with your app pins the code to the version you reviewed.
 
 > [!DETAILS] What a signature proves
-> Stele proves that a specific key (a wallet, or a passkey-protected signer) signed acceptance of a
+> Stele proves that a specific key (a wallet or a passkey) signed acceptance of a
 > specific, unaltered document version, once, at a recorded time. It does not prove who controls the
 > key; link acceptances to your own users (step 8) when that matters. Whether an agreement is
 > enforceable depends on the applicable law and circumstances. Stele does not provide legal advice.
