@@ -12,6 +12,18 @@ allowBuilds:
   unrs-resolver: true
   "@tailwindcss/oxide": true
 
+# Patched releases of vulnerable transitive dependencies (pnpm audit, high severity).
+overrides:
+  source-map-js: ">=1.2.2"
+  basic-ftp: ">=6.2.1"
+
+# extract-zip has no fixed release. Only @puppeteer/browsers' browser download reaches it, and the
+# PDF renderer never downloads a browser: it launches the system Chrome (executablePath).
+auditConfig:
+  ignoreGhsas:
+    - GHSA-jmr9-qjv8-65gv
+    - GHSA-7pqw-9j4j-h8q3
+
 minimumReleaseAgeExclude:
   - "@solana/accounts@8.4.0"
   - "@solana/addresses@8.4.0"
