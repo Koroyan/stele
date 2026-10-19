@@ -71,6 +71,10 @@ export default async function PricingPage() {
     (min, p) => Math.min(min ?? Infinity, Math.round(p.lamports / p.credits)),
     null,
   );
+  const dearest = packs.reduce<number | null>(
+    (max, p) => Math.max(max ?? 0, Math.round(p.lamports / p.credits)),
+    null,
+  );
   const test = billing !== null && billing.network.cluster !== "mainnet";
 
   const plans = [
@@ -90,8 +94,11 @@ export default async function PricingPage() {
     },
     {
       name: "Pay as you go",
-      price: cheapest !== null ? sol(cheapest, 9) : "Credits",
-      unit: "per recording, beyond the free allowance",
+      price: cheapest !== null ? `from ${sol(cheapest, 9)}` : "Credits",
+      unit:
+        dearest !== null && dearest !== cheapest
+          ? `per recording with the largest pack (${sol(dearest, 9)} with the smallest), beyond the free allowance`
+          : "per recording, beyond the free allowance",
       description: "Prepaid credits in SOL, one per recording. They never expire.",
       // Purchases switched off on this app: say so instead of leading to a page that can't sell.
       cta: billing?.enabled
